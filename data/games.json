@@ -2,96 +2,195 @@
   "game_types": [
     {
       "id": "1",
-      "name": "Laser Tag",
-      "description": "Fast-paced team combat with laser equipment"
+      "name": "Mystery",
+      "description": "Immersive mystery adventures with puzzles and investigations"
     },
     {
       "id": "2",
-      "name": "Airsoft",
-      "description": "Tactical gameplay with airsoft guns and realistic scenarios"
+      "name": "TagQuest",
+      "description": "Action-packed quest missions with tactical challenges"
     }
   ],
   "scenarios": [
     {
       "id": "1",
       "game_type_id": "1",
-      "title": "Team Deathmatch",
-      "description": "Classic team vs team combat. Eliminate the enemy team to win.",
-      "difficulty": "Easy",
-      "duration_minutes": 15,
-      "image_url": "https://images.pexels.com/photos/7195279/pexels-photo-7195279.jpeg"
+      "title": "La Cuisine de Mamie Citrouille",
+      "description": "A mysterious adventure in Grandma Pumpkin's enchanted kitchen.",
+      "difficulty": "Medium",
+      "duration_minutes": 30,
+      "image_url": "https://images.pexels.com/photos/1121123/pexels-photo-1121123.jpeg"
     },
     {
       "id": "2",
       "game_type_id": "1",
-      "title": "Capture the Flag",
-      "description": "Infiltrate enemy territory and capture their flag while defending yours.",
+      "title": "L'Académie des Sorciers",
+      "description": "Enter the magical academy and uncover its secrets.",
       "difficulty": "Medium",
-      "duration_minutes": 20,
-      "image_url": "https://images.pexels.com/photos/3621104/pexels-photo-3621104.jpeg"
+      "duration_minutes": 35,
+      "image_url": "https://images.pexels.com/photos/4473494/pexels-photo-4473494.jpeg"
     },
     {
       "id": "3",
       "game_type_id": "1",
-      "title": "Domination",
-      "description": "Control strategic points on the map to accumulate points.",
-      "difficulty": "Medium",
-      "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/6334069/pexels-photo-6334069.jpeg"
+      "title": "Le Portail des Ombres",
+      "description": "Navigate through the mysterious shadow portal.",
+      "difficulty": "Hard",
+      "duration_minutes": 40,
+      "image_url": "https://images.pexels.com/photos/3617500/pexels-photo-3617500.jpeg"
     },
     {
       "id": "4",
       "game_type_id": "1",
-      "title": "VIP Escort",
-      "description": "One team protects a VIP while the other team tries to eliminate them.",
+      "title": "Bienvenue à Keyhouse",
+      "description": "Unlock the secrets of the mysterious Keyhouse mansion.",
       "difficulty": "Hard",
-      "duration_minutes": 20,
-      "image_url": "https://images.pexels.com/photos/7195265/pexels-photo-7195265.jpeg"
+      "duration_minutes": 40,
+      "image_url": "https://images.pexels.com/photos/1643389/pexels-photo-1643389.jpeg"
     },
     {
       "id": "5",
       "game_type_id": "1",
-      "title": "Infection",
-      "description": "Survivors vs infected. Tagged players join the infected team.",
-      "difficulty": "Easy",
-      "duration_minutes": 15,
-      "image_url": "https://images.pexels.com/photos/7195334/pexels-photo-7195334.jpeg"
+      "title": "L'Odyssée Spatiale",
+      "description": "Embark on a thrilling space mystery adventure.",
+      "difficulty": "Medium",
+      "duration_minutes": 35,
+      "image_url": "https://images.pexels.com/photos/2166711/pexels-photo-2166711.jpeg"
     },
     {
       "id": "6",
-      "game_type_id": "2",
-      "title": "Search and Destroy",
-      "description": "Attackers plant a bomb while defenders try to prevent it.",
+      "game_type_id": "1",
+      "title": "La Malédiction du Kraken",
+      "description": "Solve the curse of the legendary sea monster.",
       "difficulty": "Hard",
-      "duration_minutes": 30,
-      "image_url": "https://images.pexels.com/photos/8728555/pexels-photo-8728555.jpeg"
+      "duration_minutes": 40,
+      "image_url": "https://images.pexels.com/photos/3155726/pexels-photo-3155726.jpeg"
     },
     {
       "id": "7",
-      "game_type_id": "2",
-      "title": "Hostage Rescue",
-      "description": "Special forces must rescue hostages from enemy territory.",
+      "game_type_id": "1",
+      "title": "Les Reliques de Toutankhamon",
+      "description": "Discover the ancient Egyptian relics and their mysteries.",
       "difficulty": "Hard",
-      "duration_minutes": 35,
-      "image_url": "https://images.pexels.com/photos/8728380/pexels-photo-8728380.jpeg"
+      "duration_minutes": 45,
+      "image_url": "https://images.pexels.com/photos/7740174/pexels-photo-7740174.jpeg"
     },
     {
       "id": "8",
-      "game_type_id": "2",
-      "title": "Milsim Operation",
-      "description": "Military simulation with realistic tactics and communication.",
-      "difficulty": "Hard",
-      "duration_minutes": 60,
-      "image_url": "https://images.pexels.com/photos/1670732/pexels-photo-1670732.jpeg"
+      "game_type_id": "1",
+      "title": "Potion Z",
+      "description": "A fun mystery adventure perfect for children to create magical potions.",
+      "difficulty": "Easy",
+      "duration_minutes": 25,
+      "image_url": "https://images.pexels.com/photos/6646920/pexels-photo-6646920.jpeg"
     },
     {
       "id": "9",
-      "game_type_id": "2",
-      "title": "King of the Hill",
-      "description": "Teams fight to control a central position on the battlefield.",
-      "difficulty": "Medium",
+      "game_type_id": "1",
+      "title": "Monster Party",
+      "description": "Join the monsters for a mysterious party full of surprises.",
+      "difficulty": "Easy",
       "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/8728398/pexels-photo-8728398.jpeg"
+      "image_url": "https://images.pexels.com/photos/3297883/pexels-photo-3297883.jpeg"
+    },
+    {
+      "id": "10",
+      "game_type_id": "1",
+      "title": "Mission Antidote",
+      "description": "Race against time to find the cure and save everyone.",
+      "difficulty": "Medium",
+      "duration_minutes": 30,
+      "image_url": "https://images.pexels.com/photos/3825368/pexels-photo-3825368.jpeg"
+    },
+    {
+      "id": "11",
+      "game_type_id": "2",
+      "title": "Bonbons en Folie",
+      "description": "A sweet adventure quest to collect magical candies.",
+      "difficulty": "Easy",
+      "duration_minutes": 25,
+      "image_url": "https://images.pexels.com/photos/3081657/pexels-photo-3081657.jpeg"
+    },
+    {
+      "id": "12",
+      "game_type_id": "2",
+      "title": "Monstropolis",
+      "description": "Navigate through the monster city on an epic quest.",
+      "difficulty": "Medium",
+      "duration_minutes": 30,
+      "image_url": "https://images.pexels.com/photos/2291790/pexels-photo-2291790.jpeg"
+    },
+    {
+      "id": "13",
+      "game_type_id": "2",
+      "title": "Les Aventuriers de l'Arche Sacrée",
+      "description": "Search for the legendary sacred ark in this action quest.",
+      "difficulty": "Hard",
+      "duration_minutes": 40,
+      "image_url": "https://images.pexels.com/photos/1770809/pexels-photo-1770809.jpeg"
+    },
+    {
+      "id": "14",
+      "game_type_id": "2",
+      "title": "Alchimiste: La Quête de l'Élixir",
+      "description": "Become an alchemist and quest for the legendary elixir.",
+      "difficulty": "Medium",
+      "duration_minutes": 35,
+      "image_url": "https://images.pexels.com/photos/4021871/pexels-photo-4021871.jpeg"
+    },
+    {
+      "id": "15",
+      "game_type_id": "2",
+      "title": "Le Safari des Animaux",
+      "description": "Embark on an exciting animal safari quest adventure.",
+      "difficulty": "Easy",
+      "duration_minutes": 25,
+      "image_url": "https://images.pexels.com/photos/3551498/pexels-photo-3551498.jpeg"
+    },
+    {
+      "id": "16",
+      "game_type_id": "2",
+      "title": "Stranger Day",
+      "description": "Experience mysterious events in this thrilling quest.",
+      "difficulty": "Hard",
+      "duration_minutes": 40,
+      "image_url": "https://images.pexels.com/photos/1421903/pexels-photo-1421903.jpeg"
+    },
+    {
+      "id": "17",
+      "game_type_id": "2",
+      "title": "L'École des Sorciers",
+      "description": "Complete magical quests at the wizarding school.",
+      "difficulty": "Medium",
+      "duration_minutes": 35,
+      "image_url": "https://images.pexels.com/photos/159751/book-address-book-learning-learn-159751.jpeg"
+    },
+    {
+      "id": "18",
+      "game_type_id": "2",
+      "title": "La Guerre des Trônes",
+      "description": "Fight for the throne in this epic medieval quest.",
+      "difficulty": "Hard",
+      "duration_minutes": 45,
+      "image_url": "https://images.pexels.com/photos/2219118/pexels-photo-2219118.jpeg"
+    },
+    {
+      "id": "19",
+      "game_type_id": "2",
+      "title": "Zombie Apocalypse",
+      "description": "Survive the zombie outbreak in this intense quest for teens and adults.",
+      "difficulty": "Hard",
+      "duration_minutes": 45,
+      "image_url": "https://images.pexels.com/photos/2291791/pexels-photo-2291791.jpeg"
+    },
+    {
+      "id": "20",
+      "game_type_id": "2",
+      "title": "Monster Kids Apocalypse",
+      "description": "A kid-friendly monster adventure quest.",
+      "difficulty": "Medium",
+      "duration_minutes": 30,
+      "image_url": "https://images.pexels.com/photos/3297881/pexels-photo-3297881.jpeg"
     }
   ]
 }

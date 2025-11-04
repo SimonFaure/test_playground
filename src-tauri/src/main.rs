@@ -64,22 +64,33 @@ fn seed_data(conn: &Connection) -> SqliteResult<()> {
     if count == 0 {
         conn.execute(
             "INSERT INTO game_types (id, name, description) VALUES
-            ('1', 'Laser Tag', 'Fast-paced team combat with laser equipment'),
-            ('2', 'Airsoft', 'Tactical gameplay with airsoft guns and realistic scenarios')",
+            ('1', 'Mystery', 'Immersive mystery adventures with puzzles and investigations'),
+            ('2', 'TagQuest', 'Action-packed quest missions with tactical challenges')",
             [],
         )?;
 
         conn.execute(
             "INSERT INTO scenarios (id, game_type_id, title, description, difficulty, duration_minutes, image_url) VALUES
-            ('1', '1', 'Team Deathmatch', 'Classic team vs team combat. Eliminate the enemy team to win.', 'Easy', 15, 'https://images.pexels.com/photos/7195279/pexels-photo-7195279.jpeg'),
-            ('2', '1', 'Capture the Flag', 'Infiltrate enemy territory and capture their flag while defending yours.', 'Medium', 20, 'https://images.pexels.com/photos/3621104/pexels-photo-3621104.jpeg'),
-            ('3', '1', 'Domination', 'Control strategic points on the map to accumulate points.', 'Medium', 25, 'https://images.pexels.com/photos/6334069/pexels-photo-6334069.jpeg'),
-            ('4', '1', 'VIP Escort', 'One team protects a VIP while the other team tries to eliminate them.', 'Hard', 20, 'https://images.pexels.com/photos/7195265/pexels-photo-7195265.jpeg'),
-            ('5', '1', 'Infection', 'Survivors vs infected. Tagged players join the infected team.', 'Easy', 15, 'https://images.pexels.com/photos/7195334/pexels-photo-7195334.jpeg'),
-            ('6', '2', 'Search and Destroy', 'Attackers plant a bomb while defenders try to prevent it.', 'Hard', 30, 'https://images.pexels.com/photos/8728555/pexels-photo-8728555.jpeg'),
-            ('7', '2', 'Hostage Rescue', 'Special forces must rescue hostages from enemy territory.', 'Hard', 35, 'https://images.pexels.com/photos/8728380/pexels-photo-8728380.jpeg'),
-            ('8', '2', 'Milsim Operation', 'Military simulation with realistic tactics and communication.', 'Hard', 60, 'https://images.pexels.com/photos/1670732/pexels-photo-1670732.jpeg'),
-            ('9', '2', 'King of the Hill', 'Teams fight to control a central position on the battlefield.', 'Medium', 25, 'https://images.pexels.com/photos/8728398/pexels-photo-8728398.jpeg')",
+            ('1', '1', 'La Cuisine de Mamie Citrouille', 'A mysterious adventure in Grandma Pumpkin''s enchanted kitchen.', 'Medium', 30, 'https://images.pexels.com/photos/1121123/pexels-photo-1121123.jpeg'),
+            ('2', '1', 'L''Académie des Sorciers', 'Enter the magical academy and uncover its secrets.', 'Medium', 35, 'https://images.pexels.com/photos/4473494/pexels-photo-4473494.jpeg'),
+            ('3', '1', 'Le Portail des Ombres', 'Navigate through the mysterious shadow portal.', 'Hard', 40, 'https://images.pexels.com/photos/3617500/pexels-photo-3617500.jpeg'),
+            ('4', '1', 'Bienvenue à Keyhouse', 'Unlock the secrets of the mysterious Keyhouse mansion.', 'Hard', 40, 'https://images.pexels.com/photos/1643389/pexels-photo-1643389.jpeg'),
+            ('5', '1', 'L''Odyssée Spatiale', 'Embark on a thrilling space mystery adventure.', 'Medium', 35, 'https://images.pexels.com/photos/2166711/pexels-photo-2166711.jpeg'),
+            ('6', '1', 'La Malédiction du Kraken', 'Solve the curse of the legendary sea monster.', 'Hard', 40, 'https://images.pexels.com/photos/3155726/pexels-photo-3155726.jpeg'),
+            ('7', '1', 'Les Reliques de Toutankhamon', 'Discover the ancient Egyptian relics and their mysteries.', 'Hard', 45, 'https://images.pexels.com/photos/7740174/pexels-photo-7740174.jpeg'),
+            ('8', '1', 'Potion Z', 'A fun mystery adventure perfect for children to create magical potions.', 'Easy', 25, 'https://images.pexels.com/photos/6646920/pexels-photo-6646920.jpeg'),
+            ('9', '1', 'Monster Party', 'Join the monsters for a mysterious party full of surprises.', 'Easy', 25, 'https://images.pexels.com/photos/3297883/pexels-photo-3297883.jpeg'),
+            ('10', '1', 'Mission Antidote', 'Race against time to find the cure and save everyone.', 'Medium', 30, 'https://images.pexels.com/photos/3825368/pexels-photo-3825368.jpeg'),
+            ('11', '2', 'Bonbons en Folie', 'A sweet adventure quest to collect magical candies.', 'Easy', 25, 'https://images.pexels.com/photos/3081657/pexels-photo-3081657.jpeg'),
+            ('12', '2', 'Monstropolis', 'Navigate through the monster city on an epic quest.', 'Medium', 30, 'https://images.pexels.com/photos/2291790/pexels-photo-2291790.jpeg'),
+            ('13', '2', 'Les Aventuriers de l''Arche Sacrée', 'Search for the legendary sacred ark in this action quest.', 'Hard', 40, 'https://images.pexels.com/photos/1770809/pexels-photo-1770809.jpeg'),
+            ('14', '2', 'Alchimiste: La Quête de l''Élixir', 'Become an alchemist and quest for the legendary elixir.', 'Medium', 35, 'https://images.pexels.com/photos/4021871/pexels-photo-4021871.jpeg'),
+            ('15', '2', 'Le Safari des Animaux', 'Embark on an exciting animal safari quest adventure.', 'Easy', 25, 'https://images.pexels.com/photos/3551498/pexels-photo-3551498.jpeg'),
+            ('16', '2', 'Stranger Day', 'Experience mysterious events in this thrilling quest.', 'Hard', 40, 'https://images.pexels.com/photos/1421903/pexels-photo-1421903.jpeg'),
+            ('17', '2', 'L''École des Sorciers', 'Complete magical quests at the wizarding school.', 'Medium', 35, 'https://images.pexels.com/photos/159751/book-address-book-learning-learn-159751.jpeg'),
+            ('18', '2', 'La Guerre des Trônes', 'Fight for the throne in this epic medieval quest.', 'Hard', 45, 'https://images.pexels.com/photos/2219118/pexels-photo-2219118.jpeg'),
+            ('19', '2', 'Zombie Apocalypse', 'Survive the zombie outbreak in this intense quest for teens and adults.', 'Hard', 45, 'https://images.pexels.com/photos/2291791/pexels-photo-2291791.jpeg'),
+            ('20', '2', 'Monster Kids Apocalypse', 'A kid-friendly monster adventure quest.', 'Medium', 30, 'https://images.pexels.com/photos/3297881/pexels-photo-3297881.jpeg')",
             [],
         )?;
     }

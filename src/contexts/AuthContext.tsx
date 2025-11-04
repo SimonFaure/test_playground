@@ -1,17 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { db } from '../lib/db';
-
-interface User {
-  id: number;
-  username: string;
-  created_at: string;
-}
+import { supabase } from '../lib/db';
+import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (username: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -22,42 +17,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (username: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const result = await db.login(username, password);
-      if (result.success && result.user) {
-        setUser(result.user);
-        localStorage.setItem('user', JSON.stringify(result.user));
-        return { error: null };
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        return { error };
       }
-      return { error: new Error(result.error || 'Login failed') };
+      return { error: null };
     } catch (error) {
       return { error: error as Error };
     }
   };
 
-  const signUp = async (username: string, password: string) => {
+  const signUp = async (email: string, password: string) => {
     try {
-      const result = await db.register(username, password);
-      if (result.success) {
-        return await signIn(username, password);
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) {
+        return { error };
       }
-      return { error: new Error(result.error || 'Registration failed') };
+      return { error: null };
     } catch (error) {
       return { error: error as Error };
     }
   };
 
   const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    await supabase.auth.signOut();
   };
 
   return (

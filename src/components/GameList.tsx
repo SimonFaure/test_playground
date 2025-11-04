@@ -79,7 +79,7 @@ export function GameList() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>
             <div className="flex items-center gap-4">
-              <span className="text-slate-400 text-sm">{user?.username}</span>
+              <span className="text-slate-400 text-sm">{user?.email}</span>
               <button
                 onClick={() => signOut()}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"

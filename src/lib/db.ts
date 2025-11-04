@@ -1,44 +1,38 @@
-declare global {
-  interface Window {
-    electron: {
-      getComputerName: () => Promise<string>;
-      db: {
-        register: (username: string, password: string) => Promise<{ success: boolean; userId?: number; error?: string }>;
-        login: (username: string, password: string) => Promise<{ success: boolean; user?: any; error?: string }>;
-        getGameTypes: () => Promise<any[]>;
-        getScenarios: (gameTypeId?: number) => Promise<any[]>;
-      };
-    };
-  }
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../types/database';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
 }
 
-const isElectron = () => {
-  return typeof window !== 'undefined' && window.electron !== undefined;
-};
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 export const db = {
-  register: async (username: string, password: string) => {
-    if (!isElectron()) {
-      throw new Error('Database operations are only available in Electron');
-    }
-    return window.electron.db.register(username, password);
-  },
-  login: async (username: string, password: string) => {
-    if (!isElectron()) {
-      throw new Error('Database operations are only available in Electron');
-    }
-    return window.electron.db.login(username, password);
-  },
   getGameTypes: async () => {
-    if (!isElectron()) {
-      throw new Error('Database operations are only available in Electron');
-    }
-    return window.electron.db.getGameTypes();
+    const { data, error } = await supabase
+      .from('game_types')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
   },
-  getScenarios: async (gameTypeId?: number) => {
-    if (!isElectron()) {
-      throw new Error('Database operations are only available in Electron');
+  getScenarios: async (gameTypeId?: string) => {
+    let query = supabase
+      .from('scenarios')
+      .select('*')
+      .order('title');
+
+    if (gameTypeId) {
+      query = query.eq('game_type_id', gameTypeId);
     }
-    return window.electron.db.getScenarios(gameTypeId);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
   },
 };

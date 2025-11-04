@@ -19,7 +19,7 @@
       "description": "A mysterious adventure in Grandma Pumpkin's enchanted kitchen.",
       "difficulty": "Medium",
       "duration_minutes": 30,
-      "image_url": "https://images.pexels.com/photos/1121123/pexels-photo-1121123.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2025/09/mamie-citrouille-carre-300x300.png"
     },
     {
       "id": "2",
@@ -28,7 +28,7 @@
       "description": "Enter the magical academy and uncover its secrets.",
       "difficulty": "Medium",
       "duration_minutes": 35,
-      "image_url": "https://images.pexels.com/photos/4473494/pexels-photo-4473494.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2025/09/Academie-sorciers-carre-300x300.png"
     },
     {
       "id": "3",
@@ -37,7 +37,7 @@
       "description": "Navigate through the mysterious shadow portal.",
       "difficulty": "Hard",
       "duration_minutes": 40,
-      "image_url": "https://images.pexels.com/photos/3617500/pexels-photo-3617500.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2025/09/portail-ombres-carre-300x300.png"
     },
     {
       "id": "4",
@@ -46,7 +46,7 @@
       "description": "Unlock the secrets of the mysterious Keyhouse mansion.",
       "difficulty": "Hard",
       "duration_minutes": 40,
-      "image_url": "https://images.pexels.com/photos/1643389/pexels-photo-1643389.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/09/keyhouse-carre-300x300.png"
     },
     {
       "id": "5",
@@ -55,7 +55,7 @@
       "description": "Embark on a thrilling space mystery adventure.",
       "difficulty": "Medium",
       "duration_minutes": 35,
-      "image_url": "https://images.pexels.com/photos/2166711/pexels-photo-2166711.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/09/Odyssee-carre-300x300.png"
     },
     {
       "id": "6",
@@ -64,7 +64,7 @@
       "description": "Solve the curse of the legendary sea monster.",
       "difficulty": "Hard",
       "duration_minutes": 40,
-      "image_url": "https://images.pexels.com/photos/3155726/pexels-photo-3155726.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/malediction-kraken-carre-300x300.png"
     },
     {
       "id": "7",
@@ -73,7 +73,7 @@
       "description": "Discover the ancient Egyptian relics and their mysteries.",
       "difficulty": "Hard",
       "duration_minutes": 45,
-      "image_url": "https://images.pexels.com/photos/7740174/pexels-photo-7740174.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/Reliques-toutankhamon-carre-300x300.png"
     },
     {
       "id": "8",
@@ -82,7 +82,7 @@
       "description": "A fun mystery adventure perfect for children to create magical potions.",
       "difficulty": "Easy",
       "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/6646920/pexels-photo-6646920.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/potion-z-carre-300x300.png"
     },
     {
       "id": "9",
@@ -91,7 +91,7 @@
       "description": "Join the monsters for a mysterious party full of surprises.",
       "difficulty": "Easy",
       "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/3297883/pexels-photo-3297883.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/monster-party-carre-300x300.png"
     },
     {
       "id": "10",
@@ -100,7 +100,7 @@
       "description": "Race against time to find the cure and save everyone.",
       "difficulty": "Medium",
       "duration_minutes": 30,
-      "image_url": "https://images.pexels.com/photos/3825368/pexels-photo-3825368.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/antidote-carre-300x300.png"
     },
     {
       "id": "11",
@@ -109,7 +109,7 @@
       "description": "A sweet adventure quest to collect magical candies.",
       "difficulty": "Easy",
       "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/3081657/pexels-photo-3081657.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2025/09/bonbons-en-folie-carre-300x300.png"
     },
     {
       "id": "12",
@@ -118,7 +118,7 @@
       "description": "Navigate through the monster city on an epic quest.",
       "difficulty": "Medium",
       "duration_minutes": 30,
-      "image_url": "https://images.pexels.com/photos/2291790/pexels-photo-2291790.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2025/04/Monstropolis-carre-300x300.png"
     },
     {
       "id": "13",
@@ -127,7 +127,7 @@
       "description": "Search for the legendary sacred ark in this action quest.",
       "difficulty": "Hard",
       "duration_minutes": 40,
-      "image_url": "https://images.pexels.com/photos/1770809/pexels-photo-1770809.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/09/aventuriers-carre-300x300.png"
     },
     {
       "id": "14",
@@ -136,7 +136,7 @@
       "description": "Become an alchemist and quest for the legendary elixir.",
       "difficulty": "Medium",
       "duration_minutes": 35,
-      "image_url": "https://images.pexels.com/photos/4021871/pexels-photo-4021871.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/09/alchimiste-carre-300x300.png"
     },
     {
       "id": "15",
@@ -145,7 +145,7 @@
       "description": "Embark on an exciting animal safari quest adventure.",
       "difficulty": "Easy",
       "duration_minutes": 25,
-      "image_url": "https://images.pexels.com/photos/3551498/pexels-photo-3551498.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/09/Safari-carre-300x300.png"
     },
     {
       "id": "16",
@@ -154,7 +154,7 @@
       "description": "Experience mysterious events in this thrilling quest.",
       "difficulty": "Hard",
       "duration_minutes": 40,
-      "image_url": "https://images.pexels.com/photos/1421903/pexels-photo-1421903.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2023/10/Stranger-day-carre-1-300x300.png"
     },
     {
       "id": "17",
@@ -163,7 +163,7 @@
       "description": "Complete magical quests at the wizarding school.",
       "difficulty": "Medium",
       "duration_minutes": 35,
-      "image_url": "https://images.pexels.com/photos/159751/book-address-book-learning-learn-159751.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/Ecole-des-Sorciers-carre-300x300.png"
     },
     {
       "id": "18",
@@ -172,7 +172,7 @@
       "description": "Fight for the throne in this epic medieval quest.",
       "difficulty": "Hard",
       "duration_minutes": 45,
-      "image_url": "https://images.pexels.com/photos/2219118/pexels-photo-2219118.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/Guerre-des-Trones-Long-300x300.png"
     },
     {
       "id": "19",
@@ -181,7 +181,7 @@
       "description": "Survive the zombie outbreak in this intense quest for teens and adults.",
       "difficulty": "Hard",
       "duration_minutes": 45,
-      "image_url": "https://images.pexels.com/photos/2291791/pexels-photo-2291791.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/Zombie-Apo-carre-300x300.png"
     },
     {
       "id": "20",
@@ -190,7 +190,7 @@
       "description": "A kid-friendly monster adventure quest.",
       "difficulty": "Medium",
       "duration_minutes": 30,
-      "image_url": "https://images.pexels.com/photos/3297881/pexels-photo-3297881.jpeg"
+      "image_url": "https://taghunter.fr/wp-content/uploads/2024/04/Plan-de-travail-2-300x300.png"
     }
   ]
 }

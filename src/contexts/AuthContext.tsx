@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../lib/db';
-import type { User } from '@supabase/supabase-js';
+import { db } from '../lib/db';
+
+interface User {
+  id: number;
+  email: string;
+  created_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -17,30 +22,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        return { error };
+      const result = await db.login(email, password);
+      if (result.success && result.user) {
+        setUser(result.user as User);
+        localStorage.setItem('user', JSON.stringify(result.user));
+        return { error: null };
       }
-      return { error: null };
+      return { error: new Error(result.error || 'Login failed') };
     } catch (error) {
       return { error: error as Error };
     }
@@ -48,21 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (error) {
-        return { error };
+      const result = await db.register(email, password);
+      if (result.success) {
+        return { error: null };
       }
-      return { error: null };
+      return { error: new Error(result.error || 'Registration failed') };
     } catch (error) {
       return { error: error as Error };
     }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setUser(null);
+    localStorage.removeItem('user');
   };
 
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Clock, Search, LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
@@ -22,16 +22,19 @@ export function GameList() {
 
   const loadScenarios = async () => {
     try {
-      const { data, error } = await supabase
-        .from('scenarios')
-        .select(`
-          *,
-          game_type:game_types(*)
-        `)
-        .order('created_at', { ascending: false });
+      const [scenariosData, gameTypesData] = await Promise.all([
+        db.getScenarios(),
+        db.getGameTypes()
+      ]);
 
-      if (error) throw error;
-      setScenarios(data as ScenarioWithType[]);
+      const gameTypesMap = new Map(gameTypesData.map((gt: any) => [gt.id, gt]));
+
+      const scenariosWithTypes = scenariosData.map((scenario: any) => ({
+        ...scenario,
+        game_type: gameTypesMap.get(scenario.game_type_id)
+      }));
+
+      setScenarios(scenariosWithTypes);
     } catch (error) {
       console.error('Error loading scenarios:', error);
     } finally {
@@ -76,7 +79,7 @@ export function GameList() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>
             <div className="flex items-center gap-4">
-              <span className="text-slate-400 text-sm">{user?.email}</span>
+              <span className="text-slate-400 text-sm">{user?.username}</span>
               <button
                 onClick={() => signOut()}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"

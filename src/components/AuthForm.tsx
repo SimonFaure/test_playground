@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,8 +16,8 @@ export function AuthForm() {
     setLoading(true);
 
     const { error } = isLogin
-      ? await signIn(email, password)
-      : await signUp(email, password);
+      ? await signIn(username, password)
+      : await signUp(username, password);
 
     if (error) {
       setError(error.message);
@@ -42,17 +42,17 @@ export function AuthForm() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
+                Username
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="you@example.com"
+                placeholder="username"
               />
             </div>
 

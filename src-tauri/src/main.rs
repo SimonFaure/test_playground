@@ -4,14 +4,6 @@ use std::sync::Mutex;
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct User {
-    id: i64,
-    email: String,
-    password_hash: String,
-    created_at: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct GameType {
     id: String,
     name: String,
@@ -36,16 +28,6 @@ struct AppState {
 }
 
 fn init_database(conn: &Connection) -> SqliteResult<()> {
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )",
-        [],
-    )?;
-
     conn.execute(
         "CREATE TABLE IF NOT EXISTS game_types (
             id TEXT PRIMARY KEY,
@@ -103,45 +85,6 @@ fn seed_data(conn: &Connection) -> SqliteResult<()> {
     }
 
     Ok(())
-}
-
-#[tauri::command]
-fn register(state: State<AppState>, email: String, password: String) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
-
-    let password_hash = format!("hash_{}", password);
-
-    match conn.execute(
-        "INSERT INTO users (email, password_hash) VALUES (?1, ?2)",
-        params![email, password_hash],
-    ) {
-        Ok(_) => Ok("Registration successful".to_string()),
-        Err(e) => Err(format!("Registration failed: {}", e)),
-    }
-}
-
-#[tauri::command]
-fn login(state: State<AppState>, email: String, password: String) -> Result<serde_json::Value, String> {
-    let conn = state.db.lock().unwrap();
-
-    let password_hash = format!("hash_{}", password);
-
-    let result = conn.query_row(
-        "SELECT id, email, created_at FROM users WHERE email = ?1 AND password_hash = ?2",
-        params![email, password_hash],
-        |row| {
-            Ok(serde_json::json!({
-                "id": row.get::<_, i64>(0)?,
-                "email": row.get::<_, String>(1)?,
-                "created_at": row.get::<_, String>(2)?
-            }))
-        },
-    );
-
-    match result {
-        Ok(user) => Ok(user),
-        Err(_) => Err("Invalid email or password".to_string()),
-    }
 }
 
 #[tauri::command]
@@ -231,8 +174,6 @@ pub fn run() {
             db: Mutex::new(conn),
         })
         .invoke_handler(tauri::generate_handler![
-            register,
-            login,
             get_game_types,
             get_scenarios
         ])

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Clock, Search, LogOut } from 'lucide-react';
+import { Clock, Search } from 'lucide-react';
 import { db } from '../lib/db';
-import { useAuth } from '../contexts/AuthContext';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
 
@@ -14,7 +13,6 @@ export function GameList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
-  const { signOut, user } = useAuth();
 
   useEffect(() => {
     loadScenarios();
@@ -76,19 +74,7 @@ export function GameList() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
       <header className="bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-slate-400 text-sm">{user?.email}</span>
-              <button
-                onClick={() => signOut()}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
-              >
-                <LogOut size={18} />
-                Sign Out
-              </button>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>
         </div>
       </header>
 

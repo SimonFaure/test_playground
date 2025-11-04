@@ -1,0 +1,97 @@
+{
+  "game_types": [
+    {
+      "id": "1",
+      "name": "Laser Tag",
+      "description": "Fast-paced team combat with laser equipment"
+    },
+    {
+      "id": "2",
+      "name": "Airsoft",
+      "description": "Tactical gameplay with airsoft guns and realistic scenarios"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "1",
+      "game_type_id": "1",
+      "title": "Team Deathmatch",
+      "description": "Classic team vs team combat. Eliminate the enemy team to win.",
+      "difficulty": "Easy",
+      "duration_minutes": 15,
+      "image_url": "https://images.pexels.com/photos/7195279/pexels-photo-7195279.jpeg"
+    },
+    {
+      "id": "2",
+      "game_type_id": "1",
+      "title": "Capture the Flag",
+      "description": "Infiltrate enemy territory and capture their flag while defending yours.",
+      "difficulty": "Medium",
+      "duration_minutes": 20,
+      "image_url": "https://images.pexels.com/photos/3621104/pexels-photo-3621104.jpeg"
+    },
+    {
+      "id": "3",
+      "game_type_id": "1",
+      "title": "Domination",
+      "description": "Control strategic points on the map to accumulate points.",
+      "difficulty": "Medium",
+      "duration_minutes": 25,
+      "image_url": "https://images.pexels.com/photos/6334069/pexels-photo-6334069.jpeg"
+    },
+    {
+      "id": "4",
+      "game_type_id": "1",
+      "title": "VIP Escort",
+      "description": "One team protects a VIP while the other team tries to eliminate them.",
+      "difficulty": "Hard",
+      "duration_minutes": 20,
+      "image_url": "https://images.pexels.com/photos/7195265/pexels-photo-7195265.jpeg"
+    },
+    {
+      "id": "5",
+      "game_type_id": "1",
+      "title": "Infection",
+      "description": "Survivors vs infected. Tagged players join the infected team.",
+      "difficulty": "Easy",
+      "duration_minutes": 15,
+      "image_url": "https://images.pexels.com/photos/7195334/pexels-photo-7195334.jpeg"
+    },
+    {
+      "id": "6",
+      "game_type_id": "2",
+      "title": "Search and Destroy",
+      "description": "Attackers plant a bomb while defenders try to prevent it.",
+      "difficulty": "Hard",
+      "duration_minutes": 30,
+      "image_url": "https://images.pexels.com/photos/8728555/pexels-photo-8728555.jpeg"
+    },
+    {
+      "id": "7",
+      "game_type_id": "2",
+      "title": "Hostage Rescue",
+      "description": "Special forces must rescue hostages from enemy territory.",
+      "difficulty": "Hard",
+      "duration_minutes": 35,
+      "image_url": "https://images.pexels.com/photos/8728380/pexels-photo-8728380.jpeg"
+    },
+    {
+      "id": "8",
+      "game_type_id": "2",
+      "title": "Milsim Operation",
+      "description": "Military simulation with realistic tactics and communication.",
+      "difficulty": "Hard",
+      "duration_minutes": 60,
+      "image_url": "https://images.pexels.com/photos/1670732/pexels-photo-1670732.jpeg"
+    },
+    {
+      "id": "9",
+      "game_type_id": "2",
+      "title": "King of the Hill",
+      "description": "Teams fight to control a central position on the battlefield.",
+      "difficulty": "Medium",
+      "duration_minutes": 25,
+      "image_url": "https://images.pexels.com/photos/8728398/pexels-photo-8728398.jpeg"
+    }
+  ]
+}

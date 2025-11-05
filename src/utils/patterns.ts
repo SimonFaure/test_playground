@@ -31,7 +31,8 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
 export async function getGamePublic(uniqid: string): Promise<string | null> {
   const fs = window.require?.('fs');
   const path = window.require?.('path');
-
+  console.log('path');
+  console.log(path);
   if (!fs || !path) {
     console.log('Electron fs/path not available');
     return null;
@@ -50,7 +51,7 @@ export async function getGamePublic(uniqid: string): Promise<string | null> {
 
     for (const line of lines) {
       const parts = line.split(',');
-      console.log(parts[2]);
+    
       if (parts.length >= 4 && parts[2] === 'game_public') {
         console.log('Found game_public:', parts[3]);
         return parts[3].trim();

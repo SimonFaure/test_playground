@@ -22,6 +22,7 @@ export function GameList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
   const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
   const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
@@ -33,6 +34,7 @@ export function GameList() {
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
+    console.log('Local game IDs found:', ids);
     setLocalGameIds(new Set(ids));
   };
 
@@ -50,6 +52,7 @@ export function GameList() {
         game_type: gameTypesMap.get(scenario.game_type_id)
       }));
 
+      console.log('Scenarios with uniqids:', scenariosWithTypes.map(s => ({ title: s.title, uniqid: s.uniqid })));
       setScenarios(scenariosWithTypes);
     } catch (error) {
       console.error('Error loading scenarios:', error);
@@ -63,7 +66,8 @@ export function GameList() {
       const matchesSearch = scenario.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            scenario.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = selectedGameType === 'all' || scenario.game_type.name === selectedGameType;
-      return matchesSearch && matchesType;
+      const matchesDifficulty = selectedDifficulty === 'all' || scenario.difficulty.toLowerCase() === selectedDifficulty.toLowerCase();
+      return matchesSearch && matchesType && matchesDifficulty;
     })
     .sort((a, b) => {
       const aHasLocal = localGameIds.has(a.uniqid || '');
@@ -192,6 +196,16 @@ export function GameList() {
                 className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
+            <select
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              className="px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            >
+              <option value="all">All Difficulties</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedGameType('all')}
@@ -255,15 +269,15 @@ export function GameList() {
                     <Clock size={16} />
                     <span>{scenario.duration_minutes} minutes</span>
                   </div>
-                  {localGameIds.has(scenario.uniqid || '') && (
+                  {scenario.uniqid && localGameIds.has(scenario.uniqid) ? (
                     <button
                       onClick={() => handleLaunchGame(scenario.uniqid || '')}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
                     >
                       <Play size={16} />
                       Launch
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

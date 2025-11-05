@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Clock, Search, Upload, Play } from 'lucide-react';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
+import { LaunchGameModal, GameConfig } from './LaunchGameModal';
 import { validateAndExtractZip } from '../utils/zipHandler';
 import { getLocalGameIds } from '../utils/localGames';
 import gamesData from '../../data/games.json';
@@ -43,6 +44,8 @@ export function GameList() {
   const [isDragging, setIsDragging] = useState(false);
   const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
   const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
+  const [launchModalOpen, setLaunchModalOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<{ uniqid: string; title: string } | null>(null);
 
   useEffect(() => {
     loadScenarios();
@@ -173,8 +176,15 @@ export function GameList() {
     input.click();
   };
 
-  const handleLaunchGame = (uniqid: string) => {
-    console.log('Launching game:', uniqid);
+  const handleLaunchGame = (uniqid: string, title: string) => {
+    setSelectedGame({ uniqid, title });
+    setLaunchModalOpen(true);
+  };
+
+  const handleGameLaunch = (config: GameConfig) => {
+    console.log('Launching game with config:', selectedGame, config);
+    setLaunchModalOpen(false);
+    showAlert('success', `Game "${config.name}" launched successfully!`);
   };
 
   if (loading) {
@@ -297,7 +307,7 @@ export function GameList() {
                   </div>
                   {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
                     <button
-                      onClick={() => handleLaunchGame(scenario.uniqid || '')}
+                      onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title)}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
                     >
                       <Play size={16} />
@@ -343,6 +353,13 @@ export function GameList() {
       </main>
 
       <Footer />
+
+      <LaunchGameModal
+        isOpen={launchModalOpen}
+        onClose={() => setLaunchModalOpen(false)}
+        gameTitle={selectedGame?.title || ''}
+        onLaunch={handleGameLaunch}
+      />
     </div>
   );
 }

@@ -29,37 +29,24 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
 }
 
 export async function getGamePublic(uniqid: string): Promise<string | null> {
-  const fs = window.require?.('fs');
-  const path = window.require?.('path');
-
-  if (!fs || !path) {
-    console.warn('Cannot read CSV files: Electron fs/path modules not available. Run "npm run electron:dev" to enable file system access.');
-    return null;
-  }
-
   try {
-    const gameMetaPath = path.join(process.cwd(), 'data', 'games', uniqid, 'csv', 'game_meta.csv');
-
-    if (!fs.existsSync(gameMetaPath)) {
-      console.log('game_meta.csv does not exist:', gameMetaPath);
+    const response = await fetch(`/data/games/${uniqid}/game-data.json`);
+    if (!response.ok) {
+      console.warn(`Could not load game data for ${uniqid}`);
       return null;
     }
 
-    const content = fs.readFileSync(gameMetaPath, 'utf-8');
-    const lines = content.split('\n');
+    const gameData = await response.json();
+    const gamePublic = gameData?.game_meta?.game_public;
 
-    for (const line of lines) {
-      const parts = line.split(',');
-    
-      if (parts.length >= 4 && parts[2] === 'game_public') {
-        console.log('Found game_public:', parts[3]);
-        return parts[3].trim();
-      }
+    if (gamePublic) {
+      console.log('Found game_public:', gamePublic);
+      return gamePublic;
     }
 
     return null;
   } catch (error) {
-    console.error('Error reading game_meta.csv:', error);
+    console.error('Error reading game data:', error);
     return null;
   }
 }

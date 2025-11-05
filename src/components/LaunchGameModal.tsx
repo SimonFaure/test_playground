@@ -171,8 +171,15 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 ) : (
                   patternFolders.map(function(folder){
                    var selected = folder === defaultPattern ? 'selected' : '';
+                    console.log(folder);
                     console.log(selected);
-       
+                    <option
+                      key={folder}
+                      value={folder}
+                      {selected}
+                    >
+                      {folder}
+                    </option>
                   })
                 )}
               </select>

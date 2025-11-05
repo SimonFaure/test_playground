@@ -295,7 +295,7 @@ export function GameList() {
                     <Clock size={16} />
                     <span>{scenario.duration_minutes} minutes</span>
                   </div>
-                  {scenario.uniqid && localGameIds.has(scenario.uniqid) ? (
+                  {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
                     <button
                       onClick={() => handleLaunchGame(scenario.uniqid || '')}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"

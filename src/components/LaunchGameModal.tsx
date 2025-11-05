@@ -57,6 +57,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       const gamePublic = await getGamePublic(gameUniqid);
       console.log('game_public for game:', gameUniqid, '=', gamePublic);
       const pattern = gamePublic || folders[0] || '';
+       console.log('pattern:', pattern);
       setDefaultPattern(pattern);
     };
     loadData();

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
+import { usbReaderService, CardData, StationData } from '../services/usbReader';
+import { CardDetectionAlert } from './CardDetectionAlert';
 import '../mystery.css';
 
 interface MysteryGamePageProps {
@@ -50,6 +52,9 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   const [score, setScore] = useState(0);
   const [time, setTime] = useState(0);
   const [completedEnigmas, setCompletedEnigmas] = useState<Set<number>>(new Set());
+  const [lastCardData, setLastCardData] = useState<CardData | null>(null);
+  const [stations, setStations] = useState<StationData[]>([]);
+  const [showCardAlert, setShowCardAlert] = useState(false);
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -81,9 +86,46 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     setGameStarted(true);
+
+    if (config.usbPort) {
+      try {
+        const initialized = await usbReaderService.initializePort(config.usbPort);
+        if (initialized) {
+          usbReaderService.setCardDetectedCallback((card: CardData) => {
+            console.log('Card detected:', card);
+            setLastCardData(card);
+            setShowCardAlert(true);
+
+            setTimeout(() => {
+              setShowCardAlert(false);
+            }, 5000);
+          });
+
+          usbReaderService.setCardRemovedCallback(() => {
+            console.log('Card removed');
+            setShowCardAlert(false);
+          });
+
+          usbReaderService.setStationsDetectedCallback((detectedStations: StationData[]) => {
+            console.log('Stations detected:', detectedStations);
+            setStations(detectedStations);
+          });
+
+          await usbReaderService.start();
+        }
+      } catch (error) {
+        console.error('Error starting USB reader:', error);
+      }
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      usbReaderService.stop();
+    };
+  }, []);
 
   if (!gameData) {
     return (
@@ -101,6 +143,8 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
 
   return (
     <div className="game_page_wrapper game_page_wrapper_mystery" style={{ backgroundImage: `url(${backgroundImageUrl})` }}>
+      <CardDetectionAlert cardData={lastCardData} show={showCardAlert} />
+
       <header className="fixed top-0 left-0 right-0 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 z-50">
         <div className="container mx-auto px-6 py-4 flex items-center gap-4">
           <button

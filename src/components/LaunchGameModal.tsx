@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { getPatternFolders, getGamePublic } from '../utils/patterns';
+import { usbReaderService, USBPort } from '../services/usbReader';
 
 interface LaunchGameModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export interface GameConfig {
   colorblindMode: boolean;
   autoResetTeam: boolean;
   delayBeforeReset: number;
+  usbPort?: string;
 }
 
 export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTypeName, onLaunch }: LaunchGameModalProps) {
@@ -43,9 +45,11 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     colorblindMode: false,
     autoResetTeam: false,
     delayBeforeReset: 10,
+    usbPort: '',
   });
   const [patternFolders, setPatternFolders] = useState<string[]>([]);
   const [defaultPattern, setDefaultPattern] = useState<string>('');
+  const [usbPorts, setUsbPorts] = useState<USBPort[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,12 +57,19 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
 
       const folders = await getPatternFolders(gameTypeName);
       setPatternFolders(folders);
-       console.log(folders);
+      console.log(folders);
 
       const gamePublic = await getGamePublic(gameUniqid);
       console.log('game_public for game:', gameUniqid, '=', gamePublic);
       const pattern = gamePublic || folders[0] || '';
       setDefaultPattern(pattern);
+
+      try {
+        const ports = await usbReaderService.getAvailablePorts();
+        setUsbPorts(ports);
+      } catch (error) {
+        console.error('Error loading USB ports:', error);
+      }
     };
     loadData();
   }, [gameTypeName, gameUniqid]);
@@ -178,6 +189,25 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                     </option>
                   ))
                 )}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="usbPort" className="block text-sm font-medium text-slate-300">
+                USB Port
+              </label>
+              <select
+                id="usbPort"
+                value={config.usbPort}
+                onChange={(e) => setConfig({ ...config, usbPort: e.target.value })}
+                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">No USB Port (Testing Mode)</option>
+                {usbPorts.map((port) => (
+                  <option key={port.path} value={port.path}>
+                    {port.path} {port.manufacturer ? `- ${port.manufacturer}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
 

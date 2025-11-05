@@ -7,6 +7,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      external: ['serialport', 'node:readline', 'picocolors']
+    }
   },
   optimizeDeps: {
     exclude: ['lucide-react'],

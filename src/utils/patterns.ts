@@ -4,7 +4,7 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
 
   if (!fs || !path) {
     console.log('Electron fs/path not available, using default patterns');
-    return ['ado-adultes', 'kids', 'mini-kids'];
+    return ['ado_adultes', 'kids', 'mini_kids'];
   }
 
   try {
@@ -12,7 +12,7 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
 
     if (!fs.existsSync(patternsDir)) {
       console.log('Patterns directory does not exist:', patternsDir);
-      return ['ado-adultes', 'kids', 'mini-kids'];
+      return ['ado_adultes', 'kids', 'mini_kids'];
     }
 
     const folders = fs.readdirSync(patternsDir, { withFileTypes: true });
@@ -24,7 +24,7 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
     return patternFolders;
   } catch (error) {
     console.error('Error reading pattern folders:', error);
-    return ['ado-adultes', 'kids', 'mini-kids'];
+      return ['ado_adultes', 'kids', 'mini_kids'];
   }
 }
 

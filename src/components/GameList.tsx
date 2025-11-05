@@ -51,7 +51,7 @@ export function GameList() {
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
-    console.log('Local game folders:', ids);
+    console.log('Local game IDs loaded:', ids);
     setLocalGameIds(new Set(ids));
   };
 

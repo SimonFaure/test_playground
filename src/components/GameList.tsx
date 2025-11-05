@@ -3,6 +3,7 @@ import { Clock, Search, Upload, Play } from 'lucide-react';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
 import { LaunchGameModal, GameConfig } from './LaunchGameModal';
+import { GamePage } from './GamePage';
 import { validateAndExtractZip } from '../utils/zipHandler';
 import { getLocalGameIds } from '../utils/localGames';
 import gamesData from '../../data/games.json';
@@ -46,6 +47,7 @@ export function GameList() {
   const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<{ uniqid: string; title: string; gameTypeName: string } | null>(null);
+  const [launchedGame, setLaunchedGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
 
   useEffect(() => {
     loadScenarios();
@@ -183,9 +185,23 @@ export function GameList() {
 
   const handleGameLaunch = (config: GameConfig) => {
     console.log('Launching game with config:', selectedGame, config);
+    setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '' });
     setLaunchModalOpen(false);
-    showAlert('success', `Game "${config.name}" launched successfully!`);
   };
+
+  const handleBackToList = () => {
+    setLaunchedGame(null);
+  };
+
+  if (launchedGame) {
+    return (
+      <GamePage
+        config={launchedGame.config}
+        gameUniqid={launchedGame.uniqid}
+        onBack={handleBackToList}
+      />
+    );
+  }
 
   if (loading) {
     return (

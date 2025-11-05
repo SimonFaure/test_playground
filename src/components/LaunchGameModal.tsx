@@ -176,8 +176,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                     <option
                       key={folder}
                       value={folder}
-                      {selected}
-                    >
+                     >
                       {folder}
                     </option>
                   })

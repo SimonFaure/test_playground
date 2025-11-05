@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Clock, Search, Upload } from 'lucide-react';
+import { Clock, Search, Upload, Play } from 'lucide-react';
 import { db } from '../lib/db';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
 import { validateAndExtractZip } from '../utils/zipHandler';
+import { getLocalGameIds } from '../utils/localGames';
 
 interface ScenarioWithType extends Scenario {
   game_type: GameType;
@@ -23,10 +24,17 @@ export function GameList() {
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
   const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
+  const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadScenarios();
+    loadLocalGames();
   }, []);
+
+  const loadLocalGames = async () => {
+    const ids = await getLocalGameIds();
+    setLocalGameIds(new Set(ids));
+  };
 
   const loadScenarios = async () => {
     try {
@@ -50,12 +58,20 @@ export function GameList() {
     }
   };
 
-  const filteredScenarios = scenarios.filter((scenario) => {
-    const matchesSearch = scenario.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         scenario.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedGameType === 'all' || scenario.game_type.name === selectedGameType;
-    return matchesSearch && matchesType;
-  });
+  const filteredScenarios = scenarios
+    .filter((scenario) => {
+      const matchesSearch = scenario.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           scenario.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = selectedGameType === 'all' || scenario.game_type.name === selectedGameType;
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) => {
+      const aHasLocal = localGameIds.has(a.uniqid || '');
+      const bHasLocal = localGameIds.has(b.uniqid || '');
+      if (aHasLocal && !bHasLocal) return -1;
+      if (!aHasLocal && bHasLocal) return 1;
+      return 0;
+    });
 
   const gameTypes = [...new Set(scenarios.map((s) => s.game_type.name))];
 
@@ -114,6 +130,7 @@ export function GameList() {
 
     showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
     loadScenarios();
+    loadLocalGames();
   };
 
   const handleClick = () => {
@@ -134,8 +151,13 @@ export function GameList() {
 
       showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
       loadScenarios();
+      loadLocalGames();
     };
     input.click();
+  };
+
+  const handleLaunchGame = (uniqid: string) => {
+    console.log('Launching game:', uniqid);
   };
 
   if (loading) {
@@ -228,9 +250,20 @@ export function GameList() {
                 <p className="text-slate-400 text-sm mb-4 line-clamp-2">
                   {scenario.description}
                 </p>
-                <div className="flex items-center gap-2 text-slate-500 text-sm">
-                  <Clock size={16} />
-                  <span>{scenario.duration_minutes} minutes</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-500 text-sm">
+                    <Clock size={16} />
+                    <span>{scenario.duration_minutes} minutes</span>
+                  </div>
+                  {localGameIds.has(scenario.uniqid || '') && (
+                    <button
+                      onClick={() => handleLaunchGame(scenario.uniqid || '')}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium"
+                    >
+                      <Play size={16} />
+                      Launch
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

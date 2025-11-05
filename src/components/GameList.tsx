@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock, Search } from 'lucide-react';
+import { Clock, Search, Upload } from 'lucide-react';
 import { db } from '../lib/db';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
@@ -120,6 +120,20 @@ export function GameList() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <button
+            className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition group cursor-pointer flex flex-col items-center justify-center min-h-[300px] p-6"
+          >
+            <div className="w-16 h-16 rounded-full bg-blue-600/20 flex items-center justify-center mb-4 group-hover:bg-blue-600/30 transition">
+              <Upload className="text-blue-400 group-hover:text-blue-300 transition" size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
+              Import Scenario
+            </h3>
+            <p className="text-slate-400 text-sm text-center">
+              Upload a CSV file to add a new game scenario
+            </p>
+          </button>
+
           {filteredScenarios.map((scenario) => (
             <div
               key={scenario.id}

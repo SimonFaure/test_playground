@@ -86,6 +86,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       ...config,
       name: config.name.trim() || getDefaultName(),
     };
+    console.log('finalConfig');
+    console.log(finalConfig);
     onLaunch(finalConfig);
   };
 

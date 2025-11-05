@@ -35,6 +35,7 @@ export function GameList() {
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
     console.log('Local game IDs found:', ids);
+    console.log('Local game IDs Set:', new Set(ids));
     setLocalGameIds(new Set(ids));
   };
 
@@ -235,7 +236,10 @@ export function GameList() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredScenarios.map((scenario) => (
+          {filteredScenarios.map((scenario) => {
+            const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
+            console.log(`Scenario "${scenario.title}": uniqid=${scenario.uniqid}, hasLocal=${hasLocal}, localGameIds has it:`, localGameIds.has(scenario.uniqid || ''));
+            return (
             <div
               key={scenario.id}
               className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-slate-600 transition group"
@@ -281,7 +285,8 @@ export function GameList() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <button
             onClick={handleClick}

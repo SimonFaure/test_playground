@@ -45,12 +45,29 @@ export class USBReaderService {
   private onCardRemoved?: () => void;
   private onStationsDetected?: (stations: StationData[]) => void;
 
+  isElectron(): boolean {
+    return typeof window !== 'undefined' && window.require !== undefined;
+  }
+
   async getAvailablePorts(): Promise<USBPort[]> {
-    await retrieveUSBPorts();
-    return WorkingEnv.ports || [];
+    if (!this.isElectron()) {
+      console.warn('USB functionality only available in Electron');
+      return [];
+    }
+    try {
+      await retrieveUSBPorts();
+      return WorkingEnv.ports || [];
+    } catch (error) {
+      console.error('Error getting USB ports:', error);
+      return [];
+    }
   }
 
   async initializePort(portPath: string): Promise<boolean> {
+    if (!this.isElectron()) {
+      console.warn('USB functionality only available in Electron');
+      return false;
+    }
     try {
       InitWorkingEnv(portPath);
       await sleep(100);
@@ -74,6 +91,10 @@ export class USBReaderService {
   }
 
   async start() {
+    if (!this.isElectron()) {
+      console.warn('USB functionality only available in Electron');
+      return;
+    }
     if (this.isRunning) {
       console.warn('USB Reader already running');
       return;

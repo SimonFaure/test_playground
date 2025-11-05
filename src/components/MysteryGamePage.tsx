@@ -89,7 +89,7 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   const handleStartGame = async () => {
     setGameStarted(true);
 
-    if (config.usbPort) {
+    if (usbReaderService.isElectron() && config.usbPort) {
       try {
         const initialized = await usbReaderService.initializePort(config.usbPort);
         if (initialized) {
@@ -123,7 +123,9 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
 
   useEffect(() => {
     return () => {
-      usbReaderService.stop();
+      if (usbReaderService.isElectron()) {
+        usbReaderService.stop();
+      }
     };
   }, []);
 

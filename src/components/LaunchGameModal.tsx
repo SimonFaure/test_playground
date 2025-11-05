@@ -64,11 +64,13 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       const pattern = gamePublic || folders[0] || '';
       setDefaultPattern(pattern);
 
-      try {
-        const ports = await usbReaderService.getAvailablePorts();
-        setUsbPorts(ports);
-      } catch (error) {
-        console.error('Error loading USB ports:', error);
+      if (usbReaderService.isElectron()) {
+        try {
+          const ports = await usbReaderService.getAvailablePorts();
+          setUsbPorts(ports);
+        } catch (error) {
+          console.error('Error loading USB ports:', error);
+        }
       }
     };
     loadData();
@@ -192,24 +194,26 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="usbPort" className="block text-sm font-medium text-slate-300">
-                USB Port
-              </label>
-              <select
-                id="usbPort"
-                value={config.usbPort}
-                onChange={(e) => setConfig({ ...config, usbPort: e.target.value })}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">No USB Port (Testing Mode)</option>
-                {usbPorts.map((port) => (
-                  <option key={port.path} value={port.path}>
-                    {port.path} {port.manufacturer ? `- ${port.manufacturer}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {usbReaderService.isElectron() && (
+              <div className="space-y-2">
+                <label htmlFor="usbPort" className="block text-sm font-medium text-slate-300">
+                  USB Port
+                </label>
+                <select
+                  id="usbPort"
+                  value={config.usbPort}
+                  onChange={(e) => setConfig({ ...config, usbPort: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No USB Port (Testing Mode)</option>
+                  {usbPorts.map((port) => (
+                    <option key={port.path} value={port.path}>
+                      {port.path} {port.manufacturer ? `- ${port.manufacturer}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="duration" className="block text-sm font-medium text-slate-300">

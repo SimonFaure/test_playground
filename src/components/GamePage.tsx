@@ -44,6 +44,7 @@ export function GamePage({ config, gameUniqid, onBack }: GamePageProps) {
     );
   }
 
+  console.log(gameMetadata);
   if (gameMetadata?.type === 'survival') {
     return <SurvivalGamePage config={config} gameUniqid={gameUniqid} onBack={onBack} />;
   }

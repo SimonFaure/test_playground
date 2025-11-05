@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Clock, Search, Upload, Play } from 'lucide-react';
-import { db } from '../lib/db';
-import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
 import { validateAndExtractZip } from '../utils/zipHandler';
 import { getLocalGameIds } from '../utils/localGames';
+import gamesData from '../../data/games.json';
+
+interface GameType {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface Scenario {
+  id: string;
+  game_type_id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  duration_minutes: number;
+  image_url: string;
+  uniqid?: string;
+}
 
 interface ScenarioWithType extends Scenario {
   game_type: GameType;
@@ -34,30 +50,20 @@ export function GameList() {
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
-    console.log('=== Local Games Debug ===');
-    console.log('Local game IDs found (array):', ids);
-    const idsSet = new Set(ids);
-    console.log('Local game IDs Set size:', idsSet.size);
-    console.log('Local game IDs Set contents:', Array.from(idsSet));
-    console.log('Does Set have "687e1f9566051"?', idsSet.has('687e1f9566051'));
-    setLocalGameIds(idsSet);
+    console.log('Local game folders:', ids);
+    setLocalGameIds(new Set(ids));
   };
 
   const loadScenarios = async () => {
     try {
-      const [scenariosData, gameTypesData] = await Promise.all([
-        db.getScenarios(),
-        db.getGameTypes()
-      ]);
+      const gameTypesMap = new Map(gamesData.game_types.map(gt => [gt.id, gt]));
 
-      const gameTypesMap = new Map(gameTypesData.map((gt: any) => [gt.id, gt]));
-
-      const scenariosWithTypes = scenariosData.map((scenario: any) => ({
+      const scenariosWithTypes = gamesData.scenarios.map(scenario => ({
         ...scenario,
-        game_type: gameTypesMap.get(scenario.game_type_id)
+        game_type: gameTypesMap.get(scenario.game_type_id)!
       }));
 
-      console.log('Scenarios with uniqids:', scenariosWithTypes.map(s => ({ title: s.title, uniqid: s.uniqid })));
+      console.log('Loaded scenarios:', scenariosWithTypes.length);
       setScenarios(scenariosWithTypes);
     } catch (error) {
       console.error('Error loading scenarios:', error);
@@ -242,13 +248,6 @@ export function GameList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredScenarios.map((scenario) => {
             const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
-            console.log(`=== Scenario Check: ${scenario.title} ===`);
-            console.log('  uniqid:', scenario.uniqid);
-            console.log('  uniqid type:', typeof scenario.uniqid);
-            console.log('  localGameIds size:', localGameIds.size);
-            console.log('  localGameIds contents:', Array.from(localGameIds));
-            console.log('  localGameIds.has(scenario.uniqid):', localGameIds.has(scenario.uniqid || ''));
-            console.log('  hasLocal:', hasLocal);
             return (
             <div
               key={scenario.id}

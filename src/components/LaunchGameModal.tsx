@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { getPatternFolders } from '../utils/patterns';
 
 interface LaunchGameModalProps {
   isOpen: boolean;
@@ -41,6 +42,15 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
     autoResetTeam: false,
     delayBeforeReset: 10,
   });
+  const [patternFolders, setPatternFolders] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadPatterns = async () => {
+      const folders = await getPatternFolders();
+      setPatternFolders(folders);
+    };
+    loadPatterns();
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,7 +58,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
         name: '',
         numberOfTeams: 1,
         firstChipIndex: 1,
-        pattern: '',
+        pattern: patternFolders[0] || '',
         duration: 60,
         messageDisplayDuration: 5,
         enigmaImageDisplayDuration: 10,
@@ -57,7 +67,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
         delayBeforeReset: 10,
       });
     }
-  }, [isOpen]);
+  }, [isOpen, patternFolders]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,13 +144,23 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
               <label htmlFor="pattern" className="block text-sm font-medium text-slate-300">
                 Pattern
               </label>
-              <input
-                type="text"
+              <select
                 id="pattern"
                 value={config.pattern}
                 onChange={(e) => setConfig({ ...config, pattern: e.target.value })}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+                required
+              >
+                {patternFolders.length === 0 ? (
+                  <option value="">Loading patterns...</option>
+                ) : (
+                  patternFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {folder}
+                    </option>
+                  ))
+                )}
+              </select>
             </div>
 
             <div className="space-y-2">

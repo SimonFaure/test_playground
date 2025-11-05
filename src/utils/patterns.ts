@@ -31,10 +31,9 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
 export async function getGamePublic(uniqid: string): Promise<string | null> {
   const fs = window.require?.('fs');
   const path = window.require?.('path');
-  console.log('path');
-  console.log(path);
+
   if (!fs || !path) {
-    console.log('Electron fs/path not available');
+    console.warn('Cannot read CSV files: Electron fs/path modules not available. Run "npm run electron:dev" to enable file system access.');
     return null;
   }
 

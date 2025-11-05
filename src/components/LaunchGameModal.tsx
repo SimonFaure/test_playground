@@ -170,7 +170,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                   <option value="">Loading patterns...</option>
                 ) : (
                   patternFolders.map((folder) => (
-                    selected = folder === defaultPattern ? 'selected' : '';
+                   var selected = folder === defaultPattern ? 'selected' : '';
                     <option
                       key={folder}
                       value={folder}

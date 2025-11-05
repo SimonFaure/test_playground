@@ -45,7 +45,7 @@ export function GameList() {
   const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
   const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<{ uniqid: string; title: string } | null>(null);
+  const [selectedGame, setSelectedGame] = useState<{ uniqid: string; title: string; gameTypeName: string } | null>(null);
 
   useEffect(() => {
     loadScenarios();
@@ -176,8 +176,8 @@ export function GameList() {
     input.click();
   };
 
-  const handleLaunchGame = (uniqid: string, title: string) => {
-    setSelectedGame({ uniqid, title });
+  const handleLaunchGame = (uniqid: string, title: string, gameTypeName: string) => {
+    setSelectedGame({ uniqid, title, gameTypeName });
     setLaunchModalOpen(true);
   };
 
@@ -307,7 +307,7 @@ export function GameList() {
                   </div>
                   {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
                     <button
-                      onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title)}
+                      onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
                     >
                       <Play size={16} />
@@ -358,6 +358,8 @@ export function GameList() {
         isOpen={launchModalOpen}
         onClose={() => setLaunchModalOpen(false)}
         gameTitle={selectedGame?.title || ''}
+        gameUniqid={selectedGame?.uniqid || ''}
+        gameTypeName={selectedGame?.gameTypeName || ''}
         onLaunch={handleGameLaunch}
       />
     </div>

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { getPatternFolders } from '../utils/patterns';
+import { getPatternFolders, getGamePublic } from '../utils/patterns';
 
 interface LaunchGameModalProps {
   isOpen: boolean;
   onClose: () => void;
   gameTitle: string;
+  gameUniqid: string;
+  gameTypeName: string;
   onLaunch: (config: GameConfig) => void;
 }
 
@@ -22,7 +24,7 @@ export interface GameConfig {
   delayBeforeReset: number;
 }
 
-export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: LaunchGameModalProps) {
+export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTypeName, onLaunch }: LaunchGameModalProps) {
   const getDefaultName = () => {
     const now = new Date();
     const date = now.toLocaleDateString('fr-FR');
@@ -37,20 +39,27 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
     pattern: '',
     duration: 60,
     messageDisplayDuration: 5,
-    enigmaImageDisplayDuration: 10,
+    enigmaImageDisplayDuration: 1,
     colorblindMode: false,
     autoResetTeam: false,
     delayBeforeReset: 10,
   });
   const [patternFolders, setPatternFolders] = useState<string[]>([]);
+  const [defaultPattern, setDefaultPattern] = useState<string>('');
 
   useEffect(() => {
-    const loadPatterns = async () => {
-      const folders = await getPatternFolders();
+    const loadData = async () => {
+      if (!gameTypeName || !gameUniqid) return;
+
+      const folders = await getPatternFolders(gameTypeName);
       setPatternFolders(folders);
+
+      const gamePublic = await getGamePublic(gameUniqid);
+      const pattern = gamePublic || folders[0] || '';
+      setDefaultPattern(pattern);
     };
-    loadPatterns();
-  }, []);
+    loadData();
+  }, [gameTypeName, gameUniqid]);
 
   useEffect(() => {
     if (isOpen) {
@@ -58,16 +67,16 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, onLaunch }: Launch
         name: '',
         numberOfTeams: 1,
         firstChipIndex: 1,
-        pattern: patternFolders[0] || '',
+        pattern: defaultPattern,
         duration: 60,
         messageDisplayDuration: 5,
-        enigmaImageDisplayDuration: 10,
+        enigmaImageDisplayDuration: 1,
         colorblindMode: false,
         autoResetTeam: false,
         delayBeforeReset: 10,
       });
     }
-  }, [isOpen, patternFolders]);
+  }, [isOpen, defaultPattern]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

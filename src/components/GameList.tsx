@@ -39,6 +39,7 @@ export function GameList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [showOnlyLaunchable, setShowOnlyLaunchable] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
   const [localGameIds, setLocalGameIds] = useState<Set<string>>(new Set());
@@ -78,7 +79,8 @@ export function GameList() {
                            scenario.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = selectedGameType === 'all' || scenario.game_type.name === selectedGameType;
       const matchesDifficulty = selectedDifficulty === 'all' || scenario.difficulty.toLowerCase() === selectedDifficulty.toLowerCase();
-      return matchesSearch && matchesType && matchesDifficulty;
+      const matchesLaunchable = !showOnlyLaunchable || (scenario.uniqid && localGameIds.has(scenario.uniqid));
+      return matchesSearch && matchesType && matchesDifficulty && matchesLaunchable;
     })
     .sort((a, b) => {
       const aHasLocal = localGameIds.has(a.uniqid || '');
@@ -207,6 +209,17 @@ export function GameList() {
                 className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
+            <button
+              onClick={() => setShowOnlyLaunchable(!showOnlyLaunchable)}
+              className={`px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 ${
+                showOnlyLaunchable
+                  ? 'bg-green-600 text-white hover:bg-green-500'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <Play size={16} />
+              Launchable Only
+            </button>
             <select
               value={selectedDifficulty}
               onChange={(e) => setSelectedDifficulty(e.target.value)}

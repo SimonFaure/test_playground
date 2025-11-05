@@ -34,9 +34,13 @@ export function GameList() {
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
-    console.log('Local game IDs found:', ids);
-    console.log('Local game IDs Set:', new Set(ids));
-    setLocalGameIds(new Set(ids));
+    console.log('=== Local Games Debug ===');
+    console.log('Local game IDs found (array):', ids);
+    const idsSet = new Set(ids);
+    console.log('Local game IDs Set size:', idsSet.size);
+    console.log('Local game IDs Set contents:', Array.from(idsSet));
+    console.log('Does Set have "687e1f9566051"?', idsSet.has('687e1f9566051'));
+    setLocalGameIds(idsSet);
   };
 
   const loadScenarios = async () => {
@@ -238,7 +242,13 @@ export function GameList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredScenarios.map((scenario) => {
             const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
-            console.log(`Scenario "${scenario.title}": uniqid=${scenario.uniqid}, hasLocal=${hasLocal}, localGameIds has it:`, localGameIds.has(scenario.uniqid || ''));
+            console.log(`=== Scenario Check: ${scenario.title} ===`);
+            console.log('  uniqid:', scenario.uniqid);
+            console.log('  uniqid type:', typeof scenario.uniqid);
+            console.log('  localGameIds size:', localGameIds.size);
+            console.log('  localGameIds contents:', Array.from(localGameIds));
+            console.log('  localGameIds.has(scenario.uniqid):', localGameIds.has(scenario.uniqid || ''));
+            console.log('  hasLocal:', hasLocal);
             return (
             <div
               key={scenario.id}

@@ -86,13 +86,13 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       ...config,
       name: config.name.trim() || getDefaultName(),
     };
-    console.log('finalConfig');
-    console.log(finalConfig);
+
     onLaunch(finalConfig);
   };
 
   if (!isOpen) return null;
-
+    console.log('finalConfig');
+    console.log(finalConfig);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="relative w-full h-full max-w-4xl max-h-screen overflow-auto bg-slate-900 shadow-2xl md:rounded-xl md:m-8 md:h-auto">

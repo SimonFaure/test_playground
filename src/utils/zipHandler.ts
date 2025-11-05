@@ -12,21 +12,31 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
     const zip = await JSZip.loadAsync(file);
     const fileList = Object.keys(zip.files);
 
-    const csvFolder = fileList.find(f => f.startsWith('csv/') || f === 'csv');
-    const mediaFolder = fileList.find(f => f.startsWith('media/') || f === 'media');
+    console.log('Files in ZIP:', fileList);
 
-    if (!csvFolder || !mediaFolder) {
+    const hasCsvFolder = fileList.some(f => f.includes('csv/') || f === 'csv' || f === 'csv/');
+    const hasMediaFolder = fileList.some(f => f.includes('media/') || f === 'media' || f === 'media/');
+
+    if (!hasCsvFolder || !hasMediaFolder) {
       return {
         success: false,
-        message: 'Invalid folder structure. ZIP must contain "csv" and "media" folders.'
+        message: `Invalid folder structure. ZIP must contain "csv" and "media" folders. Found: ${fileList.slice(0, 5).join(', ')}`
       };
     }
 
-    const gameCsvFile = zip.files['csv/game.csv'];
+    let gameCsvFile = zip.files['csv/game.csv'];
+
+    if (!gameCsvFile) {
+      const gameCsvPath = fileList.find(f => f.endsWith('csv/game.csv') || f.endsWith('/csv/game.csv'));
+      if (gameCsvPath) {
+        gameCsvFile = zip.files[gameCsvPath];
+      }
+    }
+
     if (!gameCsvFile) {
       return {
         success: false,
-        message: 'game.csv not found in csv folder.'
+        message: `game.csv not found in csv folder. Files found: ${fileList.filter(f => f.includes('.csv')).join(', ')}`
       };
     }
 
@@ -60,18 +70,19 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
 
     if (gameType === 'survival') {
       const requiredFiles = [
-        'csv/game_enigmas.csv',
-        'csv/game_media_images.csv',
-        'csv/game_meta.csv',
-        'csv/game_sounds.csv',
-        'csv/game_user_meta.csv'
+        'game_enigmas.csv',
+        'game_media_images.csv',
+        'game_meta.csv',
+        'game_sounds.csv',
+        'game_user_meta.csv'
       ];
 
-      for (const requiredFile of requiredFiles) {
-        if (!zip.files[requiredFile]) {
+      for (const requiredFileName of requiredFiles) {
+        const found = fileList.some(f => f.endsWith(`csv/${requiredFileName}`) || f.endsWith(`/${requiredFileName}`));
+        if (!found) {
           return {
             success: false,
-            message: `Missing required file for survival game: ${requiredFile}`
+            message: `Missing required file for survival game: ${requiredFileName}`
           };
         }
       }

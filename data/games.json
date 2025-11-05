@@ -15,6 +15,7 @@
     {
       "id": "1",
       "game_type_id": "1",
+      "game_type":"mystery"
       "title": "La Cuisine de Mamie Citrouille",
       "description": "A mysterious adventure in Grandma Pumpkin's enchanted kitchen.",
       "difficulty": "Medium",

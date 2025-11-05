@@ -3,6 +3,7 @@ import { Clock, Search, Upload } from 'lucide-react';
 import { db } from '../lib/db';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
+import { validateAndExtractZip } from '../utils/zipHandler';
 
 interface ScenarioWithType extends Scenario {
   game_type: GameType;
@@ -13,6 +14,7 @@ export function GameList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     loadScenarios();
@@ -60,6 +62,64 @@ export function GameList() {
       default:
         return 'bg-slate-700 text-slate-300 border-slate-600';
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const zipFile = files.find(f => f.name.endsWith('.zip'));
+
+    if (!zipFile) {
+      alert('Please drop a ZIP file.');
+      return;
+    }
+
+    const result = await validateAndExtractZip(zipFile);
+
+    if (!result.success) {
+      alert(result.message);
+      return;
+    }
+
+    alert(`Successfully imported game scenario: ${result.uniqid}`);
+    loadScenarios();
+  };
+
+  const handleClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
+
+      const result = await validateAndExtractZip(file);
+
+      if (!result.success) {
+        alert(result.message);
+        return;
+      }
+
+      alert(`Successfully imported game scenario: ${result.uniqid}`);
+      loadScenarios();
+    };
+    input.click();
   };
 
   if (loading) {
@@ -120,20 +180,6 @@ export function GameList() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <button
-            className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition group cursor-pointer flex flex-col items-center justify-center min-h-[300px] p-6"
-          >
-            <div className="w-16 h-16 rounded-full bg-blue-600/20 flex items-center justify-center mb-4 group-hover:bg-blue-600/30 transition">
-              <Upload className="text-blue-400 group-hover:text-blue-300 transition" size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
-              Import Scenario
-            </h3>
-            <p className="text-slate-400 text-sm text-center">
-              Upload a CSV file to add a new game scenario
-            </p>
-          </button>
-
           {filteredScenarios.map((scenario) => (
             <div
               key={scenario.id}
@@ -170,6 +216,30 @@ export function GameList() {
               </div>
             </div>
           ))}
+
+          <button
+            onClick={handleClick}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`bg-slate-800 rounded-xl shadow-xl overflow-hidden border transition group cursor-pointer flex flex-col items-center justify-center min-h-[300px] p-6 ${
+              isDragging ? 'border-blue-400 bg-blue-900/20' : 'border-slate-700 hover:border-blue-500'
+            }`}
+          >
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition ${
+              isDragging ? 'bg-blue-600/40' : 'bg-blue-600/20 group-hover:bg-blue-600/30'
+            }`}>
+              <Upload className={`transition ${
+                isDragging ? 'text-blue-300' : 'text-blue-400 group-hover:text-blue-300'
+              }`} size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
+              Import Scenario
+            </h3>
+            <p className="text-slate-400 text-sm text-center">
+              {isDragging ? 'Drop ZIP file here' : 'Drag and drop a ZIP file or click to browse'}
+            </p>
+          </button>
         </div>
 
         {filteredScenarios.length === 0 && (

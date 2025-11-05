@@ -68,7 +68,7 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
       };
     }
 
-    if (gameType === 'survival') {
+    if (gameType === 'mystery') {
       const requiredFiles = [
         'game_enigmas.csv',
         'game_media_images.csv',
@@ -82,7 +82,7 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
         if (!found) {
           return {
             success: false,
-            message: `Missing required file for survival game: ${requiredFileName}`
+            message: `Missing required file for mystery game: ${requiredFileName}`
           };
         }
       }

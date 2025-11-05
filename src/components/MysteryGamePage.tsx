@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
-import '../survival.css';
+import '../mystery.css';
 
-interface SurvivalGamePageProps {
+interface MysteryGamePageProps {
   config: GameConfig;
   gameUniqid: string;
   onBack: () => void;
@@ -44,7 +44,7 @@ interface GameData {
   }>;
 }
 
-export function SurvivalGamePage({ config, gameUniqid, onBack }: SurvivalGamePageProps) {
+export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
@@ -100,7 +100,7 @@ export function SurvivalGamePage({ config, gameUniqid, onBack }: SurvivalGamePag
   const backgroundImageUrl = getImageUrl(gameData.game_meta.background_image);
 
   return (
-    <div className="game_page_wrapper game_page_wrapper_survival" style={{ backgroundImage: `url(${backgroundImageUrl})` }}>
+    <div className="game_page_wrapper game_page_wrapper_mystery" style={{ backgroundImage: `url(${backgroundImageUrl})` }}>
       <header className="fixed top-0 left-0 right-0 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 z-50">
         <div className="container mx-auto px-6 py-4 flex items-center gap-4">
           <button
@@ -119,7 +119,7 @@ export function SurvivalGamePage({ config, gameUniqid, onBack }: SurvivalGamePag
       {!gameStarted && (
         <div className="game_instructions_wrapper">
           <div
-            className="survival_game_instructions_container"
+            className="mystery_game_instructions_container"
             style={{ backgroundImage: `url(${getImageUrl(gameData.game_meta.game_instructions_image)})` }}
           >
             <div id="game_instructions_button_image_container" onClick={handleStartGame}>
@@ -135,7 +135,7 @@ export function SurvivalGamePage({ config, gameUniqid, onBack }: SurvivalGamePag
       )}
 
       <div className="enigmas_wrapper" style={{ opacity: gameStarted ? 1 : 0 }}>
-        <div className="left_column_survival">
+        <div className="left_column_mystery">
           <div className="time_background_image">
             <img src={getImageUrl(gameData.game_meta.time_background_image)} alt="timer" />
             <div id="time_background_image_text">{formatTime(time)}</div>
@@ -186,10 +186,10 @@ export function SurvivalGamePage({ config, gameUniqid, onBack }: SurvivalGamePag
           </div>
         </div>
 
-        <div id="right_column_survival" className="right_column_survival">
-          <div id="survival_team_name_container" className="survival_team_name_container">
+        <div id="right_column_mystery" className="right_column_mystery">
+          <div id="mystery_team_name_container" className="mystery_team_name_container">
             <img src={getImageUrl(gameData.game_meta.team_name_background_image)} alt="team" />
-            <div className="survival_team_name_container_text">{config.name}</div>
+            <div className="mystery_team_name_container_text">{config.name}</div>
           </div>
 
           <div id="artefacts_container" className="artefacts_container">

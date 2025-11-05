@@ -1,5 +1,5 @@
 /************/
-/* Survival */
+/* Mystery */
 /************/
 
 /***** Print Button*******/
@@ -29,15 +29,15 @@
 /* #enigma_container_2{
     opacity: 1;
 }
-.game_page_wrapper_survival .enigmas_wrapper {
-    opacity: 1; 
+.game_page_wrapper_mystery .enigmas_wrapper {
+    opacity: 1;
 } */
 /* .game_instructions_wrapper, .enigmas_wrapper, .enigmas_subwrapper, #game_main_image, #final_score_container, .enigma_container, #game_overscore, #game_respawn_container, #game_score_container{
     position: absolute;
     top: 0;
 
 } */
-.survival_game_instructions_container {
+.mystery_game_instructions_container {
     width: 100%;
     height: 100vh;
     background-position: center;
@@ -99,7 +99,7 @@
 }
 
 
-.game_page_wrapper_survival {
+.game_page_wrapper_mystery {
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
@@ -108,7 +108,7 @@
     overflow: hidden;
 }
 
-.survival_action_icon {
+.mystery_action_icon {
     width: 150px !important;
     height: 150px;
     cursor: pointer;
@@ -116,22 +116,22 @@
     z-index: 100;
 }
 
-.survival_action_icon .game_instructions_summary {
+.mystery_action_icon .game_instructions_summary {
     margin-top: 0;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.survival_action_icon:hover {
+.mystery_action_icon:hover {
     border: 4px solid rgb(38, 155, 22);
 }
 
-.survival_action_icon:hover i {
+.mystery_action_icon:hover i {
     color: rgb(38, 155, 22);
 }
 
-.survival_action_icon i {
+.mystery_action_icon i {
     font-size: 80px;
     color: black;
 }
@@ -246,29 +246,12 @@
     padding-top: 0;
 }
 
-/* #game_images_container,
-#game_overscore_images_container {
-    display: none;
-} */
-
-.enigma_container {
-    /* position: absolute; */
-    /* top: 0; */
-}
 .enigma_container {
     padding: 15px;
-    font-size: 1.5em;    
+    font-size: 1.5em;
     display: flex;
     justify-content: center;
-        /* display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; */
-    /* background: #ffffff5e;
-    border: 1px solid grey; */
-    /* width: 25%; */
     height: 80vh;
-    /* margin: 10vh 0; */
 }
 #time_full_container_detail{
     padding-left: 5px;
@@ -506,17 +489,17 @@
 
 
 
-.survival_team_name_container img,
+.mystery_team_name_container img,
 #artefacts_container img,
 .time_background_image img,
 .team_score_container img {
     width: 100%;
 }
-.team_score_container_text, .survival_team_name_container_text {
+.team_score_container_text, .mystery_team_name_container_text {
     position: absolute;
 }
-.left_column_survival,
-.right_column_survival {
+.left_column_mystery,
+.right_column_mystery {
     width: 40%;
     height: 80vh;
     padding: 15px 15px;
@@ -526,15 +509,13 @@
 }
 
 .team_score_container,
-.survival_team_name_container,
+.mystery_team_name_container,
 .artefacts_container,
 .time_background_image {
     width: 100%;
-    /* min-height: 100px; */
     background-position: center;
     background-size: contain;
     background-repeat: no-repeat;
-    /* margin-top: 15px; */
 }
 
 #artefacts_container{
@@ -542,7 +523,6 @@
 }
 .time_background_image {
     width: 100%;
-    /* min-height: 80px; */
     background-position: center;
     background-size: contain;
     background-repeat: no-repeat;
@@ -552,7 +532,7 @@
     color: white;
 }
 
-.survival_team_name_container {
+.mystery_team_name_container {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -574,18 +554,12 @@
 
 .team_bonus_wrapper {
     width: 100%;
-    /* margin-top: 15px; */
     position: relative;
 }
 
 .team_bonus_container {
     position: absolute;
     opacity: 0;
-    /* 
-    background-position: top center;
-    background-size: contain;
-    background-repeat: no-repeat; */
-
     display: flex;
     width: 100%;
     justify-content: center;
@@ -612,13 +586,9 @@
     margin-bottom: 5px;
 }
 
-.team_enigmas_recap_container .enigma_answer {
-    /* width: 100px; */
-    /* margin-bottom: 5px; */
-}
-
 .enigmas_recap_enigma_container {
-    /* width: 30%; */
+    flex: 1 0 33%;
+    margin-bottom: 5px;
 }
 
 .team_enigmas_recap_container .enigma_answer .enigma_answer_image img {

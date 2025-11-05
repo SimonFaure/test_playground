@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GameConfig } from './LaunchGameModal';
-import { SurvivalGamePage } from './SurvivalGamePage';
+import { MysteryGamePage } from './MysteryGamePage';
 
 interface GamePageProps {
   config: GameConfig;
@@ -44,9 +44,8 @@ export function GamePage({ config, gameUniqid, onBack }: GamePageProps) {
     );
   }
 
-  console.log(gameMetadata);
-  if (gameMetadata?.type === 'survival') {
-    return <SurvivalGamePage config={config} gameUniqid={gameUniqid} onBack={onBack} />;
+  if (gameMetadata?.type === 'mystery') {
+    return <MysteryGamePage config={config} gameUniqid={gameUniqid} onBack={onBack} />;
   }
 
   return (

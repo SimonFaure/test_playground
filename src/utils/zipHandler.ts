@@ -1,10 +1,22 @@
 import JSZip from 'jszip';
+import { db } from '../lib/db';
 
 export interface ValidationResult {
   success: boolean;
   message?: string;
   uniqid?: string;
   gameType?: string;
+}
+
+interface GameCSVData {
+  uniqid: string;
+  type: string;
+  title: string;
+  description: string;
+  difficulty?: string;
+  duration_minutes?: number;
+  slug?: string;
+  origin?: string;
 }
 
 export async function validateAndExtractZip(file: File): Promise<ValidationResult> {
@@ -41,32 +53,16 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
     }
 
     const gameCsvContent = await gameCsvFile.async('text');
-    const lines = gameCsvContent.trim().split('\n');
+    const gameData = parseGameCSV(gameCsvContent);
 
-    if (lines.length < 2) {
+    if (!gameData) {
       return {
         success: false,
         message: 'game.csv is empty or invalid.'
       };
     }
 
-    const headers = lines[0].split(',');
-    const values = lines[1].split(',');
-    const gameData: Record<string, string> = {};
-
-    headers.forEach((header, index) => {
-      gameData[header.trim()] = values[index]?.trim() || '';
-    });
-
-    const uniqid = gameData.uniqid;
-    const gameType = gameData.type;
-
-    if (!uniqid) {
-      return {
-        success: false,
-        message: 'uniqid not found in game.csv.'
-      };
-    }
+    const { uniqid, type: gameType } = gameData;
 
     if (gameType === 'survival') {
       const requiredFiles = [
@@ -88,7 +84,7 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
       }
     }
 
-    await saveZipToDataFolder(zip, uniqid);
+    await saveToSupabase(zip, fileList, gameData);
 
     return {
       success: true,
@@ -96,6 +92,7 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
       gameType
     };
   } catch (error) {
+    console.error('ZIP processing error:', error);
     return {
       success: false,
       message: `Error processing ZIP file: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -103,31 +100,81 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
   }
 }
 
-async function saveZipToDataFolder(zip: JSZip, uniqid: string): Promise<void> {
-  const fs = window.require?.('fs');
-  const path = window.require?.('path');
+function parseGameCSV(csvContent: string): GameCSVData | null {
+  const lines = csvContent.trim().split('\n');
 
-  if (!fs || !path) {
-    throw new Error('File system access not available. This feature requires the Electron app.');
+  if (lines.length < 2) {
+    return null;
   }
 
-  const dataDir = path.join(process.cwd(), 'data', uniqid);
+  const headers = lines[0].split(',').map(h => h.trim());
+  const values = lines[1].split(',').map(v => v.trim());
 
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  const data: Record<string, string> = {};
+  headers.forEach((header, index) => {
+    data[header] = values[index] || '';
+  });
+
+  if (!data.uniqid || !data.type) {
+    return null;
   }
 
-  for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-    if (zipEntry.dir) continue;
+  return {
+    uniqid: data.uniqid,
+    type: data.type,
+    title: data.title || data.uniqid,
+    description: data.description || '',
+    difficulty: data.difficulty,
+    duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes) : undefined,
+    slug: data.slug,
+    origin: data.origin
+  };
+}
 
-    const content = await zipEntry.async('nodebuffer');
-    const filePath = path.join(dataDir, relativePath);
-    const fileDir = path.dirname(filePath);
+async function saveToSupabase(zip: JSZip, fileList: string[], gameData: GameCSVData): Promise<void> {
+  const gameTypeResult = await db.getGameTypeByName(gameData.type);
 
-    if (!fs.existsSync(fileDir)) {
-      fs.mkdirSync(fileDir, { recursive: true });
-    }
+  if (!gameTypeResult) {
+    throw new Error(`Game type '${gameData.type}' not found in database. Please add it first.`);
+  }
 
-    fs.writeFileSync(filePath, content);
+  const scenarioData = {
+    uniqid: gameData.uniqid,
+    game_type_id: gameTypeResult.id,
+    title: gameData.title,
+    description: gameData.description,
+    difficulty: gameData.difficulty || 'Medium',
+    duration_minutes: gameData.duration_minutes || 30,
+    slug: gameData.slug,
+    origin: gameData.origin
+  };
+
+  const scenario = await db.createScenario(scenarioData);
+
+  const csvFiles = fileList.filter(f => f.endsWith('.csv') && !zip.files[f].dir);
+
+  for (const csvPath of csvFiles) {
+    const fileName = csvPath.split('/').pop() || csvPath;
+    const content = await zip.files[csvPath].async('text');
+
+    await db.createScenarioFile({
+      scenario_id: scenario.id,
+      file_name: fileName,
+      file_content: content
+    });
+  }
+
+  const mediaFiles = fileList.filter(f =>
+    f.includes('media/') &&
+    !zip.files[f].dir &&
+    /\.(jpg|jpeg|png|gif|webp|mp3|wav|ogg|mp4)$/i.test(f)
+  );
+
+  for (const mediaPath of mediaFiles) {
+    const fileBlob = await zip.files[mediaPath].async('blob');
+    const fileName = mediaPath.split('/').pop() || mediaPath;
+    const storagePath = `${gameData.uniqid}/${fileName}`;
+
+    await db.uploadMediaFile(storagePath, fileBlob);
   }
 }

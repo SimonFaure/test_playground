@@ -3,10 +3,17 @@ import { Clock, Search, Upload } from 'lucide-react';
 import { db } from '../lib/db';
 import { GameType, Scenario } from '../types/database';
 import { Footer } from './Footer';
+import { Alert } from './Alert';
 import { validateAndExtractZip } from '../utils/zipHandler';
 
 interface ScenarioWithType extends Scenario {
   game_type: GameType;
+}
+
+interface AlertState {
+  show: boolean;
+  type: 'success' | 'error';
+  message: string;
 }
 
 export function GameList() {
@@ -15,6 +22,7 @@ export function GameList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
+  const [alert, setAlert] = useState<AlertState>({ show: false, type: 'success', message: '' });
 
   useEffect(() => {
     loadScenarios();
@@ -76,6 +84,14 @@ export function GameList() {
     setIsDragging(false);
   };
 
+  const showAlert = (type: 'success' | 'error', message: string) => {
+    setAlert({ show: true, type, message });
+  };
+
+  const closeAlert = () => {
+    setAlert({ ...alert, show: false });
+  };
+
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -85,18 +101,18 @@ export function GameList() {
     const zipFile = files.find(f => f.name.endsWith('.zip'));
 
     if (!zipFile) {
-      alert('Please drop a ZIP file.');
+      showAlert('error', 'Please drop a ZIP file.');
       return;
     }
 
     const result = await validateAndExtractZip(zipFile);
 
     if (!result.success) {
-      alert(result.message);
+      showAlert('error', result.message || 'Failed to import scenario.');
       return;
     }
 
-    alert(`Successfully imported game scenario: ${result.uniqid}`);
+    showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
     loadScenarios();
   };
 
@@ -112,11 +128,11 @@ export function GameList() {
       const result = await validateAndExtractZip(file);
 
       if (!result.success) {
-        alert(result.message);
+        showAlert('error', result.message || 'Failed to import scenario.');
         return;
       }
 
-      alert(`Successfully imported game scenario: ${result.uniqid}`);
+      showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
       loadScenarios();
     };
     input.click();
@@ -132,6 +148,9 @@ export function GameList() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+      {alert.show && (
+        <Alert type={alert.type} message={alert.message} onClose={closeAlert} />
+      )}
       <header className="bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>

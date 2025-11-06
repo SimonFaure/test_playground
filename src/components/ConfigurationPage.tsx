@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { Settings, Usb, RefreshCw, Check, Globe } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
+import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 
 interface SerialPortInfo {
   path: string;
@@ -15,8 +15,8 @@ interface SerialPortInfo {
 
 export function ConfigurationPage() {
   const [ports, setPorts] = useState<SerialPortInfo[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string | null>(null);
-  const [savedPort, setSavedPort] = useState<string | null>(null);
+  const [config, setConfig] = useState<AppConfig>({ usbPort: '', language: 'english' });
+  const [savedConfig, setSavedConfig] = useState<AppConfig>({ usbPort: '', language: 'english' });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -24,27 +24,19 @@ export function ConfigurationPage() {
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
-    loadSavedPort();
+    loadConfiguration();
     if (usbReaderService.isElectron()) {
       loadPorts();
     }
   }, []);
 
-  const loadSavedPort = async () => {
+  const loadConfiguration = async () => {
     try {
-      const { data, error } = await supabase
-        .from('configuration')
-        .select('value')
-        .eq('key', 'usb_port')
-        .maybeSingle();
-
-      if (error) throw error;
-      if (data) {
-        setSavedPort(data.value);
-        setSelectedPort(data.value);
-      }
+      const loadedConfig = await loadConfig();
+      setConfig(loadedConfig);
+      setSavedConfig(loadedConfig);
     } catch (error) {
-      console.error('Error loading saved port:', error);
+      console.error('Error loading configuration:', error);
     }
   };
 
@@ -62,28 +54,20 @@ export function ConfigurationPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedPort) {
+    if (isElectron && !config.usbPort) {
       setMessage({ type: 'error', text: 'Please select a USB port' });
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('configuration')
-        .upsert(
-          { key: 'usb_port', value: selectedPort, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
-        );
-
-      if (error) throw error;
-
-      setSavedPort(selectedPort);
-      setMessage({ type: 'success', text: 'USB port saved successfully' });
+      await saveConfig(config);
+      setSavedConfig(config);
+      setMessage({ type: 'success', text: 'Configuration saved successfully' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      console.error('Error saving port:', error);
-      setMessage({ type: 'error', text: 'Failed to save USB port' });
+      console.error('Error saving configuration:', error);
+      setMessage({ type: 'error', text: 'Failed to save configuration' });
     } finally {
       setIsSaving(false);
     }
@@ -114,6 +98,54 @@ export function ConfigurationPage() {
         </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Globe className="text-blue-400" size={24} />
+            <h2 className="text-xl font-semibold">Language</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <button
+              onClick={() => setConfig({ ...config, language: 'english' })}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                config.language === 'english'
+                  ? 'border-blue-500 bg-blue-500/10'
+                  : 'border-slate-700 bg-slate-700/30 hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-lg">English</div>
+                  <div className="text-sm text-slate-400">English language</div>
+                </div>
+                {config.language === 'english' && (
+                  <Check className="text-blue-400" size={24} />
+                )}
+              </div>
+            </button>
+
+            <button
+              onClick={() => setConfig({ ...config, language: 'french' })}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                config.language === 'french'
+                  ? 'border-blue-500 bg-blue-500/10'
+                  : 'border-slate-700 bg-slate-700/30 hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-lg">Français</div>
+                  <div className="text-sm text-slate-400">French language</div>
+                </div>
+                {config.language === 'french' && (
+                  <Check className="text-blue-400" size={24} />
+                )}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {isElectron && (
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Usb className="text-blue-400" size={24} />
@@ -152,9 +184,9 @@ export function ConfigurationPage() {
               {ports.map((port) => (
                 <div
                   key={port.path}
-                  onClick={() => setSelectedPort(port.path)}
+                  onClick={() => setConfig({ ...config, usbPort: port.path })}
                   className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedPort === port.path
+                    config.usbPort === port.path
                       ? 'border-blue-500 bg-blue-500/10'
                       : 'border-slate-700 bg-slate-700/30 hover:border-slate-600'
                   }`}
@@ -163,7 +195,7 @@ export function ConfigurationPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="font-mono font-semibold text-lg">{port.path}</span>
-                        {savedPort === port.path && (
+                        {savedConfig.usbPort === port.path && (
                           <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
                             Current
                           </span>
@@ -187,7 +219,7 @@ export function ConfigurationPage() {
                         )}
                       </div>
                     </div>
-                    {selectedPort === port.path && (
+                    {config.usbPort === port.path && (
                       <Check className="text-blue-400 flex-shrink-0" size={24} />
                     )}
                   </div>
@@ -200,7 +232,7 @@ export function ConfigurationPage() {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handleSave}
-                disabled={isSaving || !selectedPort || selectedPort === savedPort}
+                disabled={isSaving || (isElectron && !config.usbPort) || JSON.stringify(config) === JSON.stringify(savedConfig)}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
               >
                 {isSaving ? (
@@ -218,6 +250,31 @@ export function ConfigurationPage() {
             </div>
           )}
         </div>
+        )}
+
+        {!isElectron && (
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex justify-end">
+              <button
+                onClick={handleSave}
+                disabled={isSaving || JSON.stringify(config) === JSON.stringify(savedConfig)}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                {isSaving ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Save Configuration
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-slate-800/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Information</h3>

@@ -80,17 +80,9 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   useEffect(() => {
     const loadSavedPort = async () => {
       try {
-        const { supabase } = await import('../lib/db');
-        const { data, error } = await supabase
-          .from('configuration')
-          .select('value')
-          .eq('key', 'usb_port')
-          .maybeSingle();
-
-        if (error) throw error;
-        if (data) {
-          setSavedUsbPort(data.value);
-        }
+        const { loadConfig } = await import('../utils/config');
+        const config = await loadConfig();
+        setSavedUsbPort(config.usbPort);
       } catch (error) {
         console.error('Error loading saved USB port:', error);
       }

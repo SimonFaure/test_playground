@@ -32,3 +32,10 @@ export const getReadline = async () => {
   }
   return await import('node:readline');
 };
+
+export const nodeRequire = (moduleName: string) => {
+  if (typeof window !== 'undefined' && (window as any).require) {
+    return (window as any).require(moduleName);
+  }
+  throw new Error(`Node require is only available in Electron environment`);
+};

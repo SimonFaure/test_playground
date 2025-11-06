@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: './',
   build: {
@@ -15,10 +15,10 @@ export default defineConfig({
     exclude: ['lucide-react', 'serialport', 'picocolors'],
   },
   resolve: {
-    alias: {
+    alias: command === 'serve' ? {
       'serialport': '/src/lib/empty-module.js',
       'picocolors': '/src/lib/empty-module.js',
       'node:readline': '/src/lib/empty-module.js'
-    }
+    } : {}
   }
-});
+}));

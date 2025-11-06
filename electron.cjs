@@ -80,6 +80,65 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('config:get-path', async () => {
+    const fs = require('fs');
+    const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+    const configPath = path.join(configDir, 'config.json');
+
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(configPath)) {
+      fs.writeFileSync(configPath, JSON.stringify({ usbPort: '', language: 'english' }, null, 2));
+    }
+
+    return configPath;
+  });
+
+  ipcMain.handle('config:load', async () => {
+    const fs = require('fs');
+    try {
+      const configPath = await ipcMain.emit('config:get-path');
+      const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+      const configFilePath = path.join(configDir, 'config.json');
+
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      if (!fs.existsSync(configFilePath)) {
+        const defaultConfig = { usbPort: '', language: 'english' };
+        fs.writeFileSync(configFilePath, JSON.stringify(defaultConfig, null, 2));
+        return defaultConfig;
+      }
+
+      const data = fs.readFileSync(configFilePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error loading config:', error);
+      return { usbPort: '', language: 'english' };
+    }
+  });
+
+  ipcMain.handle('config:save', async (event, config) => {
+    const fs = require('fs');
+    try {
+      const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+      const configPath = path.join(configDir, 'config.json');
+
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving config:', error);
+      throw error;
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

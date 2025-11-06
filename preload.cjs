@@ -6,5 +6,10 @@ contextBridge.exposeInMainWorld('electron', {
   isElectron: true,
   serialport: {
     list: () => ipcRenderer.invoke('serialport:list'),
+  },
+  config: {
+    load: () => ipcRenderer.invoke('config:load'),
+    save: (config) => ipcRenderer.invoke('config:save', config),
+    getPath: () => ipcRenderer.invoke('config:get-path'),
   }
 });

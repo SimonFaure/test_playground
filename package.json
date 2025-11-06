@@ -28,6 +28,9 @@
       "preload.cjs",
       "data/**/*"
     ],
+    "asarUnpack": [
+      "preload.cjs"
+    ],
     "extraResources": [
       {
         "from": "data",

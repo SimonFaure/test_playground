@@ -2,6 +2,11 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 function createWindow() {
+  // Handle both development and production preload paths
+  const preloadPath = app.isPackaged
+    ? path.join(__dirname, '..', 'app.asar.unpacked', 'preload.cjs')
+    : path.join(__dirname, 'preload.cjs');
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -10,7 +15,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: preloadPath
     },
     icon: path.join(__dirname, 'build', 'icon.png')
   });

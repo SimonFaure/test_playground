@@ -40,6 +40,39 @@ app.whenReady().then(() => {
     return os.hostname();
   });
 
+  ipcMain.handle('check-wifi', async () => {
+    try {
+      const interfaces = os.networkInterfaces();
+      let isConnected = false;
+      let networkName = null;
+
+      // Check all network interfaces for WiFi connection
+      for (const [name, addrs] of Object.entries(interfaces)) {
+        if (addrs) {
+          for (const addr of addrs) {
+            // Check for non-internal IPv4 addresses
+            if (addr.family === 'IPv4' && !addr.internal) {
+              // Check if it's a WiFi interface (common names)
+              if (name.toLowerCase().includes('wi-fi') ||
+                  name.toLowerCase().includes('wifi') ||
+                  name.toLowerCase().includes('wlan')) {
+                isConnected = true;
+                networkName = name;
+                break;
+              }
+            }
+          }
+        }
+        if (isConnected) break;
+      }
+
+      return { isConnected, networkName };
+    } catch (error) {
+      console.error('Error checking WiFi:', error);
+      return { isConnected: false, networkName: null };
+    }
+  });
+
   ipcMain.handle('serialport:list', async () => {
     try {
       const { SerialPort } = require('serialport');

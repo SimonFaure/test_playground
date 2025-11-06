@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Usb } from 'lucide-react';
+import { Monitor, Usb, Wifi } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 
 export function Footer() {
   const [computerName, setComputerName] = useState<string>('Unknown');
   const [usbConnected, setUsbConnected] = useState<boolean>(false);
+  const [wifiConnected, setWifiConnected] = useState<boolean>(false);
   const [isElectron, setIsElectron] = useState<boolean>(false);
 
   useEffect(() => {
@@ -27,8 +28,23 @@ export function Footer() {
       }
     };
 
+    const checkWifiConnection = async () => {
+      try {
+        if (window.electron?.checkWifi) {
+          const result = await window.electron.checkWifi();
+          setWifiConnected(result.isConnected);
+        }
+      } catch (error) {
+        setWifiConnected(false);
+      }
+    };
+
     checkUsbConnection();
-    const interval = setInterval(checkUsbConnection, 3000);
+    checkWifiConnection();
+    const interval = setInterval(() => {
+      checkUsbConnection();
+      checkWifiConnection();
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [isElectron]);
@@ -42,12 +58,20 @@ export function Footer() {
             <span>Computer: <span className="text-white font-medium">{computerName}</span></span>
           </div>
           {isElectron && (
-            <div className="flex items-center gap-2">
-              <Usb size={16} className={usbConnected ? 'text-green-400' : 'text-red-400'} />
-              <span>USB: <span className={`font-medium ${usbConnected ? 'text-green-400' : 'text-red-400'}`}>
-                {usbConnected ? 'Connected' : 'Disconnected'}
-              </span></span>
-            </div>
+            <>
+              <div className="flex items-center gap-2">
+                <Wifi size={16} className={wifiConnected ? 'text-green-400' : 'text-red-400'} />
+                <span>WiFi: <span className={`font-medium ${wifiConnected ? 'text-green-400' : 'text-red-400'}`}>
+                  {wifiConnected ? 'Connected' : 'Disconnected'}
+                </span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Usb size={16} className={usbConnected ? 'text-green-400' : 'text-red-400'} />
+                <span>USB: <span className={`font-medium ${usbConnected ? 'text-green-400' : 'text-red-400'}`}>
+                  {usbConnected ? 'Connected' : 'Disconnected'}
+                </span></span>
+              </div>
+            </>
           )}
         </div>
       </div>

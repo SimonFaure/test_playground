@@ -38,28 +38,28 @@ app.whenReady().then(() => {
 
   ipcMain.handle('check-wifi', async () => {
     try {
-      const interfaces = os.networkInterfaces();
+      const { execSync } = require('child_process');
       let isConnected = false;
       let networkName = null;
 
-      // Check all network interfaces for WiFi connection
-      for (const [name, addrs] of Object.entries(interfaces)) {
-        if (addrs) {
-          for (const addr of addrs) {
-            // Check for non-internal IPv4 addresses
-            if (addr.family === 'IPv4' && !addr.internal) {
-              // Check if it's a WiFi interface (common names)
-              if (name.toLowerCase().includes('wi-fi') ||
-                  name.toLowerCase().includes('wifi') ||
-                  name.toLowerCase().includes('wlan')) {
-                isConnected = true;
-                networkName = name;
-                break;
-              }
-            }
-          }
+      if (process.platform === 'win32') {
+        const output = execSync('netsh wlan show interfaces', { encoding: 'utf8' });
+        const ssidMatch = output.match(/SSID\s*:\s*(.+)/i);
+        if (ssidMatch && ssidMatch[1]) {
+          networkName = ssidMatch[1].trim();
+          isConnected = networkName.toLowerCase().includes('hunter');
         }
-        if (isConnected) break;
+      } else if (process.platform === 'darwin') {
+        const output = execSync('/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I', { encoding: 'utf8' });
+        const ssidMatch = output.match(/\sSSID:\s*(.+)/);
+        if (ssidMatch && ssidMatch[1]) {
+          networkName = ssidMatch[1].trim();
+          isConnected = networkName.toLowerCase().includes('hunter');
+        }
+      } else {
+        const output = execSync('iwgetid -r', { encoding: 'utf8' });
+        networkName = output.trim();
+        isConnected = networkName.toLowerCase().includes('hunter');
       }
 
       return { isConnected, networkName };

@@ -25,25 +25,21 @@ export const loadConfig = async (): Promise<AppConfig> => {
 
 export const saveConfig = async (config: AppConfig): Promise<void> => {
   try {
-    if (isElectron()) {
-      throw new Error('Config saving via file system is not yet implemented in Electron. Please update manually.');
-    } else {
-      const { supabase } = await import('../lib/db');
-      if (!supabase) {
-        throw new Error('Database not configured');
-      }
-
-      await Promise.all([
-        supabase.from('configuration').upsert(
-          { key: 'usb_port', value: config.usbPort, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
-        ),
-        supabase.from('configuration').upsert(
-          { key: 'language', value: config.language, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
-        )
-      ]);
+    const { supabase } = await import('../lib/db');
+    if (!supabase) {
+      throw new Error('Database not configured');
     }
+
+    await Promise.all([
+      supabase.from('configuration').upsert(
+        { key: 'usb_port', value: config.usbPort, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      ),
+      supabase.from('configuration').upsert(
+        { key: 'language', value: config.language, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      )
+    ]);
   } catch (error) {
     console.error('Error saving config:', error);
     throw error;

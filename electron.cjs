@@ -26,10 +26,6 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
-
-  win.on('closed', () => {
-    win = null;
-  });
 }
 
 app.whenReady().then(() => {

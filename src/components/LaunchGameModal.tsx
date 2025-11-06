@@ -50,6 +50,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const [patternFolders, setPatternFolders] = useState<string[]>([]);
   const [defaultPattern, setDefaultPattern] = useState<string>('');
   const [usbPorts, setUsbPorts] = useState<USBPort[]>([]);
+  const [savedUsbPort, setSavedUsbPort] = useState<string>('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -77,6 +78,30 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   }, [gameTypeName, gameUniqid]);
 
   useEffect(() => {
+    const loadSavedPort = async () => {
+      try {
+        const { supabase } = await import('../lib/db');
+        const { data, error } = await supabase
+          .from('configuration')
+          .select('value')
+          .eq('key', 'usb_port')
+          .maybeSingle();
+
+        if (error) throw error;
+        if (data) {
+          setSavedUsbPort(data.value);
+        }
+      } catch (error) {
+        console.error('Error loading saved USB port:', error);
+      }
+    };
+
+    if (isOpen && usbReaderService.isElectron()) {
+      loadSavedPort();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (isOpen) {
       setConfig({
         name: '',
@@ -89,9 +114,10 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         colorblindMode: false,
         autoResetTeam: false,
         delayBeforeReset: 10,
+        usbPort: savedUsbPort,
       });
     }
-  }, [isOpen, defaultPattern]);
+  }, [isOpen, defaultPattern, savedUsbPort]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,7 +229,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             {usbReaderService.isElectron() && (
               <div className="space-y-2">
                 <label htmlFor="usbPort" className="block text-sm font-medium text-slate-300">
-                  USB Port
+                  USB Port {savedUsbPort && <span className="text-green-400 text-xs">(Saved)</span>}
                 </label>
                 <select
                   id="usbPort"
@@ -215,6 +241,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                   {usbPorts.map((port) => (
                     <option key={port.path} value={port.path}>
                       {port.path} {port.manufacturer ? `- ${port.manufacturer}` : ''}
+                      {savedUsbPort === port.path ? ' (Saved)' : ''}
                     </option>
                   ))}
                 </select>

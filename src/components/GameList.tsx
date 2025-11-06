@@ -212,15 +212,10 @@ export function GameList() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+    <div className="flex flex-col">
       {alert.show && (
         <Alert type={alert.type} message={alert.message} onClose={closeAlert} />
       )}
-      <header className="bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold text-white">Taghunter Playground</h1>
-        </div>
-      </header>
 
       <main className="flex-1 container mx-auto px-6 py-8">
         <div className="mb-8">

@@ -1,16 +1,18 @@
-import { nodeRequire } from '../lib/node-imports';
-
 export interface AppConfig {
   usbPort: string;
   language: 'english' | 'french';
 }
 
+const isElectron = () => {
+  return typeof window !== 'undefined' && (window as any).electron;
+};
+
 const CONFIG_FILE_PATH = 'data/config.json';
 
 const getConfigPath = (): string => {
-  if (typeof window !== 'undefined' && (window as any).electron) {
-    const path = nodeRequire('path');
-    const electron = nodeRequire('electron');
+  if (isElectron()) {
+    const path = (window as any).require('path');
+    const electron = (window as any).require('electron');
     const app = electron.app || electron.remote?.app;
 
     if (app.isPackaged) {
@@ -23,8 +25,8 @@ const getConfigPath = (): string => {
 
 export const loadConfig = async (): Promise<AppConfig> => {
   try {
-    if (typeof window !== 'undefined' && (window as any).electron) {
-      const fs = nodeRequire('fs').promises;
+    if (isElectron()) {
+      const fs = (window as any).require('fs').promises;
       const configPath = getConfigPath();
       const data = await fs.readFile(configPath, 'utf-8');
       return JSON.parse(data);
@@ -46,8 +48,8 @@ export const loadConfig = async (): Promise<AppConfig> => {
 
 export const saveConfig = async (config: AppConfig): Promise<void> => {
   try {
-    if (typeof window !== 'undefined' && (window as any).electron) {
-      const fs = nodeRequire('fs').promises;
+    if (isElectron()) {
+      const fs = (window as any).require('fs').promises;
       const configPath = getConfigPath();
       await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
     } else {

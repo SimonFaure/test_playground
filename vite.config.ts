@@ -8,17 +8,17 @@ export default defineConfig(({ command }) => ({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      external: ['serialport', 'node:readline', 'picocolors']
+      external: ['serialport', 'node:readline', 'picocolors', 'electron']
     }
   },
   optimizeDeps: {
     exclude: ['lucide-react', 'serialport', 'picocolors'],
   },
   resolve: {
-    alias: command === 'serve' ? {
+    alias: {
       'serialport': '/src/lib/empty-module.js',
       'picocolors': '/src/lib/empty-module.js',
       'node:readline': '/src/lib/empty-module.js'
-    } : {}
+    }
   }
 }));

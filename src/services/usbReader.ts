@@ -46,7 +46,7 @@ export class USBReaderService {
   private onStationsDetected?: (stations: StationData[]) => void;
 
   isElectron(): boolean {
-    return typeof window !== 'undefined' && window.require !== undefined;
+    return typeof window !== 'undefined' && (window as any).electron?.isElectron === true;
   }
 
   async getAvailablePorts(): Promise<USBPort[]> {
@@ -55,8 +55,12 @@ export class USBReaderService {
       return [];
     }
     try {
-      await retrieveUSBPorts();
-      return WorkingEnv.ports || [];
+      const electron = (window as any).electron;
+      if (electron?.serialport?.list) {
+        const ports = await electron.serialport.list();
+        return ports || [];
+      }
+      return [];
     } catch (error) {
       console.error('Error getting USB ports:', error);
       return [];

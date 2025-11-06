@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -8,9 +8,9 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs')
     },
     icon: path.join(__dirname, 'build', 'icon.png')
   });
@@ -28,6 +28,18 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Set up IPC handlers
+  ipcMain.handle('serialport:list', async () => {
+    try {
+      const { SerialPort } = require('serialport');
+      const ports = await SerialPort.list();
+      return ports;
+    } catch (error) {
+      console.error('Error listing serial ports:', error);
+      return [];
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

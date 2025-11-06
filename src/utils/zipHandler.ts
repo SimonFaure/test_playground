@@ -104,30 +104,20 @@ export async function validateAndExtractZip(file: File): Promise<ValidationResul
 }
 
 async function saveZipToDataFolder(zip: JSZip, uniqid: string): Promise<void> {
-  const fs = window.require?.('fs');
-  const path = window.require?.('path');
+  const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
-  if (!fs || !path) {
-    throw new Error('File system access not available. This feature requires the Electron app.');
-  }
+  if (isElectron) {
+    for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+      if (zipEntry.dir) continue;
 
-  const dataDir = path.join(process.cwd(), 'data', uniqid);
+      const isBinary = relativePath.match(/\.(png|jpg|jpeg|gif|mp3|wav|ogg)$/i);
+      const content = isBinary
+        ? await zipEntry.async('base64')
+        : await zipEntry.async('text');
 
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-
-  for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-    if (zipEntry.dir) continue;
-
-    const content = await zipEntry.async('nodebuffer');
-    const filePath = path.join(dataDir, relativePath);
-    const fileDir = path.dirname(filePath);
-
-    if (!fs.existsSync(fileDir)) {
-      fs.mkdirSync(fileDir, { recursive: true });
+      await (window as any).electron.games.writeFile(uniqid, relativePath, content, isBinary);
     }
-
-    fs.writeFileSync(filePath, content);
+  } else {
+    throw new Error('File system access not available. This feature requires the Electron app.');
   }
 }

@@ -11,5 +11,12 @@ contextBridge.exposeInMainWorld('electron', {
     load: () => ipcRenderer.invoke('config:load'),
     save: (config) => ipcRenderer.invoke('config:save', config),
     getPath: () => ipcRenderer.invoke('config:get-path'),
+  },
+  games: {
+    getFolderPath: () => ipcRenderer.invoke('games:get-folder-path'),
+    list: () => ipcRenderer.invoke('games:list'),
+    readFile: (gameId, filename) => ipcRenderer.invoke('games:read-file', gameId, filename),
+    writeFile: (gameId, filename, content, isBinary) => ipcRenderer.invoke('games:write-file', gameId, filename, content, isBinary),
+    getMediaPath: (gameId, filename) => ipcRenderer.invoke('games:get-media-path', gameId, filename),
   }
 });

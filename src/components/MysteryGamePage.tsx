@@ -59,9 +59,17 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   useEffect(() => {
     const loadGameData = async () => {
       try {
-        const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
-        const data = await response.json();
-        setGameData(data);
+        const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+        if (isElectron) {
+          const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
+          const data = JSON.parse(gameDataContent);
+          setGameData(data);
+        } else {
+          const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
+          const data = await response.json();
+          setGameData(data);
+        }
       } catch (error) {
         console.error('Error loading game data:', error);
       }
@@ -138,6 +146,10 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   }
 
   const getImageUrl = (imageId: string) => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+    if (isElectron) {
+      return `app-file://${gameUniqid}/media/${imageId}.png`;
+    }
     return `/data/games/${gameUniqid}/media/${imageId}.png`;
   };
 

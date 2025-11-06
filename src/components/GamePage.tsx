@@ -20,12 +20,23 @@ export function GamePage({ config, gameUniqid, onBack }: GamePageProps) {
   useEffect(() => {
     const loadGameMetadata = async () => {
       try {
-        const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
-        const data = await response.json();
-        setGameMetadata({
-          type: data.game.type,
-          title: data.game.title
-        });
+        const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+        if (isElectron) {
+          const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
+          const data = JSON.parse(gameDataContent);
+          setGameMetadata({
+            type: data.game.type,
+            title: data.game.title
+          });
+        } else {
+          const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
+          const data = await response.json();
+          setGameMetadata({
+            type: data.game.type,
+            title: data.game.title
+          });
+        }
       } catch (error) {
         console.error('Error loading game metadata:', error);
       } finally {

@@ -1,25 +1,13 @@
 export async function getLocalGameIds(): Promise<string[]> {
-  const fs = window.require?.('fs');
-  const path = window.require?.('path');
+  const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
-  if (!fs || !path) {
-    console.log('Electron fs/path not available');
+  if (!isElectron) {
+    console.log('Electron not available');
     return [];
   }
 
   try {
-    const gamesDir = path.join(process.cwd(), 'data', 'games');
-
-    if (!fs.existsSync(gamesDir)) {
-      console.log('Games directory does not exist:', gamesDir);
-      return [];
-    }
-
-    const folders = fs.readdirSync(gamesDir, { withFileTypes: true });
-    const localGameIds = folders
-      .filter((dirent: { isDirectory: () => boolean }) => dirent.isDirectory())
-      .map((dirent: { name: string }) => dirent.name);
-
+    const localGameIds = await (window as any).electron.games.list();
     console.log('Local game folders found:', localGameIds);
     return localGameIds;
   } catch (error) {

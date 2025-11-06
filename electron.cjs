@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 function createWindow() {
   // Handle both development and production preload paths
@@ -29,6 +30,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  protocol.registerFileProtocol('app-file', (request, callback) => {
+    const url = request.url.replace('app-file://', '');
+    const [gameId, ...pathParts] = url.split('/');
+    const filePath = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games', gameId, ...pathParts);
+    callback({ path: filePath });
+  });
+
   // Set up IPC handlers
   const os = require('os');
 
@@ -137,6 +145,92 @@ app.whenReady().then(() => {
       console.error('Error saving config:', error);
       throw error;
     }
+  });
+
+  ipcMain.handle('games:get-folder-path', async () => {
+    const fs = require('fs');
+    const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+
+    if (!fs.existsSync(gamesDir)) {
+      fs.mkdirSync(gamesDir, { recursive: true });
+    }
+
+    return gamesDir;
+  });
+
+  ipcMain.handle('games:list', async () => {
+    const fs = require('fs');
+    try {
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+
+      if (!fs.existsSync(gamesDir)) {
+        fs.mkdirSync(gamesDir, { recursive: true });
+        return [];
+      }
+
+      const folders = fs.readdirSync(gamesDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+      return folders;
+    } catch (error) {
+      console.error('Error listing games:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('games:read-file', async (event, gameId, filename) => {
+    const fs = require('fs');
+    try {
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const filePath = path.join(gamesDir, gameId, filename);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filename}`);
+      }
+
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return data;
+    } catch (error) {
+      console.error('Error reading game file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('games:write-file', async (event, gameId, filename, content, isBinary = false) => {
+    try {
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const gameDir = path.join(gamesDir, gameId);
+
+      if (!fs.existsSync(gameDir)) {
+        fs.mkdirSync(gameDir, { recursive: true });
+      }
+
+      const filePath = path.join(gameDir, filename);
+      const fileDir = path.dirname(filePath);
+
+      if (!fs.existsSync(fileDir)) {
+        fs.mkdirSync(fileDir, { recursive: true });
+      }
+
+      if (isBinary) {
+        const buffer = Buffer.from(content, 'base64');
+        fs.writeFileSync(filePath, buffer);
+      } else {
+        fs.writeFileSync(filePath, content);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error writing game file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('games:get-media-path', async (event, gameId, filename) => {
+    const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+    const filePath = path.join(gamesDir, gameId, 'media', filename);
+    return filePath;
   });
 
   createWindow();

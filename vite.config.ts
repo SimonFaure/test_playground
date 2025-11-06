@@ -14,4 +14,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react', 'serialport', 'picocolors'],
   },
+  resolve: {
+    alias: {
+      'serialport': '/src/lib/empty-module.js',
+      'picocolors': '/src/lib/empty-module.js',
+      'node:readline': '/src/lib/empty-module.js'
+    }
+  }
 });

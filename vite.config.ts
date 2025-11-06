@@ -6,13 +6,10 @@ export default defineConfig(({ command }) => ({
   base: './',
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      external: ['serialport', 'node:readline', 'picocolors', 'electron']
-    }
+    emptyOutDir: true
   },
   optimizeDeps: {
-    exclude: ['lucide-react', 'serialport', 'picocolors'],
+    exclude: ['lucide-react'],
   },
   resolve: {
     alias: {

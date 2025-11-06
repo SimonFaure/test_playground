@@ -34,6 +34,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   // Set up IPC handlers
+  const os = require('os');
+
+  ipcMain.handle('get-computer-name', async () => {
+    return os.hostname();
+  });
+
   ipcMain.handle('serialport:list', async () => {
     try {
       const { SerialPort } = require('serialport');

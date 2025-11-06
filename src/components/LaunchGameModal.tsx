@@ -93,8 +93,14 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     }
   }, [isOpen, defaultPattern]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (usbReaderService.isElectron() && !config.usbPort) {
+      alert('Please select a USB port to launch the game in Electron mode.');
+      return;
+    }
+
     const finalConfig = {
       ...config,
       name: config.name.trim() || getDefaultName(),

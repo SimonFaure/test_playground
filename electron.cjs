@@ -5,10 +5,14 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    }
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true
+    },
+    icon: path.join(__dirname, 'build', 'icon.png')
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -17,6 +21,10 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
+
+  win.on('closed', () => {
+    win = null;
+  });
 }
 
 app.whenReady().then(() => {

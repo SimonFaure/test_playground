@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Check } from 'lucide-react';
+import { ShieldCheck, Check, Loader2 } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -20,6 +20,8 @@ export function AdminConfigPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('default');
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState('');
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -50,17 +52,28 @@ export function AdminConfigPage() {
 
   const handleClientSelect = async (client: Client) => {
     setSelectedClientId(client.id);
+    setTestingConnection(true);
+    setConnectionStatus(null);
+    setSaveMessage('');
 
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
     if (isElectron) {
       try {
-        const result = await (window as any).electron.clients.saveSelected(client);
-        if (result.success) {
-          setSaveMessage('Client configuration saved successfully');
-          setTimeout(() => setSaveMessage(''), 3000);
+        const testResult = await (window as any).electron.db.testConnection(client.url);
+        setConnectionStatus(testResult);
+
+        if (testResult.success) {
+          const result = await (window as any).electron.clients.saveSelected(client);
+          if (result.success) {
+            setSaveMessage('Client configuration saved successfully');
+            setTimeout(() => setSaveMessage(''), 3000);
+          }
         }
       } catch (error) {
-        console.error('Error saving selected client:', error);
+        console.error('Error selecting client:', error);
+        setConnectionStatus({ success: false, message: 'Failed to test connection' });
+      } finally {
+        setTestingConnection(false);
       }
     }
   };
@@ -104,10 +117,11 @@ export function AdminConfigPage() {
               <input
                 type="radio"
                 name="client"
-                value={client.id}
+                value={client.name}
                 checked={selectedClientId === client.id}
                 onChange={() => handleClientSelect(client)}
                 className="hidden"
+                disabled={testingConnection}
               />
               <div className="flex items-center gap-4 flex-1">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -127,7 +141,31 @@ export function AdminConfigPage() {
           ))}
         </div>
 
-        {selectedClientId && (
+        {testingConnection && (
+          <div className="mt-6 p-4 bg-blue-900/30 rounded-lg border border-blue-700 flex items-center gap-3">
+            <Loader2 className="animate-spin text-blue-400" size={20} />
+            <p className="text-blue-300 text-sm">Testing database connection...</p>
+          </div>
+        )}
+
+        {connectionStatus && !testingConnection && (
+          <div className={`mt-6 p-4 rounded-lg border flex items-center gap-3 ${
+            connectionStatus.success
+              ? 'bg-green-900/30 border-green-700'
+              : 'bg-red-900/30 border-red-700'
+          }`}>
+            <div className={`w-3 h-3 rounded-full ${
+              connectionStatus.success ? 'bg-green-400' : 'bg-red-400'
+            }`} />
+            <p className={`text-sm ${
+              connectionStatus.success ? 'text-green-300' : 'text-red-300'
+            }`}>
+              {connectionStatus.message}
+            </p>
+          </div>
+        )}
+
+        {selectedClientId && !testingConnection && (
           <div className="mt-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
             <p className="text-slate-300 text-sm">
               The selected client's database URL and email will be used throughout the application.

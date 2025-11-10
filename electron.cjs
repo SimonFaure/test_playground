@@ -303,6 +303,29 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('db:testConnection', async (event, url) => {
+    try {
+      const mysql = require('mysql2/promise');
+      const testConfig = {
+        host: url,
+        port: 3306,
+        user: 'bob',
+        password: 'WebMaster62',
+        database: 'taghunter_playground',
+        connectTimeout: 5000
+      };
+
+      const connection = await mysql.createConnection(testConfig);
+      await connection.ping();
+      await connection.end();
+
+      return { success: true, message: `Successfully connected to database at ${url}` };
+    } catch (error) {
+      console.error('Database test connection error:', error);
+      return { success: false, message: `Failed to connect: ${error.message}` };
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

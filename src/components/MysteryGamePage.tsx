@@ -97,6 +97,20 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   const handleStartGame = async () => {
     setGameStarted(true);
 
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+    if (isElectron) {
+      try {
+        const dbResult = await (window as any).electron.db.connect();
+        if (dbResult.success) {
+          console.log('✓ Database connection successful:', dbResult.message);
+        } else {
+          console.error('✗ Database connection failed:', dbResult.message);
+        }
+      } catch (error) {
+        console.error('✗ Database connection error:', error);
+      }
+    }
+
     if (usbReaderService.isElectron() && config.usbPort) {
       try {
         const initialized = await usbReaderService.initializePort(config.usbPort);

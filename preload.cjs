@@ -18,5 +18,8 @@ contextBridge.exposeInMainWorld('electron', {
     readFile: (gameId, filename) => ipcRenderer.invoke('games:read-file', gameId, filename),
     writeFile: (gameId, filename, content, isBinary) => ipcRenderer.invoke('games:write-file', gameId, filename, content, isBinary),
     getMediaPath: (gameId, filename) => ipcRenderer.invoke('games:get-media-path', gameId, filename),
+  },
+  db: {
+    connect: () => ipcRenderer.invoke('db:connect'),
   }
 });

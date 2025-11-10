@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { connectToDatabase } = require('./src/lib/mysql-connection');
 
 function createWindow() {
   // Handle both development and production preload paths
@@ -231,6 +232,17 @@ app.whenReady().then(() => {
     const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
     const filePath = path.join(gamesDir, gameId, 'media', filename);
     return filePath;
+  });
+
+  ipcMain.handle('db:connect', async () => {
+    try {
+      const result = await connectToDatabase();
+      console.log('Database connection result:', result);
+      return result;
+    } catch (error) {
+      console.error('Database connection error:', error);
+      return { success: false, message: error.message };
+    }
   });
 
   createWindow();

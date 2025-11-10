@@ -51,6 +51,8 @@ export function AdminConfigPage() {
   };
 
   const handleClientSelect = async (client: Client) => {
+    if (testingConnection) return;
+
     setSelectedClientId(client.id);
     setTestingConnection(true);
     setConnectionStatus(null);
@@ -77,6 +79,8 @@ export function AdminConfigPage() {
       } finally {
         setTestingConnection(false);
       }
+    } else {
+      setTestingConnection(false);
     }
   };
 
@@ -108,23 +112,27 @@ export function AdminConfigPage() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-white mb-4">Select Client</h3>
           {clients.map((client) => (
-            <label
+            <div
               key={client.id}
               className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition ${
                 selectedClientId === client.id
                   ? 'border-blue-500 bg-blue-900/20'
                   : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
               }`}
+              onClick={() => !testingConnection && handleClientSelect(client)}
             >
               <input
                 type="radio"
                 name="client"
-                id={client.name}
-                value={client.name}
+                id={client.id}
+                value={client.id}
                 checked={selectedClientId === client.id}
-                onChange={() => handleClientSelect(client)}
+                onChange={(e) => {
+                  e.stopPropagation();
+                }}
                 className="hidden"
                 disabled={testingConnection}
+                readOnly
               />
               <div className="flex items-center gap-4 flex-1">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -140,7 +148,7 @@ export function AdminConfigPage() {
                   <div className="text-slate-500 text-sm mt-1">Database: {client.url}</div>
                 </div>
               </div>
-            </label>
+            </div>
           ))}
         </div>
 

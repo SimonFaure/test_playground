@@ -109,47 +109,48 @@ export function AdminConfigPage() {
           </div>
         )}
 
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-white mb-4">Select Client</h3>
-          {clients.map((client) => (
-            <div
-              key={client.id}
-              className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition ${
-                selectedClientId === client.id
-                  ? 'border-blue-500 bg-blue-900/20'
-                  : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
-              }`}
-              onClick={() => !testingConnection && handleClientSelect(client)}
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="client-select" className="block text-lg font-semibold text-white mb-3">
+              Select Client
+            </label>
+            <select
+              id="client-select"
+              value={selectedClientId}
+              onChange={(e) => {
+                const client = clients.find(c => c.id === e.target.value);
+                if (client) {
+                  handleClientSelect(client);
+                }
+              }}
+              disabled={testingConnection}
+              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white text-base focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <input
-                type="radio"
-                name="client"
-                id={client.id}
-                value={client.id}
-                checked={selectedClientId === client.id}
-                onChange={(e) => {
-                  e.stopPropagation();
-                }}
-                className="hidden"
-                disabled={testingConnection}
-                readOnly
-              />
-              <div className="flex items-center gap-4 flex-1">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  selectedClientId === client.id
-                    ? 'border-blue-500 bg-blue-500'
-                    : 'border-slate-400'
-                }`}>
-                  {selectedClientId === client.id && <Check size={14} className="text-white" />}
-                </div>
-                <div className="flex-1">
-                  <div className="text-white font-semibold">{client.name}</div>
-                  <div className="text-slate-400 text-sm">{client.email}</div>
-                  <div className="text-slate-500 text-sm mt-1">Database: {client.url}</div>
-                </div>
-              </div>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name} - {client.email} ({client.url})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedClientId && (
+            <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+              {(() => {
+                const selected = clients.find(c => c.id === selectedClientId);
+                return selected ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Check size={16} className="text-blue-400" />
+                      <span className="text-white font-semibold">{selected.name}</span>
+                    </div>
+                    <div className="text-slate-400 text-sm">{selected.email}</div>
+                    <div className="text-slate-500 text-sm">Database: {selected.url}</div>
+                  </div>
+                ) : null;
+              })()}
             </div>
-          ))}
+          )}
         </div>
 
         {testingConnection && (
@@ -176,13 +177,6 @@ export function AdminConfigPage() {
           </div>
         )}
 
-        {selectedClientId && !testingConnection && (
-          <div className="mt-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-            <p className="text-slate-300 text-sm">
-              The selected client's database URL and email will be used throughout the application.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

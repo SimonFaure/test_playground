@@ -130,7 +130,6 @@ export interface Database {
           key_name: string
           key_number: number
           color: string | null
-          user_id: number | null
         }
         Insert: {
           id: number
@@ -139,7 +138,6 @@ export interface Database {
           key_name: string
           key_number: number
           color?: string | null
-          user_id?: number | null
         }
         Update: {
           id?: number
@@ -148,7 +146,6 @@ export interface Database {
           key_name?: string
           key_number?: number
           color?: string | null
-          user_id?: number | null
         }
       }
     }

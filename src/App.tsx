@@ -12,7 +12,7 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
-  const lastActionRef = useRef<number>(0);
+  const processedRef = useRef<boolean>(false);
 
   useEffect(() => {
     const checkDatabaseOnLaunch = async () => {
@@ -49,25 +49,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const now = Date.now();
+    const hasAMO = pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o');
+    const hasAME = pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e');
 
-    if (now - lastActionRef.current < 500) {
-      return;
-    }
-
-    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o') && !isAdminMode) {
-      lastActionRef.current = now;
+    if (hasAMO && !isAdminMode && !processedRef.current) {
+      processedRef.current = true;
       setPressedKeys(new Set());
       setShowPasswordModal(true);
-    }
-
-    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e') && isAdminMode) {
-      lastActionRef.current = now;
+    } else if (hasAME && isAdminMode && !processedRef.current) {
+      processedRef.current = true;
       setPressedKeys(new Set());
       setIsAdminMode(false);
       if (currentPage === 'admin-config') {
         setCurrentPage('games');
       }
+    } else if (!hasAMO && !hasAME) {
+      processedRef.current = false;
     }
   }, [pressedKeys, isAdminMode, currentPage]);
 

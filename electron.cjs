@@ -89,6 +89,57 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('clients:load', async () => {
+    const fs = require('fs');
+    const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+    const clientsPath = path.join(configDir, 'clients.json');
+
+    try {
+      if (fs.existsSync(clientsPath)) {
+        const data = fs.readFileSync(clientsPath, 'utf8');
+        return { success: true, clients: JSON.parse(data) };
+      }
+      return { success: false, clients: [] };
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      return { success: false, clients: [] };
+    }
+  });
+
+  ipcMain.handle('clients:save-selected', async (event, clientData) => {
+    const fs = require('fs');
+    const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+    const selectedClientPath = path.join(configDir, 'selected-client.json');
+
+    try {
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      fs.writeFileSync(selectedClientPath, JSON.stringify(clientData, null, 2));
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving selected client:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('clients:load-selected', async () => {
+    const fs = require('fs');
+    const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+    const selectedClientPath = path.join(configDir, 'selected-client.json');
+
+    try {
+      if (fs.existsSync(selectedClientPath)) {
+        const data = fs.readFileSync(selectedClientPath, 'utf8');
+        return { success: true, client: JSON.parse(data) };
+      }
+      return { success: false, client: null };
+    } catch (error) {
+      console.error('Error loading selected client:', error);
+      return { success: false, client: null };
+    }
+  });
+
   ipcMain.handle('config:get-path', async () => {
     const fs = require('fs');
     const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');

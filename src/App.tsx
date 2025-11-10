@@ -3,6 +3,7 @@ import { Settings, ShieldCheck } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
+import { AdminConfigPage } from './components/AdminConfigPage';
 
 type Page = 'games' | 'config' | 'admin-config';
 
@@ -93,14 +94,7 @@ function App() {
 
       {currentPage === 'games' && <GameList />}
       {currentPage === 'config' && <ConfigurationPage />}
-      {currentPage === 'admin-config' && isAdminMode && (
-        <div className="container mx-auto px-6 py-8">
-          <div className="bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-700">
-            <h2 className="text-2xl font-bold text-white mb-4">Admin Configuration</h2>
-            <p className="text-slate-300">Admin configuration panel coming soon...</p>
-          </div>
-        </div>
-      )}
+      {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
 
       <AdminPasswordModal
         isOpen={showPasswordModal}

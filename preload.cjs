@@ -21,5 +21,10 @@ contextBridge.exposeInMainWorld('electron', {
   },
   db: {
     connect: () => ipcRenderer.invoke('db:connect'),
+  },
+  clients: {
+    load: () => ipcRenderer.invoke('clients:load'),
+    saveSelected: (clientData) => ipcRenderer.invoke('clients:save-selected', clientData),
+    loadSelected: () => ipcRenderer.invoke('clients:load-selected'),
   }
 });

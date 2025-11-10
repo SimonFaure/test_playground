@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { getPatternFolders, getGamePublic } from '../utils/patterns';
 import { usbReaderService, USBPort } from '../services/usbReader';
+import { supabase } from '../lib/db';
+import type { SiPuce } from '../types/database';
 
 interface LaunchGameModalProps {
   isOpen: boolean;
@@ -24,6 +26,13 @@ export interface GameConfig {
   autoResetTeam: boolean;
   delayBeforeReset: number;
   usbPort?: string;
+  teams?: Team[];
+}
+
+export interface Team {
+  chipId: number;
+  chipNumber: number;
+  name: string;
 }
 
 export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTypeName, onLaunch }: LaunchGameModalProps) {
@@ -51,6 +60,9 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const [defaultPattern, setDefaultPattern] = useState<string>('');
   const [usbPorts, setUsbPorts] = useState<USBPort[]>([]);
   const [savedUsbPort, setSavedUsbPort] = useState<string>('');
+  const [step, setStep] = useState<1 | 2>(1);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [availableChips, setAvailableChips] = useState<SiPuce[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -108,11 +120,64 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         delayBeforeReset: 10,
         usbPort: savedUsbPort,
       });
+      setStep(1);
+      setTeams([]);
     }
   }, [isOpen, defaultPattern, savedUsbPort]);
 
+  useEffect(() => {
+    const loadChips = async () => {
+      const { data, error } = await supabase
+        .from('si_puces')
+        .select('*')
+        .order('key_number', { ascending: true });
+
+      if (error) {
+        console.error('Error loading chips:', error);
+        return;
+      }
+
+      setAvailableChips(data || []);
+    };
+
+    if (isOpen) {
+      loadChips();
+    }
+  }, [isOpen]);
+
+  const handleNextStep = () => {
+    const startIndex = config.firstChipIndex;
+    const numberOfTeams = config.numberOfTeams;
+
+    const chipsForTeams = availableChips
+      .filter(chip => chip.key_number >= startIndex && chip.key_number < startIndex + numberOfTeams)
+      .slice(0, numberOfTeams);
+
+    const newTeams: Team[] = chipsForTeams.map(chip => ({
+      chipId: chip.id,
+      chipNumber: chip.key_number,
+      name: chip.key_name,
+    }));
+
+    setTeams(newTeams);
+    setStep(2);
+  };
+
+  const updateTeamName = (index: number, newName: string) => {
+    setTeams(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], name: newName };
+      return updated;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (step === 1) {
+      handleNextStep();
+      return;
+    }
 
     if (usbReaderService.isElectron() && !config.usbPort) {
       alert('Please select a USB port to launch the game in Electron mode.');
@@ -122,6 +187,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const finalConfig = {
       ...config,
       name: config.name.trim() || getDefaultName(),
+      teams,
     };
 
     onLaunch(finalConfig);
@@ -143,6 +209,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {step === 1 && (
+          <>
           <div className="space-y-2">
             <label htmlFor="name" className="block text-sm font-medium text-slate-300">
               Game Name
@@ -341,11 +409,72 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition font-medium flex items-center gap-2"
             >
-              Launch Game
+              Next
+              <ChevronRight size={20} />
             </button>
           </div>
+          </>
+          )}
+
+          {step === 2 && (
+            <>
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold text-white border-b border-slate-700 pb-2">Configure Teams</h3>
+                <div className="space-y-3">
+                  {teams.map((team, index) => (
+                    <div key={team.chipId} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                          {index + 1}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-slate-400 text-sm">
+                        Chip #{team.chipNumber}
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={team.name}
+                          onChange={(e) => updateTeamName(index, e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Team name"
+                          required
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-6 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition font-medium flex items-center gap-2"
+                >
+                  <ChevronLeft size={20} />
+                  Back
+                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-6 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium"
+                  >
+                    Launch Game
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </form>
       </div>
     </div>

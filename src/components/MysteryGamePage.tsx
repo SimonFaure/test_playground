@@ -45,16 +45,20 @@ interface GameData {
   };
   game_enigmas: Array<{
     id: string;
+    game_id: string;
     number: string;
     text: string;
     answer_type: string;
     good_answer?: string;
     good_answer_image: string;
     good_answer_points: string;
+    wrong_answer_points?: string;
   }>;
-  sounds?: Record<string, {
+  game_sounds?: Array<{
+    id: string;
+    game_id: string;
+    image_number: string;
     sound_id: string;
-    sound_file: string;
   }>;
 }
 
@@ -82,11 +86,11 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
           const data = JSON.parse(gameDataContent);
           setGameData(data);
 
-          if (data.sounds) {
+          if (data.game_sounds) {
             const loadedAudio: Record<string, HTMLAudioElement> = {};
-            for (const [soundName, soundData] of Object.entries(data.sounds)) {
-              const audio = new Audio(`app-file://${gameUniqid}/media/${soundData.sound_file}`);
-              loadedAudio[soundName] = audio;
+            for (const soundData of data.game_sounds) {
+              const audio = new Audio(`app-file://${gameUniqid}/media/${soundData.sound_id}`);
+              loadedAudio[soundData.image_number] = audio;
             }
             setAudioElements(loadedAudio);
           }
@@ -95,11 +99,11 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
           const data = await response.json();
           setGameData(data);
 
-          if (data.sounds) {
+          if (data.game_sounds) {
             const loadedAudio: Record<string, HTMLAudioElement> = {};
-            for (const [soundName, soundData] of Object.entries(data.sounds)) {
-              const audio = new Audio(`/data/games/${gameUniqid}/media/${soundData.sound_file}`);
-              loadedAudio[soundName] = audio;
+            for (const soundData of data.game_sounds) {
+              const audio = new Audio(`/data/games/${gameUniqid}/media/${soundData.sound_id}`);
+              loadedAudio[soundData.image_number] = audio;
             }
             setAudioElements(loadedAudio);
           }
@@ -207,11 +211,12 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   }
 
   const getImageUrl = (imageId: string) => {
+    if (!imageId) return '';
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
     if (isElectron) {
-      return `app-file://${gameUniqid}/media/${imageId}.png`;
+      return `app-file://${gameUniqid}/media/${imageId}`;
     }
-    return `/data/games/${gameUniqid}/media/${imageId}.png`;
+    return `/data/games/${gameUniqid}/media/${imageId}`;
   };
 
   const backgroundImageUrl = getImageUrl(gameData.game_meta.background_image);

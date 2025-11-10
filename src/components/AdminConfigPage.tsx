@@ -53,6 +53,11 @@ export function AdminConfigPage() {
   const handleClientSelect = async (client: Client) => {
     if (testingConnection) return;
 
+    console.log('=== FRONTEND: Client selected ===');
+    console.log('Client:', client);
+    console.log('Client URL:', client.url);
+    console.log('URL type:', typeof client.url);
+
     setSelectedClientId(client.id);
     setTestingConnection(true);
     setConnectionStatus(null);
@@ -61,6 +66,7 @@ export function AdminConfigPage() {
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
     if (isElectron) {
       try {
+        console.log('Calling electron.db.testConnection with URL:', client.url);
         const testResult = await (window as any).electron.db.testConnection(client.url);
         console.log('Database test connection result:', testResult);
         setConnectionStatus(testResult);

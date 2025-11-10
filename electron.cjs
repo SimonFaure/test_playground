@@ -4,15 +4,29 @@ const fs = require('fs');
 
 let connectToDatabase;
 let mysqlConnectionModule;
+
+console.log('=== LOADING MYSQL MODULE ===');
+console.log('__dirname:', __dirname);
+console.log('Module path:', path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
+
 try {
-  mysqlConnectionModule = require(path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
+  const modulePath = path.join(__dirname, 'src', 'lib', 'mysql-connection.js');
+  console.log('Checking if module exists:', fs.existsSync(modulePath));
+
+  mysqlConnectionModule = require(modulePath);
+  console.log('Module loaded, exports:', Object.keys(mysqlConnectionModule));
+
   connectToDatabase = mysqlConnectionModule.connectToDatabase;
-  console.log('MySQL connection module loaded successfully');
   console.log('connectToDatabase type:', typeof connectToDatabase);
+  console.log('MySQL connection module loaded successfully');
 } catch (error) {
-  console.error('Failed to load mysql-connection module:', error);
+  console.error('Failed to load mysql-connection module:');
+  console.error('Error name:', error.name);
+  console.error('Error message:', error.message);
+  console.error('Error stack:', error.stack);
+
   connectToDatabase = async () => {
-    return { success: false, message: 'MySQL connection module failed to load' };
+    return { success: false, message: `MySQL connection module failed to load: ${error.message}` };
   };
 }
 
@@ -331,6 +345,10 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('db:testConnection', async (event, url) => {
+    console.log('=== DB TEST CONNECTION ===');
+    console.log('Received URL:', url);
+    console.log('URL type:', typeof url);
+
     try {
       const mysql = require('mysql2/promise');
       const testConfig = {
@@ -342,20 +360,30 @@ app.whenReady().then(() => {
         connectTimeout: 5000
       };
 
-      console.log('Testing database connection with URL:', url);
-      console.log('Full config:', testConfig);
+      console.log('Testing database connection with config:', JSON.stringify(testConfig, null, 2));
 
       const connection = await mysql.createConnection(testConfig);
+      console.log('Connection created successfully');
+
       await connection.ping();
+      console.log('Ping successful');
 
       const [tables] = await connection.query('SHOW TABLES');
       console.log('Tables in database:', tables);
 
       await connection.end();
 
-      return { success: true, message: `Successfully connected to database at ${url}` };
+      const successMessage = `Successfully connected to database at ${url}`;
+      console.log('Success:', successMessage);
+      return { success: true, message: successMessage };
     } catch (error) {
       console.error('Database test connection error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        errno: error.errno,
+        sqlState: error.sqlState
+      });
       return { success: false, message: `Failed to connect: ${error.message}` };
     }
   });

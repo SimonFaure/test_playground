@@ -61,9 +61,72 @@ export interface Database {
           image_url?: string | null
         }
       }
+      launched_games: {
+        Row: {
+          id: number
+          game_uniqid: string
+          name: string
+          number_of_teams: number
+          game_type: string
+          start_time: string
+          ended: boolean
+          started: boolean
+          duration: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          game_uniqid: string
+          name: string
+          number_of_teams: number
+          game_type: string
+          start_time: string
+          ended?: boolean
+          started?: boolean
+          duration: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          game_uniqid?: string
+          name?: string
+          number_of_teams?: number
+          game_type?: string
+          start_time?: string
+          ended?: boolean
+          started?: boolean
+          duration?: number
+          created_at?: string | null
+        }
+      }
+      launched_game_meta: {
+        Row: {
+          id: number
+          meta_name: string
+          meta_value: string | null
+          launched_game_id: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          meta_name: string
+          meta_value?: string | null
+          launched_game_id: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          meta_name?: string
+          meta_value?: string | null
+          launched_game_id?: number
+          created_at?: string | null
+        }
+      }
     }
   }
 }
 
 export type GameType = Database['public']['Tables']['game_types']['Row'];
 export type Scenario = Database['public']['Tables']['scenarios']['Row'];
+export type LaunchedGame = Database['public']['Tables']['launched_games']['Row'];
+export type LaunchedGameMeta = Database['public']['Tables']['launched_game_meta']['Row'];

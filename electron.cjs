@@ -369,7 +369,14 @@ app.whenReady().then(() => {
       console.log('Ping successful');
 
       const [tables] = await connection.query('SHOW TABLES');
-      console.log('Tables in database:', tables);
+      console.log('=== DATABASE TABLES ===');
+      console.log('Number of tables:', tables.length);
+      console.log('Tables:');
+      tables.forEach((table, index) => {
+        const tableName = Object.values(table)[0];
+        console.log(`  ${index + 1}. ${tableName}`);
+      });
+      console.log('======================');
 
       await connection.end();
 

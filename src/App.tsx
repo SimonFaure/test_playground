@@ -4,6 +4,7 @@ import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { AdminConfigPage } from './components/AdminConfigPage';
+import { supabase } from './lib/db';
 
 type Page = 'games' | 'config' | 'admin-config';
 
@@ -16,12 +17,37 @@ function App() {
 
   useEffect(() => {
     const checkDatabaseOnLaunch = async () => {
-      if (typeof window !== 'undefined' && (window as any).electron?.db?.connect) {
+      const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+      if (isElectron && (window as any).electron?.db?.connect) {
         try {
           await (window as any).electron.db.connect();
         } catch (error) {
           console.error('Failed to connect to database on launch:', error);
         }
+      } else if (!isElectron && supabase) {
+        console.log('=== SUPABASE DATABASE INFO ===');
+        try {
+          const tableNames = ['game_types', 'configuration'];
+          console.log('Number of tables:', tableNames.length);
+          console.log('Tables:');
+          tableNames.forEach((table, index) => {
+            console.log(`  ${index + 1}. ${table}`);
+          });
+
+          for (const tableName of tableNames) {
+            const { count, error } = await supabase
+              .from(tableName)
+              .select('*', { count: 'exact', head: true });
+
+            if (!error) {
+              console.log(`  - ${tableName}: ${count} rows`);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to query Supabase:', error);
+        }
+        console.log('==============================');
       }
     };
 

@@ -56,7 +56,6 @@ export function GameList() {
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
-    console.log('Local game IDs loaded:', ids);
     setLocalGameIds(new Set(ids));
   };
 
@@ -69,7 +68,6 @@ export function GameList() {
         game_type: gameTypesMap.get(scenario.game_type_id)!
       }));
 
-      console.log('Loaded scenarios:', scenariosWithTypes.length);
       setScenarios(scenariosWithTypes);
     } catch (error) {
       console.error('Error loading scenarios:', error);

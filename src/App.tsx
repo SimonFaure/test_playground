@@ -48,16 +48,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e')) {
+    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o') && !isAdminMode) {
       setPressedKeys(new Set());
+      setShowPasswordModal(true);
+    }
 
-      if (isAdminMode) {
-        setIsAdminMode(false);
-        if (currentPage === 'admin-config') {
-          setCurrentPage('games');
-        }
-      } else {
-        setShowPasswordModal(true);
+    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e') && isAdminMode) {
+      setPressedKeys(new Set());
+      setIsAdminMode(false);
+      if (currentPage === 'admin-config') {
+        setCurrentPage('games');
       }
     }
   }, [pressedKeys, isAdminMode, currentPage]);

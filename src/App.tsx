@@ -51,14 +51,16 @@ function App() {
     if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o')) {
       if (isAdminMode) {
         setIsAdminMode(false);
-        setCurrentPage('games');
+        if (currentPage === 'admin-config') {
+          setCurrentPage('games');
+        }
         setPressedKeys(new Set());
       } else {
         setShowPasswordModal(true);
         setPressedKeys(new Set());
       }
     }
-  }, [pressedKeys, isAdminMode]);
+  }, [pressedKeys, isAdminMode, currentPage]);
 
   const handleAdminSuccess = () => {
     setIsAdminMode(true);

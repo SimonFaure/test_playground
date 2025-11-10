@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Settings, ShieldCheck } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
@@ -12,6 +12,7 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const lastActionRef = useRef<number>(0);
 
   useEffect(() => {
     const checkDatabaseOnLaunch = async () => {
@@ -48,12 +49,20 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const now = Date.now();
+
+    if (now - lastActionRef.current < 500) {
+      return;
+    }
+
     if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o') && !isAdminMode) {
+      lastActionRef.current = now;
       setPressedKeys(new Set());
       setShowPasswordModal(true);
     }
 
     if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e') && isAdminMode) {
+      lastActionRef.current = now;
       setPressedKeys(new Set());
       setIsAdminMode(false);
       if (currentPage === 'admin-config') {

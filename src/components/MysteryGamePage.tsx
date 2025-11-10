@@ -75,6 +75,7 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   const [gameMessage, setGameMessage] = useState('');
   const [showLoading, setShowLoading] = useState(false);
   const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
+  const [mediaFiles, setMediaFiles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -86,11 +87,44 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
           const data = JSON.parse(gameDataContent);
           setGameData(data);
 
+          const mediaFilesMap: Record<string, string> = {};
+          const collectImageIds = (obj: any, ids: Set<string>) => {
+            if (typeof obj === 'string' && /^\d+$/.test(obj)) {
+              ids.add(obj);
+            } else if (typeof obj === 'object' && obj !== null) {
+              Object.values(obj).forEach(val => collectImageIds(val, ids));
+            }
+          };
+
+          const imageIds = new Set<string>();
+          collectImageIds(data.game_meta, imageIds);
+          if (data.game_enigmas) {
+            data.game_enigmas.forEach((enigma: any) => collectImageIds(enigma, imageIds));
+          }
+          if (data.game_sounds) {
+            data.game_sounds.forEach((sound: any) => collectImageIds(sound, imageIds));
+          }
+
+          for (const imageId of imageIds) {
+            try {
+              const files = await (window as any).electron.games.listMediaFolder(gameUniqid, imageId);
+              if (files && files.length > 0) {
+                mediaFilesMap[imageId] = files[0];
+              }
+            } catch (err) {
+              console.warn(`Could not load media for ${imageId}:`, err);
+            }
+          }
+          setMediaFiles(mediaFilesMap);
+
           if (data.game_sounds) {
             const loadedAudio: Record<string, HTMLAudioElement> = {};
             for (const soundData of data.game_sounds) {
-              const audio = new Audio(`app-file://${gameUniqid}/media/${soundData.sound_id}`);
-              loadedAudio[soundData.image_number] = audio;
+              const fileName = mediaFilesMap[soundData.sound_id];
+              if (fileName) {
+                const audio = new Audio(`app-file://${gameUniqid}/media/${soundData.sound_id}/${fileName}`);
+                loadedAudio[soundData.image_number] = audio;
+              }
             }
             setAudioElements(loadedAudio);
           }
@@ -213,9 +247,15 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
   const getImageUrl = (imageId: string) => {
     if (!imageId) return '';
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
     if (isElectron) {
+      const fileName = mediaFiles[imageId];
+      if (fileName) {
+        return `app-file://${gameUniqid}/media/${imageId}/${fileName}`;
+      }
       return `app-file://${gameUniqid}/media/${imageId}`;
     }
+
     return `/data/games/${gameUniqid}/media/${imageId}`;
   };
 

@@ -292,6 +292,24 @@ app.whenReady().then(() => {
     return filePath;
   });
 
+  ipcMain.handle('games:list-media-folder', async (event, gameId, folderId) => {
+    const fs = require('fs');
+    try {
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const folderPath = path.join(gamesDir, gameId, 'media', folderId);
+
+      if (!fs.existsSync(folderPath)) {
+        return [];
+      }
+
+      const files = fs.readdirSync(folderPath);
+      return files.filter(file => !file.startsWith('.'));
+    } catch (error) {
+      console.error(`Error listing media folder ${folderId}:`, error);
+      return [];
+    }
+  });
+
   ipcMain.handle('db:connect', async () => {
     try {
       const result = await connectToDatabase();

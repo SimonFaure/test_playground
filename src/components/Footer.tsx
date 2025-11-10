@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Usb, Wifi } from 'lucide-react';
+import { Monitor, Usb, Wifi, Database } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 
 export function Footer() {
   const [computerName, setComputerName] = useState<string>('Unknown');
   const [usbConnected, setUsbConnected] = useState<boolean>(false);
   const [wifiConnected, setWifiConnected] = useState<boolean>(false);
+  const [dbConnected, setDbConnected] = useState<boolean>(false);
   const [isElectron, setIsElectron] = useState<boolean>(false);
 
   useEffect(() => {
@@ -39,11 +40,24 @@ export function Footer() {
       }
     };
 
+    const checkDbConnection = async () => {
+      try {
+        if (window.electron?.db?.connect) {
+          const result = await window.electron.db.connect();
+          setDbConnected(result.success);
+        }
+      } catch (error) {
+        setDbConnected(false);
+      }
+    };
+
     checkUsbConnection();
     checkWifiConnection();
+    checkDbConnection();
     const interval = setInterval(() => {
       checkUsbConnection();
       checkWifiConnection();
+      checkDbConnection();
     }, 3000);
 
     return () => clearInterval(interval);
@@ -69,6 +83,12 @@ export function Footer() {
                 <Usb size={16} className={usbConnected ? 'text-green-400' : 'text-red-400'} />
                 <span>USB: <span className={`font-medium ${usbConnected ? 'text-green-400' : 'text-red-400'}`}>
                   {usbConnected ? 'Connected' : 'Disconnected'}
+                </span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Database size={16} className={dbConnected ? 'text-green-400' : 'text-red-400'} />
+                <span>DB: <span className={`font-medium ${dbConnected ? 'text-green-400' : 'text-red-400'}`}>
+                  {dbConnected ? 'Connected' : 'Disconnected'}
                 </span></span>
               </div>
             </>

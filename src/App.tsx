@@ -14,6 +14,18 @@ function App() {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    const checkDatabaseOnLaunch = async () => {
+      if (typeof window !== 'undefined' && (window as any).electron?.db?.connect) {
+        try {
+          await (window as any).electron.db.connect();
+        } catch (error) {
+          console.error('Failed to connect to database on launch:', error);
+        }
+      }
+    };
+
+    checkDatabaseOnLaunch();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       setPressedKeys(prev => new Set(prev).add(e.key.toLowerCase()));
     };

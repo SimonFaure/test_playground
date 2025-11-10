@@ -8,9 +8,16 @@ interface Client {
   url: string;
 }
 
+const DEFAULT_CLIENT: Client = {
+  id: 'default',
+  name: 'Default Server',
+  email: 'default@taghunter.com',
+  url: '192.168.129.250'
+};
+
 export function AdminConfigPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clients, setClients] = useState<Client[]>([DEFAULT_CLIENT]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('default');
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState('');
 
@@ -25,12 +32,14 @@ export function AdminConfigPage() {
       try {
         const result = await (window as any).electron.clients.load();
         if (result.success && result.clients.length > 0) {
-          setClients(result.clients);
+          setClients([DEFAULT_CLIENT, ...result.clients]);
+        }
 
-          const selectedResult = await (window as any).electron.clients.loadSelected();
-          if (selectedResult.success && selectedResult.client) {
-            setSelectedClientId(selectedResult.client.id);
-          }
+        const selectedResult = await (window as any).electron.clients.loadSelected();
+        if (selectedResult.success && selectedResult.client) {
+          setSelectedClientId(selectedResult.client.id);
+        } else {
+          setSelectedClientId('default');
         }
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -66,22 +75,6 @@ export function AdminConfigPage() {
     );
   }
 
-  if (clients.length === 0) {
-    return (
-      <div className="container mx-auto px-6 py-8">
-        <div className="bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-700">
-          <div className="flex items-center gap-3 mb-4">
-            <ShieldCheck className="text-red-500" size={32} />
-            <h2 className="text-2xl font-bold text-white">Admin Configuration</h2>
-          </div>
-          <p className="text-slate-400">No clients.json file found in the local storage folder.</p>
-          <p className="text-slate-500 text-sm mt-2">
-            Create a clients.json file to configure client connections.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-6 py-8">

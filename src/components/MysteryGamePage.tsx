@@ -21,7 +21,9 @@ interface GameData {
   game_meta: {
     number_of_enigmas: string;
     font: string;
+    font_color?: string;
     score_full_game: string;
+    points_units?: string;
     levels: Record<string, { points: string; name: string; description: string }>;
     gauge_filling: string;
     background_image: string;
@@ -33,28 +35,42 @@ interface GameData {
     game_refresh_button_hover_image: string;
     levels_gauge_image: string;
     levels_gauge_level_icon_image: string;
+    levels_gauge_player_icon_image?: string;
     score_background_image: string;
     enigmas_header_image: string;
     team_name_background_image: string;
+    steps_container_image?: string;
+    overscore_steps?: string;
+    main_enigma_image?: string;
   };
   game_enigmas: Array<{
     id: string;
     number: string;
     text: string;
+    answer_type: string;
+    good_answer?: string;
     good_answer_image: string;
     good_answer_points: string;
+  }>;
+  sounds?: Record<string, {
+    sound_id: string;
+    sound_file: string;
   }>;
 }
 
 export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
   const [score, setScore] = useState(0);
   const [time, setTime] = useState(0);
   const [completedEnigmas, setCompletedEnigmas] = useState<Set<number>>(new Set());
   const [lastCardData, setLastCardData] = useState<CardData | null>(null);
   const [stations, setStations] = useState<StationData[]>([]);
   const [showCardAlert, setShowCardAlert] = useState(false);
+  const [gameMessage, setGameMessage] = useState('');
+  const [showLoading, setShowLoading] = useState(false);
+  const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -65,10 +81,28 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
           setGameData(data);
+
+          if (data.sounds) {
+            const loadedAudio: Record<string, HTMLAudioElement> = {};
+            for (const [soundName, soundData] of Object.entries(data.sounds)) {
+              const audio = new Audio(`app-file://${gameUniqid}/media/${soundData.sound_file}`);
+              loadedAudio[soundName] = audio;
+            }
+            setAudioElements(loadedAudio);
+          }
         } else {
           const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
           const data = await response.json();
           setGameData(data);
+
+          if (data.sounds) {
+            const loadedAudio: Record<string, HTMLAudioElement> = {};
+            for (const [soundName, soundData] of Object.entries(data.sounds)) {
+              const audio = new Audio(`/data/games/${gameUniqid}/media/${soundData.sound_file}`);
+              loadedAudio[soundName] = audio;
+            }
+            setAudioElements(loadedAudio);
+          }
         }
       } catch (error) {
         console.error('Error loading game data:', error);
@@ -94,8 +128,21 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const playSound = (soundName: string) => {
+    if (audioElements[soundName]) {
+      audioElements[soundName].currentTime = 0;
+      audioElements[soundName].play().catch(err => console.error('Error playing sound:', err));
+    }
+  };
+
+  const showMessage = (message: string, duration: number = 3000) => {
+    setGameMessage(message);
+    setTimeout(() => setGameMessage(''), duration);
+  };
+
   const handleStartGame = async () => {
     setGameStarted(true);
+    playSound('game_start');
 
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
     if (isElectron) {
@@ -217,7 +264,11 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
             <img src={getImageUrl(gameData.game_meta.score_background_image)} alt="score" />
             <div className="team_score_container_text">
               <span id="game_score_container_score">{score}</span>
-              <span id="game_score_container_percentage">%</span>
+              {gameData.game_meta.points_units === 'percentage' ? (
+                <span id="game_score_container_percentage">%</span>
+              ) : (
+                <>/<span id="game_score_container_game_complete_score">{gameData.game_meta.score_full_game}</span></>
+              )}
             </div>
             <div id="floating_enigma_score"></div>
           </div>
@@ -337,6 +388,59 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
           </div>
         </div>
       </div>
+
+      {gameMessage && (
+        <div id="game_message_container" className="active">
+          <div className="game_message_text">{gameMessage}</div>
+        </div>
+      )}
+
+      {showLoading && (
+        <div id="game_loading_wrapper">
+          <div id="game_loading_container">
+            {gameData.game_meta.levels_gauge_player_icon_image ? (
+              <div id="loading_image">
+                <img src={getImageUrl(gameData.game_meta.levels_gauge_player_icon_image)} alt="loading" />
+              </div>
+            ) : (
+              <div className="spinner"></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {gameEnded && (
+        <div id="final_score_container" className="active">
+          <div id="final_score_container_data">
+            <div>
+              Your final score: <br />
+              <span id="final_score_score">{score}</span>
+              {gameData.game_meta.points_units === 'percentage' ? (
+                <span>%</span>
+              ) : (
+                <>/<span id="final_score_complete_score">{gameData.game_meta.score_full_game}</span></>
+              )}
+            </div>
+            <div id="final_score_level_container"></div>
+            <div className="get_bip_survival">
+              <div id="reload_page" className="game_instructions_summary" onClick={() => window.location.reload()}>
+                {gameData.game_meta.game_refresh_button_image && gameData.game_meta.game_refresh_button_hover_image ? (
+                  <div id="refresh_button_container">
+                    <div className="refresh_button" id="game_instructions_button_image">
+                      <img src={getImageUrl(gameData.game_meta.game_refresh_button_image)} alt="refresh" />
+                    </div>
+                    <div className="refresh_button hide" id="game_refresh_button_hover_image">
+                      <img src={getImageUrl(gameData.game_meta.game_refresh_button_hover_image)} alt="refresh-hover" />
+                    </div>
+                  </div>
+                ) : (
+                  <span>Restart Game</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { LaunchGameModal, GameConfig } from './LaunchGameModal';
 import { GamePage } from './GamePage';
 import { validateAndExtractZip } from '../utils/zipHandler';
 import { getLocalGameIds } from '../utils/localGames';
+import { supabase } from '../lib/db';
 import gamesData from '../../data/games.json';
 
 interface GameType {
@@ -181,8 +182,32 @@ export function GameList() {
     setLaunchModalOpen(true);
   };
 
-  const handleGameLaunch = (config: GameConfig) => {
+  const handleGameLaunch = async (config: GameConfig) => {
     console.log('Launching game with config:', selectedGame, config);
+
+    if (supabase && selectedGame) {
+      try {
+        const { error } = await supabase.from('launched_games').insert({
+          game_uniqid: selectedGame.uniqid,
+          name: config.name,
+          number_of_teams: config.numberOfTeams,
+          game_type: selectedGame.gameTypeName,
+          start_time: new Date().toISOString(),
+          duration: config.duration,
+          started: false,
+          ended: false,
+        });
+
+        if (error) {
+          console.error('Error inserting launched game:', error);
+        } else {
+          console.log('Successfully saved launched game to database');
+        }
+      } catch (error) {
+        console.error('Error saving launched game:', error);
+      }
+    }
+
     setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '' });
     setLaunchModalOpen(false);
   };

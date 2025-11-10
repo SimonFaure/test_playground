@@ -48,7 +48,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o')) {
+    if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('e')) {
       setPressedKeys(new Set());
 
       if (isAdminMode) {

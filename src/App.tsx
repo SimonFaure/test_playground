@@ -98,7 +98,7 @@ function App() {
                 }`}
               >
                 <Settings size={16} />
-                Configuration
+                
               </button>
               {isAdminMode && (
                 <button

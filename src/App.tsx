@@ -49,10 +49,16 @@ function App() {
 
   useEffect(() => {
     if (pressedKeys.has('a') && pressedKeys.has('m') && pressedKeys.has('o')) {
-      setShowPasswordModal(true);
-      setPressedKeys(new Set());
+      if (isAdminMode) {
+        setIsAdminMode(false);
+        setCurrentPage('games');
+        setPressedKeys(new Set());
+      } else {
+        setShowPasswordModal(true);
+        setPressedKeys(new Set());
+      }
     }
-  }, [pressedKeys]);
+  }, [pressedKeys, isAdminMode]);
 
   const handleAdminSuccess = () => {
     setIsAdminMode(true);

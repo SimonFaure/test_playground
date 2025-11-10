@@ -44,9 +44,11 @@ export function Footer() {
       try {
         if (window.electron?.db?.connect) {
           const result = await window.electron.db.connect();
+          console.log('Database connection check:', result);
           setDbConnected(result.success);
         }
       } catch (error) {
+        console.error('Database connection error:', error);
         setDbConnected(false);
       }
     };

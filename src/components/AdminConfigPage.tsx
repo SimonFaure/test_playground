@@ -60,10 +60,12 @@ export function AdminConfigPage() {
     if (isElectron) {
       try {
         const testResult = await (window as any).electron.db.testConnection(client.url);
+        console.log('Database test connection result:', testResult);
         setConnectionStatus(testResult);
 
         if (testResult.success) {
           const result = await (window as any).electron.clients.saveSelected(client);
+          console.log('Client saved:', result);
           if (result.success) {
             setSaveMessage('Client configuration saved successfully');
             setTimeout(() => setSaveMessage(''), 3000);

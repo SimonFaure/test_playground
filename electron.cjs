@@ -3,11 +3,17 @@ const path = require('path');
 const fs = require('fs');
 
 let connectToDatabase;
+let mysqlConnectionModule;
 try {
-  const mysqlConnection = require(path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
-  connectToDatabase = mysqlConnection.connectToDatabase;
+  mysqlConnectionModule = require(path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
+  connectToDatabase = mysqlConnectionModule.connectToDatabase;
+  console.log('MySQL connection module loaded successfully');
+  console.log('connectToDatabase type:', typeof connectToDatabase);
 } catch (error) {
   console.error('Failed to load mysql-connection module:', error);
+  connectToDatabase = async () => {
+    return { success: false, message: 'MySQL connection module failed to load' };
+  };
 }
 
 function createWindow() {
@@ -312,6 +318,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle('db:connect', async () => {
     try {
+      if (!connectToDatabase) {
+        return { success: false, message: 'Database module not loaded' };
+      }
       const result = await connectToDatabase();
       console.log('Database connection result:', result);
       return result;

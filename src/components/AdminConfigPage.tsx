@@ -122,9 +122,10 @@ export function AdminConfigPage() {
             </label>
             <select
               id="client-select"
-              value={selectedClientId}
+              value={selectedClientId ? clients.find(c => c.id === selectedClientId)?.name : ''}
               onChange={(e) => {
-                const client = clients.find(c => c.id === e.target.value);
+                const clientName = e.target.value;
+                const client = clients.find(c => c.name === clientName);
                 if (client) {
                   handleClientSelect(client);
                 }
@@ -133,7 +134,7 @@ export function AdminConfigPage() {
               className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white text-base focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {clients.map((client) => (
-                <option key={client.id} value={client.id}>
+                <option key={client.id} value={client.name}>
                   {client.name} - {client.email} ({client.url})
                 </option>
               ))}

@@ -28,7 +28,7 @@ function App() {
       } else if (!isElectron && supabase) {
         console.log('=== SUPABASE DATABASE TABLES ===');
         try {
-          const tableNames = ['configuration', 'game_types'];
+          const tableNames = ['configuration', 'game_types', 'launched_games'];
           console.log('Number of tables:', tableNames.length);
           console.log('Tables:');
           tableNames.forEach((table, index) => {

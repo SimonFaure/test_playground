@@ -18,15 +18,20 @@ export function AdminPasswordModal({ isOpen, onClose, onSuccess }: AdminPassword
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (password.length === 4) {
+      if (password === '1912') {
+        onSuccess();
+        onClose();
+      } else {
+        setError('Incorrect password');
+        setPassword('');
+      }
+    }
+  }, [password, onSuccess, onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '1912') {
-      onSuccess();
-      onClose();
-    } else {
-      setError('Incorrect password');
-      setPassword('');
-    }
   };
 
   if (!isOpen) return null;
@@ -54,9 +59,10 @@ export function AdminPasswordModal({ isOpen, onClose, onSuccess }: AdminPassword
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              maxLength={4}
               className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
-              placeholder="Enter password"
+              placeholder="Enter 4-digit password"
             />
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           </div>

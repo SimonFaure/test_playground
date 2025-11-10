@@ -26,10 +26,12 @@
       "dist/**/*",
       "electron.cjs",
       "preload.cjs",
-      "data/**/*"
+      "data/**/*",
+      "src/lib/**/*"
     ],
     "asarUnpack": [
-      "preload.cjs"
+      "preload.cjs",
+      "src/lib/**/*"
     ],
     "extraResources": [
       {

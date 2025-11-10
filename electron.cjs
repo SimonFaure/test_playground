@@ -1,7 +1,14 @@
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { connectToDatabase } = require('./src/lib/mysql-connection');
+
+let connectToDatabase;
+try {
+  const mysqlConnection = require(path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
+  connectToDatabase = mysqlConnection.connectToDatabase;
+} catch (error) {
+  console.error('Failed to load mysql-connection module:', error);
+}
 
 function createWindow() {
   // Handle both development and production preload paths

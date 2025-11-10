@@ -33,7 +33,8 @@ function loadSelectedClient() {
 async function connectToDatabase() {
   try {
     const selectedClient = loadSelectedClient();
-
+console.log('in connectToDatabase');
+console.log(selectedClient);
     const dbConfig = selectedClient
       ? {
           host: selectedClient.url,

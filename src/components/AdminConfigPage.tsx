@@ -119,6 +119,7 @@ export function AdminConfigPage() {
               <input
                 type="radio"
                 name="client"
+                id={client.name}
                 value={client.name}
                 checked={selectedClientId === client.id}
                 onChange={() => handleClientSelect(client)}

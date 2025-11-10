@@ -315,8 +315,15 @@ app.whenReady().then(() => {
         connectTimeout: 5000
       };
 
+      console.log('Testing database connection with URL:', url);
+      console.log('Full config:', testConfig);
+
       const connection = await mysql.createConnection(testConfig);
       await connection.ping();
+
+      const [tables] = await connection.query('SHOW TABLES');
+      console.log('Tables in database:', tables);
+
       await connection.end();
 
       return { success: true, message: `Successfully connected to database at ${url}` };

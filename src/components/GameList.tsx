@@ -187,7 +187,7 @@ export function GameList() {
 
     if (supabase && selectedGame) {
       try {
-        const { error } = await supabase.from('launched_games').insert({
+        const { data: launchedGame, error } = await supabase.from('launched_games').insert({
           game_uniqid: selectedGame.uniqid,
           name: config.name,
           number_of_teams: config.numberOfTeams,
@@ -196,12 +196,39 @@ export function GameList() {
           duration: config.duration,
           started: false,
           ended: false,
-        });
+        }).select().single();
 
         if (error) {
           console.error('Error inserting launched game:', error);
-        } else {
+        } else if (launchedGame) {
           console.log('Successfully saved launched game to database');
+
+          const metaEntries = [
+            { meta_name: 'firstChipIndex', meta_value: config.firstChipIndex.toString() },
+            { meta_name: 'pattern', meta_value: config.pattern },
+            { meta_name: 'messageDisplayDuration', meta_value: config.messageDisplayDuration.toString() },
+            { meta_name: 'enigmaImageDisplayDuration', meta_value: config.enigmaImageDisplayDuration.toString() },
+            { meta_name: 'colorblindMode', meta_value: config.colorblindMode.toString() },
+            { meta_name: 'autoResetTeam', meta_value: config.autoResetTeam.toString() },
+            { meta_name: 'delayBeforeReset', meta_value: config.delayBeforeReset.toString() },
+          ];
+
+          if (config.usbPort) {
+            metaEntries.push({ meta_name: 'usbPort', meta_value: config.usbPort });
+          }
+
+          const metaData = metaEntries.map(entry => ({
+            ...entry,
+            launched_game_id: launchedGame.id,
+          }));
+
+          const { error: metaError } = await supabase.from('launched_game_meta').insert(metaData);
+
+          if (metaError) {
+            console.error('Error inserting launched game meta:', metaError);
+          } else {
+            console.log('Successfully saved launched game meta to database');
+          }
         }
       } catch (error) {
         console.error('Error saving launched game:', error);

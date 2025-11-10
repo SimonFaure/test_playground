@@ -122,6 +122,35 @@ export interface Database {
           created_at?: string | null
         }
       }
+      si_puces: {
+        Row: {
+          id: number
+          created_at: string
+          updated_at: string
+          key_name: string
+          key_number: number
+          color: string | null
+          user_id: number | null
+        }
+        Insert: {
+          id: number
+          created_at: string
+          updated_at: string
+          key_name: string
+          key_number: number
+          color?: string | null
+          user_id?: number | null
+        }
+        Update: {
+          id?: number
+          created_at?: string
+          updated_at?: string
+          key_name?: string
+          key_number?: number
+          color?: string | null
+          user_id?: number | null
+        }
+      }
     }
   }
 }
@@ -130,3 +159,4 @@ export type GameType = Database['public']['Tables']['game_types']['Row'];
 export type Scenario = Database['public']['Tables']['scenarios']['Row'];
 export type LaunchedGame = Database['public']['Tables']['launched_games']['Row'];
 export type LaunchedGameMeta = Database['public']['Tables']['launched_game_meta']['Row'];
+export type SiPuce = Database['public']['Tables']['si_puces']['Row'];

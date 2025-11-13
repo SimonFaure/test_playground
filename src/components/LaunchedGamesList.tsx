@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor, StopCircle } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
+import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import type { GameConfig } from './LaunchGameModal';
 
 interface LaunchedGame {
@@ -70,6 +71,8 @@ export function LaunchedGamesList() {
     onConfirm: () => {},
     variant: 'warning',
   });
+  const [configGameId, setConfigGameId] = useState<number | null>(null);
+  const [configGameName, setConfigGameName] = useState<string>('');
 
   useEffect(() => {
     loadGames();
@@ -469,9 +472,20 @@ export function LaunchedGamesList() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleShowRankings(game.id);
+                      setConfigGameId(game.id);
+                      setConfigGameName(game.name);
                     }}
                     className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition"
+                    title="Configure"
+                  >
+                    <Settings size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowRankings(game.id);
+                    }}
+                    className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition"
                     title="Rankings"
                   >
                     <Trophy size={18} />
@@ -893,6 +907,20 @@ export function LaunchedGamesList() {
             )}
           </div>
         </div>
+      )}
+
+      {configGameId !== null && (
+        <LaunchedGameConfigModal
+          gameId={configGameId}
+          gameName={configGameName}
+          onClose={() => {
+            setConfigGameId(null);
+            setConfigGameName('');
+          }}
+          onSave={() => {
+            loadGames();
+          }}
+        />
       )}
 
       <ConfirmDialog

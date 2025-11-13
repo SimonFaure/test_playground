@@ -74,7 +74,7 @@ export class USBReaderService {
     }
     try {
       InitWorkingEnv(portPath);
-      await sleep(100);
+      await sleep(50);
       return true;
     } catch (error) {
       console.error('Error initializing port:', error);
@@ -121,7 +121,7 @@ export class USBReaderService {
 
         console.log('Sending wakeup message...');
         await SendWakeup();
-        await sleep(700);
+        await sleep(300);
 
         console.log('Waiting for peripheral response...');
         await SerialRead(9);
@@ -129,7 +129,7 @@ export class USBReaderService {
 
         console.log('Retrieving infos from peripheral...');
         await SendReadRequest();
-        await sleep(100);
+        await sleep(50);
 
         let k = 7;
         while (k) {
@@ -137,7 +137,7 @@ export class USBReaderService {
           let buff = Buffer.alloc(0);
 
           while (k && (buff = await SerialPeek(3)) && (await SerialPeek(buff[2] + 6)).length !== buff[2] + 6) {
-            await sleep(100);
+            await sleep(50);
             k--;
           }
 
@@ -182,13 +182,13 @@ export class USBReaderService {
             }
           }
 
-          await sleep(500);
+          await sleep(200);
         }
 
         await sleep(5000);
       } catch (error) {
         console.error('Error in read loop:', error);
-        await sleep(2000);
+        await sleep(1000);
       }
     }
   }

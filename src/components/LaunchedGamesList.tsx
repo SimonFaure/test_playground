@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2 } from 'lucide-react';
 import { supabase } from '../lib/db';
+import { GamePage } from './GamePage';
+import type { GameConfig } from './LaunchGameModal';
 
 interface LaunchedGame {
   id: number;
@@ -40,6 +42,7 @@ export function LaunchedGamesList() {
   const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
   const [showRankings, setShowRankings] = useState<number | null>(null);
   const [rankings, setRankings] = useState<Team[]>([]);
+  const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
 
   useEffect(() => {
     loadGames();
@@ -249,6 +252,48 @@ export function LaunchedGamesList() {
     }
   };
 
+  const handlePlayGame = async (game: LaunchedGame) => {
+    const { data: metaData, error } = await supabase
+      .from('launched_game_meta')
+      .select('*')
+      .eq('launched_game_id', game.id);
+
+    if (error) {
+      console.error('Error loading game meta:', error);
+      return;
+    }
+
+    const metaMap: Record<string, string> = {};
+    metaData?.forEach(meta => {
+      metaMap[meta.meta_name] = meta.meta_value || '';
+    });
+
+    const config: GameConfig = {
+      name: game.name,
+      numberOfTeams: game.number_of_teams,
+      firstChipIndex: parseInt(metaMap.firstChipIndex || '1'),
+      pattern: metaMap.pattern || '',
+      duration: parseInt(metaMap.duration || '0'),
+      messageDisplayDuration: parseInt(metaMap.messageDisplayDuration || '5'),
+      enigmaImageDisplayDuration: parseInt(metaMap.enigmaImageDisplayDuration || '5'),
+      colorblindMode: metaMap.colorblindMode === 'true',
+      autoResetTeam: metaMap.autoResetTeam === 'true',
+      delayBeforeReset: parseInt(metaMap.delayBeforeReset || '2'),
+    };
+
+    setPlayingGame({ config, uniqid: game.game_uniqid });
+  };
+
+  if (playingGame) {
+    return (
+      <GamePage
+        config={playingGame.config}
+        gameUniqid={playingGame.uniqid}
+        onBack={() => setPlayingGame(null)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -308,7 +353,17 @@ export function LaunchedGamesList() {
                   Created: {formatDate(game.created_at)}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayGame(game);
+                    }}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                  >
+                    <Gamepad2 size={16} />
+                    Play Game
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

@@ -186,6 +186,8 @@ export function GameList() {
   const handleGameLaunch = async (config: GameConfig) => {
     console.log('Launching game with config:', selectedGame, config);
 
+    let launchedGameId: number | null = null;
+
     if (supabase && selectedGame) {
       try {
         const { data: launchedGame, error } = await supabase.from('launched_games').insert({
@@ -203,6 +205,7 @@ export function GameList() {
           console.error('Error inserting launched game:', error);
         } else if (launchedGame) {
           console.log('Successfully saved launched game to database');
+          launchedGameId = launchedGame.id;
 
           const metaEntries = [
             { meta_name: 'firstChipIndex', meta_value: config.firstChipIndex.toString() },
@@ -288,7 +291,7 @@ export function GameList() {
       }
     }
 
-    setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '', launchedGameId: launchedGame?.id || null });
+    setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '', launchedGameId });
     setLaunchModalOpen(false);
   };
 

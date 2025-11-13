@@ -182,9 +182,11 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
 
   const saveCardData = async (card: CardData) => {
     if (!supabase || !launchedGameId) {
-      console.warn('Cannot save card data: supabase or launchedGameId not available');
+      console.warn('Cannot save card data: supabase or launchedGameId not available', { supabase: !!supabase, launchedGameId });
       return;
     }
+
+    console.log('Saving card data for launched game:', launchedGameId);
 
     try {
       let deviceId = 'unknown';

@@ -272,7 +272,7 @@ export function LaunchedGamesList() {
                       <p className="text-sm text-blue-400 mb-1">Scenario: {
                       gameDataMap[game.game_uniqid].game.title}</p>
                     )}
-                    {   console.log(gameDataMap[game.game_uniqid]);}
+                    {   console.log(gameDataMap[game.game_uniqid])}
                     <p className="text-sm text-slate-400">Game ID: {game.id}</p>
                   </div>
                   <div className="flex items-center gap-2">

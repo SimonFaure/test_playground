@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import type { GameConfig } from './LaunchGameModal';
@@ -43,9 +43,9 @@ export function LaunchedGamesList() {
   const [showRankings, setShowRankings] = useState<number | null>(null);
   const [rankings, setRankings] = useState<Team[]>([]);
   const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
-  const [showTeams, setShowTeams] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamSortBy, setTeamSortBy] = useState<'ranking' | 'name'>('ranking');
+  const [minimizedTeams, setMinimizedTeams] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadGames();
@@ -61,7 +61,7 @@ export function LaunchedGamesList() {
     if (selectedGameId !== null) {
       loadTeams(selectedGameId);
       setTeamSearch('');
-      setShowTeams(true);
+      setMinimizedTeams(new Set());
     }
   }, [selectedGameId]);
 
@@ -310,6 +310,18 @@ export function LaunchedGamesList() {
     return sorted;
   };
 
+  const toggleMinimizeTeam = (teamId: number) => {
+    setMinimizedTeams(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId);
+      } else {
+        newSet.add(teamId);
+      }
+      return newSet;
+    });
+  };
+
   if (playingGame) {
     return (
       <GamePage
@@ -431,20 +443,12 @@ export function LaunchedGamesList() {
             {selectedGameId !== null ? (
               <div className="sticky top-24">
                 <div className="bg-slate-800/50 border-2 border-slate-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                      <Users size={20} />
-                      Teams ({teams.length})
-                    </h3>
-                    <button
-                      onClick={() => setShowTeams(!showTeams)}
-                      className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition"
-                    >
-                      {showTeams ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Users size={20} />
+                    Teams ({teams.length})
+                  </h3>
 
-                  {showTeams && teams.length > 0 && (
+                  {teams.length > 0 && (
                     <div className="space-y-3 mb-4">
                       <div className="flex gap-2">
                         <div className="relative flex-1">
@@ -480,33 +484,75 @@ export function LaunchedGamesList() {
 
                   {teams.length === 0 ? (
                     <p className="text-slate-400">No teams in this game.</p>
-                  ) : showTeams ? (
+                  ) : (
                     getFilteredAndSortedTeams().length === 0 ? (
                       <p className="text-slate-400 text-sm">No teams match your search.</p>
                     ) : (
                     <div className="space-y-3">
-                      {getFilteredAndSortedTeams().map((team) => (
+                      {getFilteredAndSortedTeams().map((team, index) => {
+                        const isMinimized = minimizedTeams.has(team.id);
+                        const ranking = index + 1;
+
+                        return (
                         <div
                           key={team.id}
-                          className="p-4 bg-slate-800 border border-slate-700 rounded-lg"
+                          className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden"
                         >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              {team.end_time ? (
-                                <CheckCircle size={18} className="text-green-500" />
-                              ) : team.start_time ? (
-                                <Play size={18} className="text-blue-500" />
-                              ) : (
-                                <Clock size={18} className="text-slate-500" />
-                              )}
-                              <span className="text-white font-semibold">
-                                Team {team.team_number}
-                              </span>
+                          {isMinimized ? (
+                            <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-700/50 transition" onClick={() => toggleMinimizeTeam(team.id)}>
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="text-slate-400 text-sm font-medium">#{ranking}</span>
+                                <div className="flex items-center gap-2">
+                                  {team.end_time ? (
+                                    <CheckCircle size={16} className="text-green-500" />
+                                  ) : team.start_time ? (
+                                    <Play size={16} className="text-blue-500" />
+                                  ) : (
+                                    <Clock size={16} className="text-slate-500" />
+                                  )}
+                                  <span className="text-white font-semibold">{team.team_name}</span>
+                                </div>
+                                <span className="text-slate-400 text-sm ml-auto mr-4">
+                                  Score: <span className="text-white font-medium">{team.score}</span>
+                                </span>
+                                <span className="text-slate-400 text-sm">
+                                  Chip #{team.key_id}
+                                </span>
+                              </div>
+                              <button className="p-1 hover:bg-slate-600 rounded transition">
+                                <Maximize2 size={16} className="text-slate-400" />
+                              </button>
                             </div>
-                            <span className="text-slate-400 text-sm">
-                              Chip #{team.key_id}
-                            </span>
-                          </div>
+                          ) : (
+                          <div className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-slate-400 text-sm font-medium">#{ranking}</span>
+                                <div className="flex items-center gap-2">
+                                  {team.end_time ? (
+                                    <CheckCircle size={18} className="text-green-500" />
+                                  ) : team.start_time ? (
+                                    <Play size={18} className="text-blue-500" />
+                                  ) : (
+                                    <Clock size={18} className="text-slate-500" />
+                                  )}
+                                  <span className="text-white font-semibold">
+                                    Team {team.team_number}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">
+                                  Chip #{team.key_id}
+                                </span>
+                                <button
+                                  onClick={() => toggleMinimizeTeam(team.id)}
+                                  className="p-1 hover:bg-slate-700 rounded transition"
+                                >
+                                  <Minimize2 size={16} className="text-slate-400" />
+                                </button>
+                              </div>
+                            </div>
 
                           {editingTeamId === team.id ? (
                             <div className="space-y-3">
@@ -580,11 +626,14 @@ export function LaunchedGamesList() {
                               </button>
                             </>
                           )}
+                          </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     )
-                  ) : null}
+                  )}
                 </div>
               </div>
             ) : (

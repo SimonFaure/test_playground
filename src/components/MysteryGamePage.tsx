@@ -269,6 +269,7 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
 
   useEffect(() => {
     return () => {
+      console.log('🚪 Leaving game page - cleaning up USB listener...');
       if (usbReaderService.isElectron()) {
         usbReaderService.stop();
       }

@@ -104,11 +104,13 @@ export class USBReaderService {
       return;
     }
 
+    console.log('🎧 Starting USB listener - Entering read loop...');
     this.isRunning = true;
     await this.readLoop();
   }
 
   stop() {
+    console.log('🛑 Stopping USB listener - Exiting read loop...');
     this.isRunning = false;
   }
 

@@ -7,6 +7,7 @@ import { GamePage } from './GamePage';
 import { validateAndExtractZip } from '../utils/zipHandler';
 import { getLocalGameIds } from '../utils/localGames';
 import { supabase } from '../lib/db';
+import { usbReaderService } from '../services/usbReader';
 import gamesData from '../../data/games.json';
 
 interface GameType {
@@ -228,6 +229,21 @@ export function GameList() {
             console.error('Error inserting launched game meta:', metaError);
           } else {
             console.log('Successfully saved launched game meta to database');
+          }
+
+          const deviceId = usbReaderService.isElectron() ? config.usbPort || 'electron-no-usb' : 'bolt';
+
+          const { error: deviceError } = await supabase.from('launched_game_devices').insert({
+            launched_game_id: launchedGame.id,
+            device_id: deviceId,
+            connected: true,
+            last_connexion_attempt: new Date().toISOString(),
+          });
+
+          if (deviceError) {
+            console.error('Error inserting device:', deviceError);
+          } else {
+            console.log('Successfully saved device to database');
           }
 
           if (config.teams && config.teams.length > 0) {

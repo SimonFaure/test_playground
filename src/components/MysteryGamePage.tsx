@@ -306,10 +306,13 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           const hasGoodAnswer = enigma.good_answers.some(answer => cardPunchCodes.includes(answer));
           const hasWrongAnswer = enigma.wrong_answers.some(answer => cardPunchCodes.includes(answer));
 
-          let result: 'correct' | 'incorrect' | 'no_answer';
+          let result: 'correct' | 'incorrect' | 'no_answer' | 'both_answers';
           let points = 0;
 
-          if (hasGoodAnswer && !hasWrongAnswer) {
+          if (hasGoodAnswer && hasWrongAnswer) {
+            result = 'both_answers';
+            points = 0;
+          } else if (hasGoodAnswer && !hasWrongAnswer) {
             result = 'correct';
             points = goodPoints;
             totalScore += goodPoints;

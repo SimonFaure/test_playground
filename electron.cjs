@@ -7,10 +7,10 @@ let mysqlConnectionModule;
 
 console.log('=== LOADING MYSQL MODULE ===');
 console.log('__dirname:', __dirname);
-console.log('Module path:', path.join(__dirname, 'src', 'lib', 'mysql-connection.js'));
+console.log('Module path:', path.join(__dirname, 'src', 'lib', 'mysql-connection.cjs'));
 
 try {
-  const modulePath = path.join(__dirname, 'src', 'lib', 'mysql-connection.js');
+  const modulePath = path.join(__dirname, 'src', 'lib', 'mysql-connection.cjs');
   console.log('Checking if module exists:', fs.existsSync(modulePath));
 
   mysqlConnectionModule = require(modulePath);

@@ -170,8 +170,25 @@ class MySQLQueryBuilder implements QueryBuilder {
 
       const result = await (window as any).electron.db.query(sql, params);
 
+      if (result.error) {
+        return {
+          data: null,
+          error: { message: result.error }
+        };
+      }
+
+      let data = result.rows || [];
+
+      if (this.operation === 'insert' && result.rows) {
+        if (result.rows.insertId) {
+          const selectSql = `SELECT * FROM ${this.tableName} WHERE id = ?`;
+          const selectResult = await (window as any).electron.db.query(selectSql, [result.rows.insertId]);
+          data = selectResult.rows || [];
+        }
+      }
+
       return {
-        data: result.rows || null,
+        data,
         error: null
       };
     } catch (error: any) {
@@ -186,10 +203,17 @@ class MySQLQueryBuilder implements QueryBuilder {
 
 export const createDbAdapter = (supabaseClient: any) => {
   if (isElectron && (window as any).electron?.db?.query) {
+    console.log('✓ Using MySQL adapter for Electron');
     return {
       from: (tableName: string) => new MySQLQueryBuilder(tableName)
     };
   }
 
+  if (!supabaseClient) {
+    console.warn('⚠ No database client available');
+    return null;
+  }
+
+  console.log('✓ Using Supabase client');
   return supabaseClient;
 };

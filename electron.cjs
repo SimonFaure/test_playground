@@ -441,9 +441,10 @@ app.whenReady().then(() => {
 
     try {
       const conn = await mysqlConnectionModule.getConnection();
-      const [rows] = await conn.query(sql, params);
-      console.log('Query result:', rows);
-      return { rows, error: null };
+      const [result] = await conn.query(sql, params);
+      console.log('Query result:', result);
+
+      return { rows: result, error: null };
     } catch (error) {
       console.error('Database query error:', error);
       return { rows: null, error: error.message };

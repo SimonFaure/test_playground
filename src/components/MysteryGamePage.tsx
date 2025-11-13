@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
@@ -67,6 +67,7 @@ interface GameData {
 
 export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
+  const gameDataRef = useRef<GameData | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [score, setScore] = useState(0);
@@ -89,6 +90,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
           setGameData(data);
+          gameDataRef.current = data;
 
           const mediaFilesMap: Record<string, string> = {};
           const collectImageIds = (obj: any, ids: Set<string>) => {
@@ -187,6 +189,24 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       return;
     }
 
+    if (!gameDataRef.current) {
+      console.warn('Game data not loaded yet, waiting...');
+      const maxWaitTime = 5000;
+      const waitInterval = 100;
+      let waitedTime = 0;
+
+      while (!gameDataRef.current && waitedTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, waitInterval));
+        waitedTime += waitInterval;
+      }
+
+      if (!gameDataRef.current) {
+        console.error('Game data still not loaded after waiting');
+        return;
+      }
+      console.log('✓ Game data loaded, proceeding...');
+    }
+
     console.log('Saving card data for launched game:', launchedGameId);
 
     try {
@@ -224,7 +244,8 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       return;
     }
 
-    if (!gameData) {
+    const currentGameData = gameDataRef.current;
+    if (!currentGameData) {
       console.error('Game data not loaded yet');
       return;
     }
@@ -273,10 +294,10 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         let totalScore = 0;
 
         console.log('=== MATCHING ENIGMAS ===');
-        console.log('Game enigmas:', gameData.game_enigmas.map(ge => ({ number: ge.number, id: ge.id, good_points: ge.good_answer_points, wrong_points: ge.wrong_answer_points })));
+        console.log('Game enigmas:', currentGameData.game_enigmas.map(ge => ({ number: ge.number, id: ge.id, good_points: ge.good_answer_points, wrong_points: ge.wrong_answer_points })));
 
         const enigmaResults = patternEnigmas.map((enigma) => {
-          const gameEnigma = gameData.game_enigmas.find(ge => ge.number === enigma.enigma_id);
+          const gameEnigma = currentGameData.game_enigmas.find(ge => ge.number === enigma.enigma_id);
           console.log(`Looking for enigma_id "${enigma.enigma_id}":`, gameEnigma ? `Found (number: ${gameEnigma.number}, good: ${gameEnigma.good_answer_points}, wrong: ${gameEnigma.wrong_answer_points})` : 'NOT FOUND');
 
           const goodPoints = parseInt(gameEnigma?.good_answer_points || '0');

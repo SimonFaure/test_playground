@@ -96,6 +96,13 @@ class MySQLQueryBuilder implements QueryBuilder {
     return this.execute().then(resolve, reject);
   }
 
+  private convertValue(value: any): any {
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+      return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
+    }
+    return value;
+  }
+
   private buildQuery(): { sql: string; params: any[] } {
     const params: any[] = [];
     let sql = '';
@@ -128,7 +135,7 @@ class MySQLQueryBuilder implements QueryBuilder {
           sql = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES `;
 
           const valueSets = this.insertData.map((row: any) => {
-            params.push(...columns.map(col => row[col]));
+            params.push(...columns.map(col => this.convertValue(row[col])));
             return `(${placeholders})`;
           });
 
@@ -139,7 +146,7 @@ class MySQLQueryBuilder implements QueryBuilder {
       case 'update':
         if (this.updateData) {
           const setClauses = Object.keys(this.updateData).map(key => {
-            params.push(this.updateData[key]);
+            params.push(this.convertValue(this.updateData[key]));
             return `${key} = ?`;
           });
           sql = `UPDATE ${this.tableName} SET ${setClauses.join(', ')}`;

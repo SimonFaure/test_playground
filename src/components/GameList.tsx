@@ -258,6 +258,7 @@ export function GameList() {
 
           console.log('Config teams:', config.teams);
           if (config.teams && config.teams.length > 0) {
+            const now = new Date().toISOString();
             const teamsData = config.teams.map((team, index) => ({
               launched_game_id: launchedGame.id,
               team_number: index + 1,
@@ -265,15 +266,18 @@ export function GameList() {
               pattern: 0,
               score: 0,
               key_id: team.chipId,
+              created_at: now,
             }));
 
             console.log('Teams data to insert:', teamsData);
-            const { error: teamsError } = await supabase.from('teams').insert(teamsData);
+            const { data: insertedTeams, error: teamsError } = await supabase.from('teams').insert(teamsData);
 
             if (teamsError) {
               console.error('Error inserting teams:', teamsError);
+              console.error('Full error details:', JSON.stringify(teamsError, null, 2));
             } else {
               console.log('Successfully saved teams to database');
+              console.log('Inserted teams response:', insertedTeams);
             }
           } else {
             console.log('No teams to insert or teams array is empty');

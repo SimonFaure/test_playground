@@ -206,8 +206,6 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         launched_game_id: launchedGameId,
         device_id: deviceId,
         raw_data: rawDataJson,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
       if (error) {

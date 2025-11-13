@@ -195,7 +195,7 @@ export function LaunchedGamesList() {
     setConfirmDialog({
       isOpen: true,
       title: 'Delete Game',
-      message: 'Are you sure you want to delete this game? This will permanently remove the game and all associated teams. This action cannot be undone.',
+      message: 'Are you sure you want to delete this game? This will permanently remove the game and all associated data (teams, devices, configuration). This action cannot be undone.',
       variant: 'danger',
       confirmText: 'Delete Game',
       onConfirm: async () => {
@@ -207,6 +207,30 @@ export function LaunchedGamesList() {
         if (teamsError) {
           console.error('Error deleting teams:', teamsError);
           alert('Failed to delete teams');
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+          return;
+        }
+
+        const { error: devicesError } = await supabase
+          .from('launched_game_devices')
+          .delete()
+          .eq('launched_game_id', gameId);
+
+        if (devicesError) {
+          console.error('Error deleting devices:', devicesError);
+          alert('Failed to delete devices');
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+          return;
+        }
+
+        const { error: metaError } = await supabase
+          .from('launched_game_meta')
+          .delete()
+          .eq('launched_game_id', gameId);
+
+        if (metaError) {
+          console.error('Error deleting game meta:', metaError);
+          alert('Failed to delete game meta');
           setConfirmDialog({ ...confirmDialog, isOpen: false });
           return;
         }

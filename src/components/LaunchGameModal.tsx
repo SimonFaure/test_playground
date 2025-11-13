@@ -171,6 +171,22 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     });
   };
 
+  const updateTeamChip = (index: number, chipId: number) => {
+    const chip = availableChips.find(c => c.id === chipId);
+    if (!chip) return;
+
+    setTeams(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        chipId: chip.id,
+        chipNumber: chip.key_number,
+        name: chip.key_name
+      };
+      return updated;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -424,14 +440,25 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 <h3 className="text-xl font-semibold text-white border-b border-slate-700 pb-2">Configure Teams</h3>
                 <div className="space-y-3">
                   {teams.map((team, index) => (
-                    <div key={team.chipId} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg">
+                    <div key={index} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg">
                       <div className="flex-shrink-0">
                         <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
                           {index + 1}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 text-slate-400 text-sm">
-                        Chip #{team.chipNumber}
+                      <div className="flex-shrink-0 min-w-[200px]">
+                        <select
+                          value={team.chipId}
+                          onChange={(e) => updateTeamChip(index, parseInt(e.target.value))}
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        >
+                          {availableChips.map(chip => (
+                            <option key={chip.id} value={chip.id}>
+                              Chip #{chip.key_number} - {chip.key_name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex-1">
                         <input

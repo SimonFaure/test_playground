@@ -60,7 +60,7 @@ export function Footer() {
       checkUsbConnection();
       checkWifiConnection();
       checkDbConnection();
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [isElectron]);

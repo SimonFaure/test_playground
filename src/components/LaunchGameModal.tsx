@@ -63,6 +63,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const [step, setStep] = useState<1 | 2>(1);
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableChips, setAvailableChips] = useState<SiPuce[]>([]);
+  const [usedChipIds, setUsedChipIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -140,8 +141,40 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       setAvailableChips(data || []);
     };
 
+    const loadUsedChips = async () => {
+      const { data, error } = await supabase
+        .from('launched_games')
+        .select('id')
+        .eq('ended', false);
+
+      if (error) {
+        console.error('Error loading launched games:', error);
+        return;
+      }
+
+      const launchedGameIds = data?.map(g => g.id) || [];
+
+      if (launchedGameIds.length > 0) {
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('teams')
+          .select('key_id')
+          .in('launched_game_id', launchedGameIds);
+
+        if (teamsError) {
+          console.error('Error loading teams:', teamsError);
+          return;
+        }
+
+        const usedIds = new Set(teamsData?.map(t => t.key_id) || []);
+        setUsedChipIds(usedIds);
+      } else {
+        setUsedChipIds(new Set());
+      }
+    };
+
     if (isOpen) {
       loadChips();
+      loadUsedChips();
     }
   }, [isOpen]);
 
@@ -453,11 +486,17 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
                         >
-                          {availableChips.map(chip => (
-                            <option key={chip.id} value={chip.id}>
-                              Chip #{chip.key_number} - {chip.key_name}
-                            </option>
-                          ))}
+                          {availableChips.map(chip => {
+                            const isUsedInCurrentGame = teams.some((t, i) => i !== index && t.chipId === chip.id);
+                            const isUsedInOtherGame = usedChipIds.has(chip.id);
+                            const isDisabled = isUsedInCurrentGame || isUsedInOtherGame;
+
+                            return (
+                              <option key={chip.id} value={chip.id} disabled={isDisabled}>
+                                Chip #{chip.key_number} - {chip.key_name}{isDisabled ? ' (In use)' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                       <div className="flex-1">

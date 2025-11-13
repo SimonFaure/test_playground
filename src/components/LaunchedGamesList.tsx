@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor, StopCircle } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import type { GameConfig } from './LaunchGameModal';
@@ -416,35 +416,37 @@ export function LaunchedGamesList() {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayGame(game);
-                    }}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
-                  >
-                    <Gamepad2 size={16} />
-                    Play Game
-                  </button>
+                  {!game.ended && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayGame(game);
+                      }}
+                      className="p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition"
+                      title="Play Game"
+                    >
+                      <Gamepad2 size={18} />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleShowRankings(game.id);
                     }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                    className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition"
+                    title="Rankings"
                   >
-                    <Trophy size={16} />
-                    Rankings
+                    <Trophy size={18} />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleShowDevices(game.id);
                     }}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                    className="p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition"
+                    title="Devices"
                   >
-                    <Monitor size={16} />
-                    Devices
+                    <Monitor size={18} />
                   </button>
                   {!game.ended && (
                     <button
@@ -452,10 +454,10 @@ export function LaunchedGamesList() {
                         e.stopPropagation();
                         handleEndGame(game.id);
                       }}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                      className="p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition"
+                      title="End Game"
                     >
-                      <Square size={16} />
-                      End Game
+                      <StopCircle size={18} />
                     </button>
                   )}
                   <button
@@ -463,10 +465,10 @@ export function LaunchedGamesList() {
                       e.stopPropagation();
                       handleDeleteGame(game.id);
                     }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                    className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition"
+                    title="Delete"
                   >
-                    <Trash2 size={16} />
-                    Delete
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>

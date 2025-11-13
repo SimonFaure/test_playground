@@ -443,10 +443,35 @@ export function LaunchedGamesList() {
             {selectedGameId !== null ? (
               <div className="sticky top-24">
                 <div className="bg-slate-800/50 border-2 border-slate-700 rounded-lg p-6">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Users size={20} />
-                    Teams ({teams.length})
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Users size={20} />
+                      Teams ({teams.length})
+                    </h3>
+                    {teams.length > 0 && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const allTeamIds = new Set(teams.map(t => t.id));
+                            setMinimizedTeams(allTeamIds);
+                          }}
+                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
+                          title="Minimize all teams"
+                        >
+                          <Minimize2 size={14} />
+                          All
+                        </button>
+                        <button
+                          onClick={() => setMinimizedTeams(new Set())}
+                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
+                          title="Expand all teams"
+                        >
+                          <Maximize2 size={14} />
+                          All
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {teams.length > 0 && (
                     <div className="space-y-3 mb-4">

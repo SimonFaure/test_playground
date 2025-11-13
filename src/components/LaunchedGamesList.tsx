@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2 } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import type { GameConfig } from './LaunchGameModal';
@@ -32,6 +32,13 @@ interface Team {
   key_id: number;
 }
 
+interface Device {
+  id: number;
+  device_id: string;
+  connected: boolean;
+  last_connexion_attempt: string;
+}
+
 export function LaunchedGamesList() {
   const [games, setGames] = useState<LaunchedGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -46,6 +53,8 @@ export function LaunchedGamesList() {
   const [teamSearch, setTeamSearch] = useState('');
   const [teamSortBy, setTeamSortBy] = useState<'ranking' | 'name'>('ranking');
   const [minimizedTeams, setMinimizedTeams] = useState<Set<number>>(new Set());
+  const [showDevices, setShowDevices] = useState<number | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
 
   useEffect(() => {
     loadGames();
@@ -257,6 +266,21 @@ export function LaunchedGamesList() {
     }
   };
 
+  const handleShowDevices = async (gameId: number) => {
+    const { data, error } = await supabase
+      .from('launched_game_devices')
+      .select('*')
+      .eq('launched_game_id', gameId)
+      .order('last_connexion_attempt', { ascending: false });
+
+    if (error) {
+      console.error('Error loading devices:', error);
+    } else {
+      setDevices(data || []);
+      setShowDevices(gameId);
+    }
+  };
+
   const handlePlayGame = async (game: LaunchedGame) => {
     const { data: metaData, error } = await supabase
       .from('launched_game_meta')
@@ -411,6 +435,16 @@ export function LaunchedGamesList() {
                   >
                     <Trophy size={16} />
                     Rankings
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowDevices(game.id);
+                    }}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                  >
+                    <Monitor size={16} />
+                    Devices
                   </button>
                   {!game.ended && (
                     <button
@@ -669,6 +703,61 @@ export function LaunchedGamesList() {
                 <div className="bg-slate-800/50 border-2 border-slate-700 rounded-lg p-6 text-center">
                   <p className="text-slate-400">Select a game to view its teams</p>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showDevices !== null && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowDevices(null)}>
+          <div className="bg-slate-800 border-2 border-slate-700 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Monitor size={24} className="text-purple-500" />
+                Game Devices
+              </h3>
+              <button
+                onClick={() => setShowDevices(null)}
+                className="text-slate-400 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {devices.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">No devices have connected to this game yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {devices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="p-4 rounded-lg border-2 bg-slate-800 border-slate-700"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Monitor size={20} className={device.connected ? 'text-green-500' : 'text-slate-500'} />
+                        <div>
+                          <div className="text-white font-semibold text-lg">
+                            {device.device_id}
+                          </div>
+                          <p className="text-sm text-slate-400">
+                            Last attempt: {formatDate(device.last_connexion_attempt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          device.connected
+                            ? 'bg-green-900/30 text-green-400 border border-green-700'
+                            : 'bg-slate-700 text-slate-300 border border-slate-600'
+                        }`}>
+                          {device.connected ? 'Connected' : 'Disconnected'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

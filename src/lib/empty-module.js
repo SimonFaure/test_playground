@@ -1,4 +1,18 @@
-export default {};
+const identity = (str) => str;
+
+const picocolorsMock = {
+  red: identity,
+  green: identity,
+  blue: identity,
+  cyan: identity,
+  magenta: identity,
+  yellow: identity,
+  dim: identity,
+  bold: identity,
+  gray: identity,
+};
+
+export default picocolorsMock;
 
 export const SerialPort = class {
   constructor() {

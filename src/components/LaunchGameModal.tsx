@@ -236,7 +236,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 id="numberOfTeams"
                 min="1"
                 value={config.numberOfTeams}
-                onChange={(e) => setConfig({ ...config, numberOfTeams: parseInt(e.target.value) || 1 })}
+                onChange={(e) => setConfig({ ...config, numberOfTeams: parseInt(e.target.value) || 10 })}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />

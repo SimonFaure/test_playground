@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface LaunchedGame {
@@ -38,6 +38,8 @@ export function LaunchedGamesList() {
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
   const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
+  const [showRankings, setShowRankings] = useState<number | null>(null);
+  const [rankings, setRankings] = useState<Team[]>([]);
 
   useEffect(() => {
     loadGames();
@@ -218,6 +220,21 @@ export function LaunchedGamesList() {
     }
   };
 
+  const handleShowRankings = async (gameId: number) => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('launched_game_id', gameId)
+      .order('score', { ascending: false });
+
+    if (error) {
+      console.error('Error loading rankings:', error);
+    } else {
+      setRankings(data || []);
+      setShowRankings(gameId);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -276,6 +293,16 @@ export function LaunchedGamesList() {
                 </div>
 
                 <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowRankings(game.id);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition font-medium text-sm flex items-center gap-2"
+                  >
+                    <Trophy size={16} />
+                    Rankings
+                  </button>
                   {!game.ended && (
                     <button
                       onClick={(e) => {
@@ -421,6 +448,91 @@ export function LaunchedGamesList() {
                 <div className="bg-slate-800/50 border-2 border-slate-700 rounded-lg p-6 text-center">
                   <p className="text-slate-400">Select a game to view its teams</p>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showRankings !== null && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowRankings(null)}>
+          <div className="bg-slate-800 border-2 border-slate-700 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Trophy size={24} className="text-yellow-500" />
+                Game Rankings
+              </h3>
+              <button
+                onClick={() => setShowRankings(null)}
+                className="text-slate-400 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {rankings.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">No teams in this game yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {rankings.map((team, index) => (
+                  <div
+                    key={team.id}
+                    className={`p-4 rounded-lg border-2 ${
+                      index === 0
+                        ? 'bg-yellow-900/20 border-yellow-600'
+                        : index === 1
+                        ? 'bg-slate-700/50 border-slate-500'
+                        : index === 2
+                        ? 'bg-orange-900/20 border-orange-600'
+                        : 'bg-slate-800 border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`text-2xl font-bold ${
+                          index === 0
+                            ? 'text-yellow-500'
+                            : index === 1
+                            ? 'text-slate-300'
+                            : index === 2
+                            ? 'text-orange-500'
+                            : 'text-slate-400'
+                        }`}>
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {team.end_time ? (
+                              <CheckCircle size={16} className="text-green-500" />
+                            ) : team.start_time ? (
+                              <Play size={16} className="text-blue-500" />
+                            ) : (
+                              <Clock size={16} className="text-slate-500" />
+                            )}
+                            <span className="text-white font-semibold text-lg">
+                              Team {team.team_number}: {team.team_name}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-400">Chip #{team.key_id}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">{team.score}</div>
+                        <div className="text-xs text-slate-400">points</div>
+                      </div>
+                    </div>
+                    {(team.start_time || team.end_time) && (
+                      <div className="mt-3 pt-3 border-t border-slate-700 text-sm text-slate-400 flex gap-4">
+                        {team.start_time && (
+                          <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
+                        )}
+                        {team.end_time && (
+                          <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

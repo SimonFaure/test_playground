@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2 } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import type { GameConfig } from './LaunchGameModal';
@@ -43,6 +43,9 @@ export function LaunchedGamesList() {
   const [showRankings, setShowRankings] = useState<number | null>(null);
   const [rankings, setRankings] = useState<Team[]>([]);
   const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
+  const [showTeams, setShowTeams] = useState(true);
+  const [teamSearch, setTeamSearch] = useState('');
+  const [teamSortBy, setTeamSortBy] = useState<'ranking' | 'name'>('ranking');
 
   useEffect(() => {
     loadGames();
@@ -57,6 +60,8 @@ export function LaunchedGamesList() {
   useEffect(() => {
     if (selectedGameId !== null) {
       loadTeams(selectedGameId);
+      setTeamSearch('');
+      setShowTeams(true);
     }
   }, [selectedGameId]);
 
@@ -284,6 +289,27 @@ export function LaunchedGamesList() {
     setPlayingGame({ config, uniqid: game.game_uniqid });
   };
 
+  const getFilteredAndSortedTeams = () => {
+    let filtered = teams;
+
+    if (teamSearch) {
+      filtered = filtered.filter(team =>
+        team.team_name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+        team.team_number.toString().includes(teamSearch)
+      );
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (teamSortBy === 'ranking') {
+        return b.score - a.score;
+      } else {
+        return a.team_name.localeCompare(b.team_name);
+      }
+    });
+
+    return sorted;
+  };
+
   if (playingGame) {
     return (
       <GamePage
@@ -405,15 +431,61 @@ export function LaunchedGamesList() {
             {selectedGameId !== null ? (
               <div className="sticky top-24">
                 <div className="bg-slate-800/50 border-2 border-slate-700 rounded-lg p-6">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <Users size={20} />
-                    Teams ({teams.length})
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Users size={20} />
+                      Teams ({teams.length})
+                    </h3>
+                    <button
+                      onClick={() => setShowTeams(!showTeams)}
+                      className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition"
+                    >
+                      {showTeams ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+
+                  {showTeams && teams.length > 0 && (
+                    <div className="space-y-3 mb-4">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Search teams..."
+                            value={teamSearch}
+                            onChange={(e) => setTeamSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setTeamSortBy(teamSortBy === 'ranking' ? 'name' : 'ranking')}
+                          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-2"
+                          title={teamSortBy === 'ranking' ? 'Sort by name' : 'Sort by ranking'}
+                        >
+                          {teamSortBy === 'ranking' ? (
+                            <>
+                              <ArrowUpDown size={16} />
+                              Ranking
+                            </>
+                          ) : (
+                            <>
+                              <SortAsc size={16} />
+                              Name
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {teams.length === 0 ? (
                     <p className="text-slate-400">No teams in this game.</p>
-                  ) : (
+                  ) : showTeams ? (
+                    getFilteredAndSortedTeams().length === 0 ? (
+                      <p className="text-slate-400 text-sm">No teams match your search.</p>
+                    ) : (
                     <div className="space-y-3">
-                      {teams.map((team) => (
+                      {getFilteredAndSortedTeams().map((team) => (
                         <div
                           key={team.id}
                           className="p-4 bg-slate-800 border border-slate-700 rounded-lg"
@@ -511,7 +583,8 @@ export function LaunchedGamesList() {
                         </div>
                       ))}
                     </div>
-                  )}
+                    )
+                  ) : null}
                 </div>
               </div>
             ) : (

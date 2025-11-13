@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface LaunchedGame {
@@ -25,6 +25,8 @@ export function LaunchedGamesList() {
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
+  const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
 
   useEffect(() => {
     loadGames();
@@ -128,6 +130,56 @@ export function LaunchedGamesList() {
     return date.toLocaleTimeString();
   };
 
+  const formatTimeForInput = (timestamp: number | null) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const parseTimeInput = (timeString: string): number | null => {
+    if (!timeString) return null;
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    const now = new Date();
+    now.setHours(hours, minutes, seconds || 0, 0);
+    return now.getTime();
+  };
+
+  const handleEditTeam = (team: Team) => {
+    setEditingTeamId(team.id);
+    setEditedTeam({
+      team_name: team.team_name,
+      score: team.score,
+      start_time: team.start_time,
+      end_time: team.end_time,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTeamId(null);
+    setEditedTeam({});
+  };
+
+  const handleSaveTeam = async (teamId: number) => {
+    const { error } = await supabase
+      .from('teams')
+      .update(editedTeam)
+      .eq('id', teamId);
+
+    if (error) {
+      console.error('Error updating team:', error);
+      alert('Failed to update team');
+    } else {
+      setEditingTeamId(null);
+      setEditedTeam({});
+      if (selectedGameId !== null) {
+        loadTeams(selectedGameId);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -227,19 +279,87 @@ export function LaunchedGamesList() {
                           key={team.id}
                           className="p-4 bg-slate-800 border border-slate-700 rounded-lg"
                         >
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center justify-between mb-3">
                             <span className="text-white font-semibold">
-                              Team {team.team_number}: {team.team_name}
+                              Team {team.team_number}
                             </span>
                             <span className="text-slate-400 text-sm">
                               Chip #{team.key_id}
                             </span>
                           </div>
-                          <div className="text-sm text-slate-400 space-y-1">
-                            <div>Score: <span className="text-white font-medium">{team.score}</span></div>
-                            <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
-                            <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
-                          </div>
+
+                          {editingTeamId === team.id ? (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Team Name</label>
+                                <input
+                                  type="text"
+                                  value={editedTeam.team_name || ''}
+                                  onChange={(e) => setEditedTeam({ ...editedTeam, team_name: e.target.value })}
+                                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Score</label>
+                                <input
+                                  type="number"
+                                  value={editedTeam.score ?? 0}
+                                  onChange={(e) => setEditedTeam({ ...editedTeam, score: parseInt(e.target.value) || 0 })}
+                                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">Start Time (HH:MM:SS)</label>
+                                <input
+                                  type="time"
+                                  step="1"
+                                  value={formatTimeForInput(editedTeam.start_time ?? team.start_time)}
+                                  onChange={(e) => setEditedTeam({ ...editedTeam, start_time: parseTimeInput(e.target.value) })}
+                                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-400 mb-1 block">End Time (HH:MM:SS)</label>
+                                <input
+                                  type="time"
+                                  step="1"
+                                  value={formatTimeForInput(editedTeam.end_time ?? team.end_time)}
+                                  onChange={(e) => setEditedTeam({ ...editedTeam, end_time: parseTimeInput(e.target.value) })}
+                                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="flex gap-2 pt-2">
+                                <button
+                                  onClick={() => handleSaveTeam(team.id)}
+                                  className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-medium flex items-center justify-center gap-2"
+                                >
+                                  <Save size={14} />
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-sm text-slate-400 space-y-1 mb-3">
+                                <div>Name: <span className="text-white font-medium">{team.team_name}</span></div>
+                                <div>Score: <span className="text-white font-medium">{team.score}</span></div>
+                                <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
+                                <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
+                              </div>
+                              <button
+                                onClick={() => handleEditTeam(team)}
+                                className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium"
+                              >
+                                Edit
+                              </button>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>

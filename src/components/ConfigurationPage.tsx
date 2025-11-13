@@ -49,34 +49,20 @@ export function ConfigurationPage() {
     setDbError(null);
     try {
       const { supabase } = await import('../lib/db');
-      const { data, error } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public');
+      const { error } = await supabase
+        .from('configuration')
+        .select('id')
+        .limit(1);
 
       if (error) {
-        const tablesQuery = `
-          SELECT table_name
-          FROM information_schema.tables
-          WHERE table_schema = 'public'
-          ORDER BY table_name
-        `;
-        const { data: queryData, error: queryError } = await supabase.rpc('exec_sql', { query: tablesQuery });
-
-        if (queryError) {
-          const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
-          setDbTables(tables);
-        } else {
-          setDbTables(queryData?.map((row: any) => row.table_name) || []);
-        }
+        setDbError('Failed to connect to database');
       } else {
-        setDbTables(data?.map((row: any) => row.table_name) || []);
+        const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
+        setDbTables(tables);
       }
     } catch (error) {
       console.error('Error checking database connection:', error);
       setDbError('Failed to connect to database');
-      const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
-      setDbTables(tables);
     } finally {
       setDbLoading(false);
     }

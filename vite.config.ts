@@ -15,7 +15,11 @@ export default defineConfig(({ command }) => ({
     alias: {
       'serialport': '/src/lib/empty-module.js',
       'picocolors': '/src/lib/empty-module.js',
-      'node:readline': '/src/lib/empty-module.js'
+      'node:readline': '/src/lib/empty-module.js',
+      'buffer': 'buffer/'
     }
+  },
+  define: {
+    'global': 'globalThis',
   }
 }));

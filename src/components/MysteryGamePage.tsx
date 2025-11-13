@@ -195,86 +195,90 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
         console.error('✗ Database connection error:', error);
       }
     }
-
-    if (usbReaderService.isElectron() && config.usbPort) {
-      try {
-        console.log('🔌 Initializing USB reader on port:', config.usbPort);
-        const initialized = await usbReaderService.initializePort(config.usbPort);
-        if (initialized) {
-          console.log('✓ USB reader initialized successfully');
-          usbReaderService.setCardDetectedCallback((card: CardData) => {
-            console.log('🏷️  CARD DETECTED');
-            console.log('  Card ID:', card.id);
-            console.log('  Series:', card.series);
-            console.log('  Number of punches:', card.nbPunch);
-            if (card.start) {
-              console.log('  Start:', { code: card.start.code, time: card.start.time });
-            }
-            if (card.check) {
-              console.log('  Check:', { code: card.check.code, time: card.check.time });
-            }
-            if (card.end) {
-              console.log('  End:', { code: card.end.code, time: card.end.time });
-            }
-            console.log('  Punches:', card.punches);
-            console.log('  Full card data:', JSON.stringify(card, null, 2));
-
-            setLastCardData(card);
-            setShowCardAlert(true);
-
-            setTimeout(() => {
-              setShowCardAlert(false);
-            }, 5000);
-          });
-
-          usbReaderService.setCardRemovedCallback(() => {
-            console.log('🏷️  CARD REMOVED');
-            setShowCardAlert(false);
-          });
-
-          usbReaderService.setStationsDetectedCallback((detectedStations: StationData[]) => {
-            console.log('📡 STATIONS DETECTED');
-            console.log('  Number of stations:', detectedStations.length);
-            detectedStations.forEach((station, index) => {
-              console.log(`  Station ${index + 1}:`, {
-                number: station.stationNumber,
-                mode: station.stationMode,
-                extended: station.extended,
-                handShake: station.handShake,
-                autoSend: station.autoSend,
-                radioChannel: station.radioChannel
-              });
-            });
-            console.log('  Full stations data:', JSON.stringify(detectedStations, null, 2));
-            setStations(detectedStations);
-          });
-
-          console.log('▶️  Starting USB reader...');
-          await usbReaderService.start();
-          console.log('✓ USB reader started - waiting for card data...');
-        } else {
-          console.error('✗ Failed to initialize USB reader');
-        }
-      } catch (error) {
-        console.error('✗ Error starting USB reader:', error);
-      }
-    } else {
-      if (!usbReaderService.isElectron()) {
-        console.log('ℹ️  Not in Electron mode - USB reader disabled');
-      } else if (!config.usbPort) {
-        console.log('⚠️  No USB port configured - USB reader disabled');
-      }
-    }
   };
 
   useEffect(() => {
+    const initializeUSB = async () => {
+      if (usbReaderService.isElectron() && config.usbPort) {
+        try {
+          console.log('🔌 Initializing USB reader on port:', config.usbPort);
+          const initialized = await usbReaderService.initializePort(config.usbPort);
+          if (initialized) {
+            console.log('✓ USB reader initialized successfully');
+            usbReaderService.setCardDetectedCallback((card: CardData) => {
+              console.log('🏷️  CARD DETECTED');
+              console.log('  Card ID:', card.id);
+              console.log('  Series:', card.series);
+              console.log('  Number of punches:', card.nbPunch);
+              if (card.start) {
+                console.log('  Start:', { code: card.start.code, time: card.start.time });
+              }
+              if (card.check) {
+                console.log('  Check:', { code: card.check.code, time: card.check.time });
+              }
+              if (card.end) {
+                console.log('  End:', { code: card.end.code, time: card.end.time });
+              }
+              console.log('  Punches:', card.punches);
+              console.log('  Full card data:', JSON.stringify(card, null, 2));
+
+              setLastCardData(card);
+              setShowCardAlert(true);
+
+              setTimeout(() => {
+                setShowCardAlert(false);
+              }, 5000);
+            });
+
+            usbReaderService.setCardRemovedCallback(() => {
+              console.log('🏷️  CARD REMOVED');
+              setShowCardAlert(false);
+            });
+
+            usbReaderService.setStationsDetectedCallback((detectedStations: StationData[]) => {
+              console.log('📡 STATIONS DETECTED');
+              console.log('  Number of stations:', detectedStations.length);
+              detectedStations.forEach((station, index) => {
+                console.log(`  Station ${index + 1}:`, {
+                  number: station.stationNumber,
+                  mode: station.stationMode,
+                  extended: station.extended,
+                  handShake: station.handShake,
+                  autoSend: station.autoSend,
+                  radioChannel: station.radioChannel
+                });
+              });
+              console.log('  Full stations data:', JSON.stringify(detectedStations, null, 2));
+              setStations(detectedStations);
+            });
+
+            console.log('▶️  Starting USB reader...');
+            await usbReaderService.start();
+            console.log('✓ USB reader started - waiting for card data...');
+          } else {
+            console.error('✗ Failed to initialize USB reader');
+          }
+        } catch (error) {
+          console.error('✗ Error starting USB reader:', error);
+        }
+      } else {
+        if (!usbReaderService.isElectron()) {
+          console.log('ℹ️  Not in Electron mode - USB reader disabled');
+        } else if (!config.usbPort) {
+          console.log('⚠️  No USB port configured - USB reader disabled');
+        }
+      }
+    };
+
+    initializeUSB();
+
     return () => {
       console.log('🚪 Leaving game page - cleaning up USB listener...');
       if (usbReaderService.isElectron()) {
         usbReaderService.stop();
       }
     };
-  }, []);
+  }, [config.usbPort]);
 
   if (!gameData) {
     return (

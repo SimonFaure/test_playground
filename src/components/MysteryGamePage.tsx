@@ -211,9 +211,70 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         console.error('Error saving card data:', error);
       } else {
         console.log('✓ Card data saved successfully');
+        await handleCardPunchLogic(card);
       }
     } catch (error) {
       console.error('Error saving card data:', error);
+    }
+  };
+
+  const handleCardPunchLogic = async (card: CardData) => {
+    if (!supabase || !launchedGameId) {
+      return;
+    }
+
+    try {
+      const { data: team, error: teamError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('launched_game_id', launchedGameId)
+        .eq('key_id', card.id)
+        .maybeSingle();
+
+      if (teamError) {
+        console.error('Error finding team:', teamError);
+        return;
+      }
+
+      if (!team) {
+        console.warn('No team found with card ID:', card.id);
+        return;
+      }
+
+      if (!team.start_time) {
+        const startTime = Date.now();
+        const { error: updateError } = await supabase
+          .from('teams')
+          .update({ start_time: startTime })
+          .eq('id', team.id);
+
+        if (updateError) {
+          console.error('Error updating team start time:', updateError);
+        } else {
+          console.log('✓ Team started:', team.team_name);
+          showMessage(`C'est parti! ${team.team_name}`, config.messageDisplayDuration * 1000);
+          playSound('game_start');
+        }
+      } else if (!team.end_time) {
+        const endTime = Date.now();
+        const { error: updateError } = await supabase
+          .from('teams')
+          .update({ end_time: endTime })
+          .eq('id', team.id);
+
+        if (updateError) {
+          console.error('Error updating team end time:', updateError);
+        } else {
+          console.log('✓ Team finished:', team.team_name);
+          const duration = Math.floor((endTime - team.start_time) / 1000);
+          showMessage(`Terminé! ${team.team_name} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
+          playSound('game_end');
+        }
+      } else {
+        console.log('Team has already finished the game');
+      }
+    } catch (error) {
+      console.error('Error handling card punch logic:', error);
     }
   };
 

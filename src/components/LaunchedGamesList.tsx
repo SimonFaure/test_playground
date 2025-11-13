@@ -243,7 +243,7 @@ export function LaunchedGamesList() {
     );
   }
 
-  console.log(gameDataMap[game.game_uniqid]);
+
   return (
     <div className="container mx-auto px-6 py-8">
       <h2 className="text-3xl font-bold text-white mb-6">Launched Games</h2>
@@ -269,8 +269,10 @@ export function LaunchedGamesList() {
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">{game.name}</h3>
                     {gameDataMap[game.game_uniqid] && (
-                      <p className="text-sm text-blue-400 mb-1">Scenario: {gameDataMap[game.game_uniqid].game.title}</p>
+                      <p className="text-sm text-blue-400 mb-1">Scenario: {
+                      gameDataMap[game.game_uniqid].game.title}</p>
                     )}
+                    {   console.log(gameDataMap[game.game_uniqid]);}
                     <p className="text-sm text-slate-400">Game ID: {game.id}</p>
                   </div>
                   <div className="flex items-center gap-2">

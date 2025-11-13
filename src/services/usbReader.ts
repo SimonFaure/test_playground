@@ -41,6 +41,8 @@ export interface StationData {
 
 export class USBReaderService {
   private isRunning = false;
+  private isPortOpen = false;
+  private currentPort: string | null = null;
   private onCardDetected?: (card: CardData) => void;
   private onCardRemoved?: () => void;
   private onStationsDetected?: (stations: StationData[]) => void;
@@ -67,17 +69,52 @@ export class USBReaderService {
     }
   }
 
+  async closePort(): Promise<void> {
+    if (!this.isElectron() || !this.isPortOpen) {
+      return;
+    }
+    try {
+      console.log('🔌 Closing serial port...');
+      const electron = (window as any).electron;
+      if (electron?.serialport?.close) {
+        await electron.serialport.close();
+        this.isPortOpen = false;
+        this.currentPort = null;
+        console.log('✓ Port closed successfully');
+      }
+    } catch (error) {
+      console.error('Error closing port:', error);
+    }
+  }
+
   async initializePort(portPath: string): Promise<boolean> {
     if (!this.isElectron()) {
       console.warn('USB functionality only available in Electron');
       return false;
     }
+
+    if (this.isPortOpen && this.currentPort === portPath) {
+      console.log('✓ Port already open on', portPath);
+      return true;
+    }
+
+    if (this.isPortOpen) {
+      console.log('⚠️  Port already open on different path, closing first...');
+      await this.closePort();
+      await sleep(500);
+    }
+
     try {
+      console.log('🔌 Opening port:', portPath);
       InitWorkingEnv(portPath);
-      await sleep(50);
+      await sleep(100);
+      this.isPortOpen = true;
+      this.currentPort = portPath;
       return true;
     } catch (error) {
       console.error('Error initializing port:', error);
+      this.isPortOpen = false;
+      this.currentPort = null;
       return false;
     }
   }
@@ -109,14 +146,24 @@ export class USBReaderService {
     await this.readLoop();
   }
 
-  stop() {
+  async stop() {
     console.log('🛑 Stopping USB listener - Exiting read loop...');
     this.isRunning = false;
+    await sleep(500);
+    await this.closePort();
   }
 
   private async readLoop() {
+    let consecutiveErrors = 0;
+    const MAX_CONSECUTIVE_ERRORS = 5;
+
     while (this.isRunning) {
       try {
+        if (!this.isPortOpen) {
+          console.warn('Port not open, stopping read loop');
+          break;
+        }
+
         const stations: StationData[] = [];
 
         console.log('Sending wakeup message...');
@@ -155,42 +202,59 @@ export class USBReaderService {
           this.onStationsDetected(stations);
         }
 
+        consecutiveErrors = 0;
+
         while (this.isRunning) {
-          let buff = await SerialPeek(12);
+          try {
+            let buff = await SerialPeek(12);
 
-          if (buff.length === 12) {
-            buff = await SerialRead(12);
+            if (buff.length === 12) {
+              buff = await SerialRead(12);
 
-            if (buff[1] === 0xE8 && checkCRC(buff, 1)) {
-              console.log('Card detected...', buff.toString('hex'));
+              if (buff[1] === 0xE8 && checkCRC(buff, 1)) {
+                console.log('Card detected...', buff.toString('hex'));
 
-              const cardData = await this.readCardData();
+                const cardData = await this.readCardData();
 
-              if (cardData && this.onCardDetected) {
-                this.onCardDetected(cardData);
-              }
+                if (cardData && this.onCardDetected) {
+                  this.onCardDetected(cardData);
+                }
 
-              do {
-                buff = await SerialRead(12);
-              } while (!checkCRC(buff, 1));
+                do {
+                  buff = await SerialRead(12);
+                } while (!checkCRC(buff, 1));
 
-              console.log('Card removed...', buff.toString('hex'));
+                console.log('Card removed...', buff.toString('hex'));
 
-              if (this.onCardRemoved) {
-                this.onCardRemoved();
+                if (this.onCardRemoved) {
+                  this.onCardRemoved();
+                }
               }
             }
-          }
 
-          await sleep(200);
+            await sleep(200);
+          } catch (innerError) {
+            console.error('Error reading card data:', innerError);
+            await sleep(500);
+          }
         }
 
         await sleep(5000);
       } catch (error) {
-        console.error('Error in read loop:', error);
-        await sleep(1000);
+        consecutiveErrors++;
+        console.error(`Error in read loop (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`, error);
+
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.error('Too many consecutive errors, stopping USB reader');
+          this.isRunning = false;
+          break;
+        }
+
+        await sleep(2000);
       }
     }
+
+    console.log('Read loop exited');
   }
 
   private async readCardData(): Promise<CardData | null> {

@@ -426,7 +426,9 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
     return () => {
       console.log('🚪 Leaving game page - cleaning up USB listener...');
       if (usbReaderService.isElectron()) {
-        usbReaderService.stop();
+        usbReaderService.stop().catch(err => {
+          console.error('Error stopping USB reader:', err);
+        });
       }
     };
   }, [config.usbPort]);

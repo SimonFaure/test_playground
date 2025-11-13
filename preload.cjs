@@ -38,5 +38,6 @@ contextBridge.exposeInMainWorld('electron', {
   },
   patterns: {
     listFolders: (gameTypeName) => ipcRenderer.invoke('patterns:list-folders', gameTypeName),
+    readFile: (gameTypeName, patternName, fileName) => ipcRenderer.invoke('patterns:read-file', gameTypeName, patternName, fileName),
   }
 });

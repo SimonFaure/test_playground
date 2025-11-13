@@ -4,6 +4,7 @@ import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
+import { loadPatternEnigmas, PatternEnigma } from '../utils/patterns';
 import '../mystery.css';
 
 interface MysteryGamePageProps {
@@ -257,17 +258,65 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         }
       } else if (!team.end_time) {
         const endTime = Date.now();
+
+        const patternEnigmas = await loadPatternEnigmas('mystery', config.pattern);
+        console.log('Loaded pattern enigmas:', patternEnigmas);
+
+        const cardPunchCodes = card.punches.map(p => p.code.toString());
+        console.log('Card punch codes:', cardPunchCodes);
+
+        const enigmaResults = patternEnigmas.map((enigma) => {
+          const hasGoodAnswer = enigma.good_answers.some(answer => cardPunchCodes.includes(answer));
+          const hasWrongAnswer = enigma.wrong_answers.some(answer => cardPunchCodes.includes(answer));
+
+          let result: 'correct' | 'incorrect' | 'no_answer';
+          if (hasGoodAnswer && !hasWrongAnswer) {
+            result = 'correct';
+          } else if (hasWrongAnswer && !hasGoodAnswer) {
+            result = 'incorrect';
+          } else {
+            result = 'no_answer';
+          }
+
+          return {
+            enigma_id: enigma.enigma_id,
+            good_answers: enigma.good_answers,
+            wrong_answers: enigma.wrong_answers,
+            result,
+            hasGoodAnswer,
+            hasWrongAnswer,
+          };
+        });
+
+        console.log('=== ENIGMA RESULTS ===');
+        enigmaResults.forEach((result, index) => {
+          console.log(`Enigma ${result.enigma_id}:`, {
+            expected_good: result.good_answers,
+            expected_wrong: result.wrong_answers,
+            result: result.result,
+            hasGoodAnswer: result.hasGoodAnswer,
+            hasWrongAnswer: result.hasWrongAnswer,
+          });
+        });
+
+        const correctAnswers = enigmaResults.filter(r => r.result === 'correct').length;
+        const totalScore = correctAnswers * 100;
+
         const { error: updateError } = await supabase
           .from('teams')
-          .update({ end_time: endTime })
+          .update({
+            end_time: endTime,
+            score: totalScore,
+          })
           .eq('id', team.id);
 
         if (updateError) {
           console.error('Error updating team end time:', updateError);
         } else {
           console.log('✓ Team finished:', team.team_name);
+          console.log('✓ Score:', totalScore, `(${correctAnswers}/${patternEnigmas.length} correct)`);
           const duration = Math.floor((endTime - team.start_time) / 1000);
-          showMessage(`Terminé! ${team.team_name} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
+          showMessage(`Terminé! ${team.team_name} - Score: ${totalScore} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
           playSound('game_end');
         }
       } else {

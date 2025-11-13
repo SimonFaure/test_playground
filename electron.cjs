@@ -479,6 +479,24 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('patterns:read-file', async (event, gameTypeName, patternName, fileName) => {
+    const fs = require('fs');
+    try {
+      const filePath = path.join(__dirname, 'data', 'patterns', gameTypeName.toLowerCase(), patternName, fileName);
+      console.log('Reading pattern file:', filePath);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Pattern file not found: ${filePath}`);
+      }
+
+      const content = fs.readFileSync(filePath, 'utf8');
+      return content;
+    } catch (error) {
+      console.error('Error reading pattern file:', error);
+      throw error;
+    }
+  });
+
   ipcMain.handle('db:connect', async () => {
     try {
       if (!connectToDatabase) {

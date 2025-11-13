@@ -89,14 +89,19 @@ export function LaunchedGamesList() {
   const loadGameData = async () => {
     try {
       const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
-      if (isElectron && (window as any).electron?.loadGameData) {
+      if (isElectron && (window as any).electron?.games?.readFile) {
         const uniqueUniqids = [...new Set(games.map(g => g.game_uniqid))];
         const dataMap: Record<string, GameData> = {};
 
         for (const uniqid of uniqueUniqids) {
-          const gameData = await (window as any).electron.loadGameData(uniqid);
-          if (gameData) {
-            dataMap[uniqid] = gameData;
+          try {
+            const gameDataContent = await (window as any).electron.games.readFile(uniqid, 'game-data.json');
+            const gameData = JSON.parse(gameDataContent);
+            if (gameData) {
+              dataMap[uniqid] = gameData;
+            }
+          } catch (err) {
+            console.error(`Error loading game data for ${uniqid}:`, err);
           }
         }
 

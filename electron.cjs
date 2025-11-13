@@ -276,24 +276,6 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('games:load-game-data', async (event, uniqid) => {
-    const fs = require('fs');
-    try {
-      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
-      const gameDataPath = path.join(gamesDir, uniqid, 'game-data.json');
-
-      if (!fs.existsSync(gameDataPath)) {
-        return null;
-      }
-
-      const data = fs.readFileSync(gameDataPath, 'utf-8');
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('Error loading game data:', error);
-      return null;
-    }
-  });
-
   ipcMain.handle('games:write-file', async (event, gameId, filename, content, isBinary = false) => {
     try {
       const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');

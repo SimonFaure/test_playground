@@ -89,22 +89,31 @@ export function LaunchedGamesList() {
   const loadGameData = async () => {
     try {
       const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+      console.log('🎮 Loading game data...');
+      console.log('  - isElectron:', isElectron);
+      console.log('  - electron.games.readFile available:', !!(window as any).electron?.games?.readFile);
+      console.log('  - Games:', games);
+
       if (isElectron && (window as any).electron?.games?.readFile) {
         const uniqueUniqids = [...new Set(games.map(g => g.game_uniqid))];
+        console.log('  - Unique uniqids to load:', uniqueUniqids);
         const dataMap: Record<string, GameData> = {};
 
         for (const uniqid of uniqueUniqids) {
           try {
+            console.log(`  - Loading ${uniqid}...`);
             const gameDataContent = await (window as any).electron.games.readFile(uniqid, 'game-data.json');
             const gameData = JSON.parse(gameDataContent);
+            console.log(`  ✓ Loaded ${uniqid}:`, gameData.game?.title);
             if (gameData) {
               dataMap[uniqid] = gameData;
             }
           } catch (err) {
-            console.error(`Error loading game data for ${uniqid}:`, err);
+            console.error(`  ✗ Error loading game data for ${uniqid}:`, err);
           }
         }
 
+        console.log('  - Final gameDataMap:', dataMap);
         setGameDataMap(dataMap);
       }
     } catch (error) {
@@ -273,12 +282,11 @@ export function LaunchedGamesList() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">{game.name}</h3>
-                    {gameDataMap[game.game_uniqid] && (
-                      <p className="text-sm text-blue-400 mb-1">Scenario: {
-                      gameDataMap[game.game_uniqid].game.title}</p>
+                    {gameDataMap[game.game_uniqid] ? (
+                      <p className="text-sm text-blue-400 mb-1">Scenario: {gameDataMap[game.game_uniqid].game.title}</p>
+                    ) : (
+                      <p className="text-sm text-slate-400 mb-1">Scenario: {game.game_uniqid}</p>
                     )}
-                    {   console.log(gameDataMap)}
-                    {   console.log(game.game_uniqid)}
                     <p className="text-sm text-slate-400">Game ID: {game.id}</p>
                   </div>
                   <div className="flex items-center gap-2">

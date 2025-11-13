@@ -21,14 +21,20 @@ class MySQLQueryBuilder implements QueryBuilder {
   private orderByClause: string = '';
   private insertData: any = null;
   private updateData: any = null;
+  private shouldReturnInserted: boolean = false;
 
   constructor(tableName: string) {
     this.tableName = tableName;
   }
 
   select(columns: string = '*') {
-    this.operation = 'select';
-    this.selectColumns = columns;
+    if (this.operation === 'insert') {
+      this.shouldReturnInserted = true;
+      this.selectColumns = columns;
+    } else {
+      this.operation = 'select';
+      this.selectColumns = columns;
+    }
     return this;
   }
 
@@ -179,12 +185,20 @@ class MySQLQueryBuilder implements QueryBuilder {
 
       let data = result.rows || [];
 
-      if (this.operation === 'insert' && result.rows) {
-        if (result.rows.insertId) {
-          const selectSql = `SELECT * FROM ${this.tableName} WHERE id = ?`;
-          const selectResult = await (window as any).electron.db.query(selectSql, [result.rows.insertId]);
-          data = selectResult.rows || [];
+      if (this.operation === 'insert' && this.shouldReturnInserted && result.rows && result.rows.insertId) {
+        console.log('Insert operation detected, insertId:', result.rows.insertId);
+        const selectSql = `SELECT ${this.selectColumns} FROM ${this.tableName} WHERE id = ?`;
+        const selectResult = await (window as any).electron.db.query(selectSql, [result.rows.insertId]);
+        console.log('Retrieved inserted row:', selectResult);
+
+        if (selectResult.error) {
+          return {
+            data: null,
+            error: { message: selectResult.error }
+          };
         }
+
+        data = selectResult.rows || [];
       }
 
       return {

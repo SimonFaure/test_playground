@@ -265,17 +265,30 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         const cardPunchCodes = card.punches.map(p => p.code.toString());
         console.log('Card punch codes:', cardPunchCodes);
 
+        let totalScore = 0;
+
         const enigmaResults = patternEnigmas.map((enigma) => {
+          const gameEnigma = gameData?.game_enigmas.find(ge => ge.number === enigma.enigma_id);
+          const goodPoints = parseInt(gameEnigma?.good_answer_points || '0');
+          const wrongPoints = parseInt(gameEnigma?.wrong_answer_points || '0');
+
           const hasGoodAnswer = enigma.good_answers.some(answer => cardPunchCodes.includes(answer));
           const hasWrongAnswer = enigma.wrong_answers.some(answer => cardPunchCodes.includes(answer));
 
           let result: 'correct' | 'incorrect' | 'no_answer';
+          let points = 0;
+
           if (hasGoodAnswer && !hasWrongAnswer) {
             result = 'correct';
+            points = goodPoints;
+            totalScore += goodPoints;
           } else if (hasWrongAnswer && !hasGoodAnswer) {
             result = 'incorrect';
+            points = -wrongPoints;
+            totalScore -= wrongPoints;
           } else {
             result = 'no_answer';
+            points = 0;
           }
 
           return {
@@ -283,24 +296,26 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
             good_answers: enigma.good_answers,
             wrong_answers: enigma.wrong_answers,
             result,
+            points,
             hasGoodAnswer,
             hasWrongAnswer,
           };
         });
 
         console.log('=== ENIGMA RESULTS ===');
-        enigmaResults.forEach((result, index) => {
+        enigmaResults.forEach((result) => {
           console.log(`Enigma ${result.enigma_id}:`, {
             expected_good: result.good_answers,
             expected_wrong: result.wrong_answers,
             result: result.result,
+            points: result.points,
             hasGoodAnswer: result.hasGoodAnswer,
             hasWrongAnswer: result.hasWrongAnswer,
           });
         });
 
-        const correctAnswers = enigmaResults.filter(r => r.result === 'correct').length;
-        const totalScore = correctAnswers * 100;
+        console.log('=== FINAL SCORE ===');
+        console.log('Total Score:', totalScore);
 
         const { error: updateError } = await supabase
           .from('teams')
@@ -314,8 +329,24 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           console.error('Error updating team end time:', updateError);
         } else {
           console.log('✓ Team finished:', team.team_name);
-          console.log('✓ Score:', totalScore, `(${correctAnswers}/${patternEnigmas.length} correct)`);
+          console.log('✓ Score:', totalScore);
           const duration = endTime - team.start_time;
+
+          const waitForEnter = () => {
+            return new Promise<void>((resolve) => {
+              console.log('⌨️  Waiting for Enter key to show results...');
+              const handleKeyPress = (event: KeyboardEvent) => {
+                if (event.key === 'Enter') {
+                  window.removeEventListener('keydown', handleKeyPress);
+                  resolve();
+                }
+              };
+              window.addEventListener('keydown', handleKeyPress);
+            });
+          };
+
+          await waitForEnter();
+          console.log('✓ Enter key pressed, showing results');
           showMessage(`Terminé! ${team.team_name} - Score: ${totalScore} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
           playSound('game_end');
         }

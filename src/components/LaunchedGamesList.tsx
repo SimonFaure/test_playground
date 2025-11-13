@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Trash2, Users, Save } from 'lucide-react';
+import { Play, Square, Trash2, Users, Save, Clock, CheckCircle, Flag } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface LaunchedGame {
   id: number;
-  scenario_name: string;
-  scenario_id: string;
+  game_uniqid: string;
+  name: string;
+  number_of_teams: number;
+  game_type: string;
   ended: boolean;
   created_at: string;
+}
+
+interface GameData {
+  game: {
+    uniqid: string;
+    title: string;
+    type: string;
+  };
 }
 
 interface Team {
@@ -27,10 +37,17 @@ export function LaunchedGamesList() {
   const [loading, setLoading] = useState(true);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
+  const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
 
   useEffect(() => {
     loadGames();
   }, []);
+
+  useEffect(() => {
+    if (games.length > 0) {
+      loadGameData();
+    }
+  }, [games]);
 
   useEffect(() => {
     if (selectedGameId !== null) {
@@ -64,6 +81,27 @@ export function LaunchedGamesList() {
       console.error('Error loading teams:', error);
     } else {
       setTeams(data || []);
+    }
+  };
+
+  const loadGameData = async () => {
+    try {
+      const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+      if (isElectron && (window as any).electron?.loadGameData) {
+        const uniqueUniqids = [...new Set(games.map(g => g.game_uniqid))];
+        const dataMap: Record<string, GameData> = {};
+
+        for (const uniqid of uniqueUniqids) {
+          const gameData = await (window as any).electron.loadGameData(uniqid);
+          if (gameData) {
+            dataMap[uniqid] = gameData;
+          }
+        }
+
+        setGameDataMap(dataMap);
+      }
+    } catch (error) {
+      console.error('Error loading game data:', error);
     }
   };
 
@@ -211,9 +249,12 @@ export function LaunchedGamesList() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-1">{game.scenario_name}</h3>
+                    <h3 className="text-xl font-bold text-white mb-1">{game.name}</h3>
+                    {gameDataMap[game.game_uniqid] && (
+                      <p className="text-sm text-blue-400 mb-1">{gameDataMap[game.game_uniqid].game.title}</p>
+                    )}
                     <p className="text-sm text-slate-400">Game ID: {game.id}</p>
-                    <p className="text-sm text-slate-400">Scenario: {game.scenario_id}</p>
+                    <p className="text-sm text-slate-400">Scenario: {game.game_uniqid}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {game.ended ? (
@@ -280,9 +321,18 @@ export function LaunchedGamesList() {
                           className="p-4 bg-slate-800 border border-slate-700 rounded-lg"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-white font-semibold">
-                              Team {team.team_number}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {team.end_time ? (
+                                <CheckCircle size={18} className="text-green-500" />
+                              ) : team.start_time ? (
+                                <Play size={18} className="text-blue-500" />
+                              ) : (
+                                <Clock size={18} className="text-slate-500" />
+                              )}
+                              <span className="text-white font-semibold">
+                                Team {team.team_number}
+                              </span>
+                            </div>
                             <span className="text-slate-400 text-sm">
                               Chip #{team.key_id}
                             </span>

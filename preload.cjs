@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electron', {
     getMediaPath: (gameId, filename) => ipcRenderer.invoke('games:get-media-path', gameId, filename),
     listMediaFolder: (gameId, folderId) => ipcRenderer.invoke('games:list-media-folder', gameId, folderId),
   },
+  loadGameData: (uniqid) => ipcRenderer.invoke('games:load-game-data', uniqid),
   db: {
     connect: () => ipcRenderer.invoke('db:connect'),
     testConnection: (url) => ipcRenderer.invoke('db:testConnection', url),

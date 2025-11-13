@@ -583,7 +583,7 @@ export function LaunchedGamesList() {
                                   Chip #{team.key_id}
                                 </span>
                               </div>
-                              <button className="p-1 hover:bg-slate-600 rounded transition">
+                              <button className="p-1 hover:bg-slate-600 rounded transition" title="Expand team details">
                                 <Maximize2 size={16} className="text-slate-400" />
                               </button>
                             </div>
@@ -612,6 +612,7 @@ export function LaunchedGamesList() {
                                 <button
                                   onClick={() => toggleMinimizeTeam(team.id)}
                                   className="p-1 hover:bg-slate-700 rounded transition"
+                                  title="Minimize team details"
                                 >
                                   <Minimize2 size={16} className="text-slate-400" />
                                 </button>
@@ -662,6 +663,7 @@ export function LaunchedGamesList() {
                                 <button
                                   onClick={() => handleSaveTeam(team.id)}
                                   className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-medium flex items-center justify-center gap-2"
+                                  title="Save changes"
                                 >
                                   <Save size={14} />
                                   Save
@@ -669,6 +671,7 @@ export function LaunchedGamesList() {
                                 <button
                                   onClick={handleCancelEdit}
                                   className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium"
+                                  title="Cancel editing"
                                 >
                                   Cancel
                                 </button>
@@ -685,6 +688,7 @@ export function LaunchedGamesList() {
                               <button
                                 onClick={() => handleEditTeam(team)}
                                 className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium"
+                                title="Edit team details"
                               >
                                 Edit
                               </button>
@@ -722,6 +726,7 @@ export function LaunchedGamesList() {
               <button
                 onClick={() => setShowDevices(null)}
                 className="text-slate-400 hover:text-white transition"
+                title="Close"
               >
                 ✕
               </button>
@@ -777,6 +782,7 @@ export function LaunchedGamesList() {
               <button
                 onClick={() => setShowRankings(null)}
                 className="text-slate-400 hover:text-white transition"
+                title="Close"
               >
                 ✕
               </button>

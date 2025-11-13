@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, X } from 'lucide-react';
+import { Settings, Save, X, Monitor, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface LaunchedGameConfigModalProps {
@@ -15,14 +15,32 @@ interface MetaField {
   meta_value: string | null;
 }
 
+interface Device {
+  id: number;
+  device_id: string;
+  connected: boolean;
+  last_connexion_attempt: string;
+}
+
+interface RawData {
+  id: number;
+  device_id: string;
+  raw_data: any;
+  created_at: string;
+}
+
 export function LaunchedGameConfigModal({ gameId, gameName, onClose, onSave }: LaunchedGameConfigModalProps) {
   const [metaFields, setMetaFields] = useState<MetaField[]>([]);
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [rawData, setRawData] = useState<Record<string, RawData[]>>({});
+  const [showRawData, setShowRawData] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadMetaFields();
+    loadDevices();
   }, [gameId]);
 
   const loadMetaFields = async () => {
@@ -45,6 +63,48 @@ export function LaunchedGameConfigModal({ gameId, gameName, onClose, onSave }: L
       setEditedValues(initialValues);
     }
     setLoading(false);
+  };
+
+  const loadDevices = async () => {
+    const { data, error } = await supabase
+      .from('launched_game_devices')
+      .select('*')
+      .eq('launched_game_id', gameId);
+
+    if (error) {
+      console.error('Error loading devices:', error);
+    } else {
+      setDevices(data || []);
+      await loadRawDataForDevices(data || []);
+    }
+  };
+
+  const loadRawDataForDevices = async (devicesList: Device[]) => {
+    const rawDataMap: Record<string, RawData[]> = {};
+
+    for (const device of devicesList) {
+      const { data, error } = await supabase
+        .from('launched_game_raw_data')
+        .select('*')
+        .eq('launched_game_id', gameId)
+        .eq('device_id', device.device_id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(`Error loading raw data for device ${device.device_id}:`, error);
+      } else {
+        rawDataMap[device.device_id] = data || [];
+      }
+    }
+
+    setRawData(rawDataMap);
+  };
+
+  const toggleRawData = (deviceId: string) => {
+    setShowRawData({
+      ...showRawData,
+      [deviceId]: !showRawData[deviceId]
+    });
   };
 
   const handleSave = async () => {
@@ -156,6 +216,57 @@ export function LaunchedGameConfigModal({ gameId, gameName, onClose, onSave }: L
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {devices.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-slate-700">
+            <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Monitor size={20} className="text-green-500" />
+              Connected Devices
+            </h4>
+            <div className="space-y-4">
+              {devices.map((device) => (
+                <div key={device.id} className="bg-slate-700/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${device.connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-white font-medium">{device.device_id}</span>
+                    </div>
+                    {rawData[device.device_id] && rawData[device.device_id].length > 0 && (
+                      <button
+                        onClick={() => toggleRawData(device.device_id)}
+                        className="flex items-center gap-2 px-3 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-sm transition"
+                      >
+                        {showRawData[device.device_id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showRawData[device.device_id] ? 'Hide' : 'Show'} Raw Data ({rawData[device.device_id].length})
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-slate-400 text-xs">
+                    Last connection: {new Date(device.last_connexion_attempt).toLocaleString()}
+                  </p>
+
+                  {showRawData[device.device_id] && rawData[device.device_id] && (
+                    <div className="mt-4 space-y-3">
+                      <h5 className="text-sm font-semibold text-slate-300">Card Punch Data:</h5>
+                      {rawData[device.device_id].map((data) => (
+                        <div key={data.id} className="bg-slate-800/70 rounded p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs text-slate-400">
+                              {new Date(data.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <pre className="text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                            {JSON.stringify(data.raw_data, null, 2)}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

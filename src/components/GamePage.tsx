@@ -5,6 +5,7 @@ import { MysteryGamePage } from './MysteryGamePage';
 interface GamePageProps {
   config: GameConfig;
   gameUniqid: string;
+  launchedGameId: number | null;
   onBack: () => void;
 }
 
@@ -13,7 +14,7 @@ interface GameMetadata {
   title: string;
 }
 
-export function GamePage({ config, gameUniqid, onBack }: GamePageProps) {
+export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePageProps) {
   const [gameMetadata, setGameMetadata] = useState<GameMetadata | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +57,7 @@ export function GamePage({ config, gameUniqid, onBack }: GamePageProps) {
   }
 
   if (gameMetadata?.type === 'mystery') {
-    return <MysteryGamePage config={config} gameUniqid={gameUniqid} onBack={onBack} />;
+    return <MysteryGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} />;
   }
 
   return (

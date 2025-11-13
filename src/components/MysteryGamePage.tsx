@@ -3,11 +3,13 @@ import { ArrowLeft } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
+import { supabase } from '../lib/db';
 import '../mystery.css';
 
 interface MysteryGamePageProps {
   config: GameConfig;
   gameUniqid: string;
+  launchedGameId: number | null;
   onBack: () => void;
 }
 
@@ -62,7 +64,7 @@ interface GameData {
   }>;
 }
 
-export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageProps) {
+export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -178,6 +180,41 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
     setTimeout(() => setGameMessage(''), duration);
   };
 
+  const saveCardData = async (card: CardData) => {
+    if (!supabase || !launchedGameId) {
+      console.warn('Cannot save card data: supabase or launchedGameId not available');
+      return;
+    }
+
+    try {
+      let deviceId = 'unknown';
+      if (usbReaderService.isElectron()) {
+        try {
+          const computerName = await (window as any).electron.getComputerName();
+          deviceId = computerName || 'unknown';
+        } catch (error) {
+          console.error('Error getting computer name:', error);
+        }
+      }
+
+      const { error } = await supabase.from('launched_game_raw_data').insert({
+        launched_game_id: launchedGameId,
+        device_id: deviceId,
+        raw_data: card,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error('Error saving card data:', error);
+      } else {
+        console.log('✓ Card data saved successfully');
+      }
+    } catch (error) {
+      console.error('Error saving card data:', error);
+    }
+  };
+
   const handleStartGame = async () => {
     setGameStarted(true);
     playSound('game_start');
@@ -221,6 +258,8 @@ export function MysteryGamePage({ config, gameUniqid, onBack }: MysteryGamePageP
               }
               console.log('  Punches:', card.punches);
               console.log('  Full card data:', JSON.stringify(card, null, 2));
+
+              saveCardData(card);
 
               setLastCardData(card);
               setShowCardAlert(true);

@@ -288,7 +288,7 @@ export function GameList() {
       }
     }
 
-    setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '' });
+    setLaunchedGame({ config, uniqid: selectedGame?.uniqid || '', launchedGameId: launchedGame?.id || null });
     setLaunchModalOpen(false);
   };
 
@@ -301,6 +301,7 @@ export function GameList() {
       <GamePage
         config={launchedGame.config}
         gameUniqid={launchedGame.uniqid}
+        launchedGameId={launchedGame.launchedGameId}
         onBack={handleBackToList}
       />
     );

@@ -100,6 +100,9 @@ class MySQLQueryBuilder implements QueryBuilder {
     if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
       return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
     }
+    if (typeof value === 'object' && value !== null) {
+      return JSON.stringify(value);
+    }
     return value;
   }
 

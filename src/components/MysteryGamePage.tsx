@@ -382,6 +382,54 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
 
           await waitForEnter();
           console.log('✓ Enter key pressed, showing results');
+
+          let currentScore = 0;
+          for (const enigmaResult of enigmaResults) {
+            const gameEnigma = currentGameData.game_enigmas.find(ge => ge.number === enigmaResult.enigma_id);
+            if (!gameEnigma) continue;
+
+            const enigmaContainer = document.querySelector(`#enigma_container_${enigmaResult.enigma_id}`);
+            const recapContainer = document.querySelector(`#enigmas_recap_enigma_container_${enigmaResult.enigma_id} .enigma_answer_image`);
+
+            if (enigmaContainer) {
+              let backgroundColor = '';
+              switch (enigmaResult.result) {
+                case 'correct':
+                  backgroundColor = 'rgba(0, 255, 0, 0.3)';
+                  playSound('enigma_success');
+                  break;
+                case 'incorrect':
+                  backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                  playSound('enigma_error');
+                  break;
+                case 'no_answer':
+                  backgroundColor = 'rgba(128, 128, 128, 0.3)';
+                  playSound('enigma_no_answer');
+                  break;
+                case 'both_answers':
+                  backgroundColor = 'rgba(255, 165, 0, 0.3)';
+                  playSound('enigma_error');
+                  break;
+              }
+
+              (enigmaContainer as HTMLElement).style.backgroundColor = backgroundColor;
+            }
+
+            if (recapContainer) {
+              recapContainer.classList.remove('blur');
+            }
+
+            currentScore += enigmaResult.points;
+            setScore(currentScore);
+
+            const scoreElement = document.querySelector('#game_score_container_score');
+            if (scoreElement) {
+              scoreElement.textContent = currentScore.toString();
+            }
+
+            await new Promise(resolve => setTimeout(resolve, parseInt(currentGameData.game_meta.animation_enigma_duration || '1') * 1000));
+          }
+
           showMessage(`Terminé! ${team.team_name} - Score: ${totalScore} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
           playSound('game_end');
         }

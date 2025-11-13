@@ -330,6 +330,29 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('patterns:list-folders', async (event, gameTypeName) => {
+    const fs = require('fs');
+    try {
+      const patternsDir = path.join(__dirname, 'data', 'patterns', gameTypeName.toLowerCase());
+
+      if (!fs.existsSync(patternsDir)) {
+        console.log('Patterns directory does not exist:', patternsDir);
+        return ['ado_adultes', 'kids', 'mini_kids'];
+      }
+
+      const folders = fs.readdirSync(patternsDir, { withFileTypes: true });
+      const patternFolders = folders
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+      console.log('Pattern folders found:', patternFolders);
+      return patternFolders;
+    } catch (error) {
+      console.error('Error reading pattern folders:', error);
+      return ['ado_adultes', 'kids', 'mini_kids'];
+    }
+  });
+
   ipcMain.handle('db:connect', async () => {
     try {
       if (!connectToDatabase) {

@@ -28,5 +28,8 @@ contextBridge.exposeInMainWorld('electron', {
     load: () => ipcRenderer.invoke('clients:load'),
     saveSelected: (clientData) => ipcRenderer.invoke('clients:save-selected', clientData),
     loadSelected: () => ipcRenderer.invoke('clients:load-selected'),
+  },
+  patterns: {
+    listFolders: (gameTypeName) => ipcRenderer.invoke('patterns:list-folders', gameTypeName),
   }
 });

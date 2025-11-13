@@ -1,31 +1,17 @@
 export async function getPatternFolders(gameTypeName: string): Promise<string[]> {
-  const fs = window.require?.('fs');
-  const path = window.require?.('path');
-
-  if (!fs || !path) {
-    console.log('Electron fs/path not available, using default patterns');
-    return ['ado_adultes', 'kids', 'mini_kids'];
-  }
-
-  try {
-    const patternsDir = path.join(process.cwd(), 'data', 'patterns', gameTypeName.toLowerCase());
-
-    if (!fs.existsSync(patternsDir)) {
-      console.log('Patterns directory does not exist:', patternsDir);
+  if (window.electron?.patterns?.listFolders) {
+    try {
+      const folders = await window.electron.patterns.listFolders(gameTypeName);
+      console.log('Pattern folders found:', folders);
+      return folders;
+    } catch (error) {
+      console.error('Error reading pattern folders:', error);
       return ['ado_adultes', 'kids', 'mini_kids'];
     }
-
-    const folders = fs.readdirSync(patternsDir, { withFileTypes: true });
-    const patternFolders = folders
-      .filter((dirent: { isDirectory: () => boolean }) => dirent.isDirectory())
-      .map((dirent: { name: string }) => dirent.name);
-
-    console.log('Pattern folders found:', patternFolders);
-    return patternFolders;
-  } catch (error) {
-    console.error('Error reading pattern folders:', error);
-      return ['ado_adultes', 'kids', 'mini_kids'];
   }
+
+  console.log('Electron patterns API not available, using default patterns');
+  return ['ado_adultes', 'kids', 'mini_kids'];
 }
 
 export async function getGamePublic(uniqid: string): Promise<string | null> {

@@ -399,7 +399,7 @@ export function LaunchedGamesList() {
                   <div className="flex items-center gap-2">
                     {game.ended ? (
                       <span className="px-3 py-1 bg-slate-700 text-slate-300 rounded-full text-xs font-semibold flex items-center gap-1">
-                        <Square size={12} />
+                        <StopCircle size={12} />
                         Ended
                       </span>
                     ) : (

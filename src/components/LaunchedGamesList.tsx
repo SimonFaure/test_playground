@@ -111,28 +111,36 @@ export function LaunchedGamesList() {
       console.log('  - electron.games.readFile available:', !!(window as any).electron?.games?.readFile);
       console.log('  - Games:', games);
 
-      if (isElectron && (window as any).electron?.games?.readFile) {
-        const uniqueUniqids = [...new Set(games.map(g => g.game_uniqid))];
-        console.log('  - Unique uniqids to load:', uniqueUniqids);
-        const dataMap: Record<string, GameData> = {};
+      const uniqueUniqids = [...new Set(games.map(g => g.game_uniqid))];
+      console.log('  - Unique uniqids to load:', uniqueUniqids);
+      const dataMap: Record<string, GameData> = {};
 
-        for (const uniqid of uniqueUniqids) {
-          try {
-            console.log(`  - Loading ${uniqid}...`);
+      for (const uniqid of uniqueUniqids) {
+        try {
+          console.log(`  - Loading ${uniqid}...`);
+          let gameData;
+
+          if (isElectron && (window as any).electron?.games?.readFile) {
             const gameDataContent = await (window as any).electron.games.readFile(uniqid, 'game-data.json');
-            const gameData = JSON.parse(gameDataContent);
-            console.log(`  ✓ Loaded ${uniqid}:`, gameData.game?.title);
-            if (gameData) {
-              dataMap[uniqid] = gameData;
+            gameData = JSON.parse(gameDataContent);
+          } else {
+            const response = await fetch(`/data/games/${uniqid}/game-data.json`);
+            if (response.ok) {
+              gameData = await response.json();
             }
-          } catch (err) {
-            console.error(`  ✗ Error loading game data for ${uniqid}:`, err);
           }
-        }
 
-        console.log('  - Final gameDataMap:', dataMap);
-        setGameDataMap(dataMap);
+          console.log(`  ✓ Loaded ${uniqid}:`, gameData?.game?.title);
+          if (gameData) {
+            dataMap[uniqid] = gameData;
+          }
+        } catch (err) {
+          console.error(`  ✗ Error loading game data for ${uniqid}:`, err);
+        }
       }
+
+      console.log('  - Final gameDataMap:', dataMap);
+      setGameDataMap(dataMap);
     } catch (error) {
       console.error('Error loading game data:', error);
     }

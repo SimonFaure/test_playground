@@ -243,6 +243,7 @@ export function LaunchedGamesList() {
     );
   }
 
+  console.log(gameDataMap[game.game_uniqid]);
   return (
     <div className="container mx-auto px-6 py-8">
       <h2 className="text-3xl font-bold text-white mb-6">Launched Games</h2>

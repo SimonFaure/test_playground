@@ -268,10 +268,9 @@ export function LaunchedGamesList() {
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">{game.name}</h3>
                     {gameDataMap[game.game_uniqid] && (
-                      <p className="text-sm text-blue-400 mb-1">{gameDataMap[game.game_uniqid].game.title}</p>
+                      <p className="text-sm text-blue-400 mb-1">Scenario: {gameDataMap[game.game_uniqid].game.title}</p>
                     )}
                     <p className="text-sm text-slate-400">Game ID: {game.id}</p>
-                    <p className="text-sm text-slate-400">Scenario: {game.game_uniqid}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {game.ended ? (

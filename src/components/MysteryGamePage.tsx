@@ -243,7 +243,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       }
 
       if (!team.start_time) {
-        const startTime = Date.now();
+        const startTime = Math.floor(Date.now() / 1000);
         const { error: updateError } = await supabase
           .from('teams')
           .update({ start_time: startTime })
@@ -257,7 +257,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           playSound('game_start');
         }
       } else if (!team.end_time) {
-        const endTime = Date.now();
+        const endTime = Math.floor(Date.now() / 1000);
 
         const patternEnigmas = await loadPatternEnigmas('mystery', config.pattern);
         console.log('Loaded pattern enigmas:', patternEnigmas);
@@ -315,7 +315,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         } else {
           console.log('✓ Team finished:', team.team_name);
           console.log('✓ Score:', totalScore, `(${correctAnswers}/${patternEnigmas.length} correct)`);
-          const duration = Math.floor((endTime - team.start_time) / 1000);
+          const duration = endTime - team.start_time;
           showMessage(`Terminé! ${team.team_name} - Score: ${totalScore} - Temps: ${formatTime(duration)}`, config.messageDisplayDuration * 1000);
           playSound('game_end');
         }

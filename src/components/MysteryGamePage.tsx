@@ -200,10 +200,12 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         }
       }
 
+      const rawDataJson = JSON.parse(JSON.stringify(card));
+
       const { error } = await supabase.from('launched_game_raw_data').insert({
         launched_game_id: launchedGameId,
         device_id: deviceId,
-        raw_data: card,
+        raw_data: rawDataJson,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });

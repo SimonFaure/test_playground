@@ -229,6 +229,28 @@ export function GameList() {
           } else {
             console.log('Successfully saved launched game meta to database');
           }
+
+          if (config.teams && config.teams.length > 0) {
+            const now = Date.now();
+            const teamsData = config.teams.map((team, index) => ({
+              launched_game_id: launchedGame.id,
+              team_number: index + 1,
+              team_name: team.name,
+              pattern: 0,
+              score: 0,
+              key_id: team.chipId,
+              start_time: now,
+              end_time: now,
+            }));
+
+            const { error: teamsError } = await supabase.from('teams').insert(teamsData);
+
+            if (teamsError) {
+              console.error('Error inserting teams:', teamsError);
+            } else {
+              console.log('Successfully saved teams to database');
+            }
+          }
         }
       } catch (error) {
         console.error('Error saving launched game:', error);

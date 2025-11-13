@@ -14,15 +14,27 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
   return ['ado_adultes', 'kids', 'mini_kids'];
 }
 
-export async function getGamePublic(uniqid: string): Promise<string | null> {
-  try {
+async function readGameDataFile(uniqid: string): Promise<any> {
+  if (window.electron?.games?.readFile) {
+    try {
+      const fileContent = await window.electron.games.readFile(uniqid, 'game-data.json');
+      return JSON.parse(fileContent);
+    } catch (error) {
+      console.error('Error reading game data via Electron:', error);
+      throw error;
+    }
+  } else {
     const response = await fetch(`/data/games/${uniqid}/game-data.json`);
     if (!response.ok) {
-      console.warn(`Could not load game data for ${uniqid}`);
-      return null;
+      throw new Error(`Failed to fetch game data: ${response.statusText}`);
     }
+    return await response.json();
+  }
+}
 
-    const gameData = await response.json();
+export async function getGamePublic(uniqid: string): Promise<string | null> {
+  try {
+    const gameData = await readGameDataFile(uniqid);
     const gamePublic = gameData?.game_meta?.game_public;
 
     if (gamePublic) {
@@ -36,3 +48,5 @@ export async function getGamePublic(uniqid: string): Promise<string | null> {
     return null;
   }
 }
+
+export { readGameDataFile };

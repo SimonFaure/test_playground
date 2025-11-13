@@ -65,6 +65,22 @@ app.whenReady().then(() => {
     callback({ path: filePath });
   });
 
+  protocol.interceptFileProtocol('file', (request, callback) => {
+    const url = request.url.replace('file:///', '');
+    const urlPath = decodeURIComponent(url);
+
+    if (urlPath.startsWith('data/games/')) {
+      const relativePath = urlPath.replace('data/games/', '');
+      const [gameId, ...pathParts] = relativePath.split('/');
+      const filePath = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games', gameId, ...pathParts);
+      callback({ path: filePath });
+    } else if (urlPath.match(/^[A-Z]:/)) {
+      callback({ path: urlPath });
+    } else {
+      callback({ path: path.join(__dirname, 'dist', urlPath) });
+    }
+  });
+
   // Set up IPC handlers
   const os = require('os');
 

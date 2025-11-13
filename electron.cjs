@@ -434,6 +434,22 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('db:query', async (event, sql, params = []) => {
+    console.log('=== DB QUERY ===');
+    console.log('SQL:', sql);
+    console.log('Params:', params);
+
+    try {
+      const conn = await mysqlConnectionModule.getConnection();
+      const [rows] = await conn.query(sql, params);
+      console.log('Query result:', rows);
+      return { rows, error: null };
+    } catch (error) {
+      console.error('Database query error:', error);
+      return { rows: null, error: error.message };
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

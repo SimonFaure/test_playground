@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electron', {
   db: {
     connect: () => ipcRenderer.invoke('db:connect'),
     testConnection: (url) => ipcRenderer.invoke('db:testConnection', url),
+    query: (sql, params) => ipcRenderer.invoke('db:query', sql, params),
   },
   clients: {
     load: () => ipcRenderer.invoke('clients:load'),

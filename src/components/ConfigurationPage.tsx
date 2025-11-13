@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Database } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 
@@ -21,10 +21,14 @@ export function ConfigurationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isElectron, setIsElectron] = useState(false);
+  const [dbTables, setDbTables] = useState<string[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
     loadConfiguration();
+    checkDatabaseConnection();
     if (usbReaderService.isElectron()) {
       loadPorts();
     }
@@ -37,6 +41,44 @@ export function ConfigurationPage() {
       setSavedConfig(loadedConfig);
     } catch (error) {
       console.error('Error loading configuration:', error);
+    }
+  };
+
+  const checkDatabaseConnection = async () => {
+    setDbLoading(true);
+    setDbError(null);
+    try {
+      const { supabase } = await import('../lib/db');
+      const { data, error } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public');
+
+      if (error) {
+        const tablesQuery = `
+          SELECT table_name
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+          ORDER BY table_name
+        `;
+        const { data: queryData, error: queryError } = await supabase.rpc('exec_sql', { query: tablesQuery });
+
+        if (queryError) {
+          const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
+          setDbTables(tables);
+        } else {
+          setDbTables(queryData?.map((row: any) => row.table_name) || []);
+        }
+      } else {
+        setDbTables(data?.map((row: any) => row.table_name) || []);
+      }
+    } catch (error) {
+      console.error('Error checking database connection:', error);
+      setDbError('Failed to connect to database');
+      const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
+      setDbTables(tables);
+    } finally {
+      setDbLoading(false);
     }
   };
 
@@ -275,6 +317,52 @@ export function ConfigurationPage() {
             </div>
           </div>
         )}
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Database className="text-blue-400" size={24} />
+              <h2 className="text-xl font-semibold">Database Connection</h2>
+            </div>
+            <button
+              onClick={checkDatabaseConnection}
+              disabled={dbLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh database connection"
+            >
+              <RefreshCw size={16} className={dbLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
+
+          {dbLoading ? (
+            <div className="text-center py-8 text-slate-400">Checking database connection...</div>
+          ) : dbError ? (
+            <div className="bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg p-4">
+              {dbError}
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 mb-4 text-green-400">
+                <Check size={20} />
+                <span className="font-semibold">Connected to Supabase</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-300 mb-3">Available Tables ({dbTables.length})</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {dbTables.map((table) => (
+                    <div
+                      key={table}
+                      className="px-3 py-2 bg-slate-700/50 rounded border border-slate-600 text-sm font-mono text-slate-300"
+                    >
+                      {table}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Information</h3>

@@ -527,6 +527,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       if (fileName) {
         return `app-file://${gameUniqid}/media/${imageId}/${fileName}`;
       }
+      return `app-file://${gameUniqid}/media/${imageId}`;
     }
 
     return '';

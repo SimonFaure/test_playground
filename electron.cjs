@@ -61,7 +61,15 @@ app.whenReady().then(() => {
   protocol.registerFileProtocol('app-file', (request, callback) => {
     const url = request.url.replace('app-file://', '');
     const [gameId, ...pathParts] = url.split('/');
-    const filePath = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games', gameId, ...pathParts);
+    let filePath = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games', gameId, ...pathParts);
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+      const files = fs.readdirSync(filePath).filter(f => !f.startsWith('.'));
+      if (files.length > 0) {
+        filePath = path.join(filePath, files[0]);
+      }
+    }
+
     callback({ path: filePath });
   });
 

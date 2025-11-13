@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, ShieldCheck } from 'lucide-react';
+import { Settings, ShieldCheck, List } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { AdminConfigPage } from './components/AdminConfigPage';
+import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { supabase } from './lib/db';
 
-type Page = 'games' | 'config' | 'admin-config';
+type Page = 'games' | 'launched-games' | 'config' | 'admin-config';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
@@ -116,6 +117,17 @@ function App() {
                 Games
               </button>
               <button
+                onClick={() => setCurrentPage('launched-games')}
+                className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                  currentPage === 'launched-games'
+                    ? isAdminMode ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <List size={16} />
+                Launched
+              </button>
+              <button
                 onClick={() => setCurrentPage('config')}
                 className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
                   currentPage === 'config'
@@ -124,7 +136,7 @@ function App() {
                 }`}
               >
                 <Settings size={16} />
-                
+
               </button>
               {isAdminMode && (
                 <button
@@ -145,6 +157,7 @@ function App() {
       </nav>
 
       {currentPage === 'games' && <GameList />}
+      {currentPage === 'launched-games' && <LaunchedGamesList />}
       {currentPage === 'config' && <ConfigurationPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
 

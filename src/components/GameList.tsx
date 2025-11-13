@@ -231,7 +231,6 @@ export function GameList() {
           }
 
           if (config.teams && config.teams.length > 0) {
-            const now = Date.now();
             const teamsData = config.teams.map((team, index) => ({
               launched_game_id: launchedGame.id,
               team_number: index + 1,
@@ -239,8 +238,6 @@ export function GameList() {
               pattern: 0,
               score: 0,
               key_id: team.chipId,
-              start_time: now,
-              end_time: now,
             }));
 
             const { error: teamsError } = await supabase.from('teams').insert(teamsData);

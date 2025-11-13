@@ -22,6 +22,7 @@ class MySQLQueryBuilder implements QueryBuilder {
   private insertData: any = null;
   private updateData: any = null;
   private shouldReturnInserted: boolean = false;
+  private readonly TIMESTAMP_COLUMNS = ['start_time', 'end_time'];
 
   constructor(tableName: string) {
     this.tableName = tableName;
@@ -96,14 +97,29 @@ class MySQLQueryBuilder implements QueryBuilder {
     return this.execute().then(resolve, reject);
   }
 
-  private convertValue(value: any): any {
+  private convertValue(value: any, columnName?: string): any {
     if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
       return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
     }
     if (typeof value === 'object' && value !== null) {
       return JSON.stringify(value);
     }
+    if (columnName && this.TIMESTAMP_COLUMNS.includes(columnName) && typeof value === 'number') {
+      return Math.floor(value / 1000);
+    }
     return value;
+  }
+
+  private convertRowFromMySQL(row: any): any {
+    if (!row || typeof row !== 'object') return row;
+
+    const converted = { ...row };
+    for (const col of this.TIMESTAMP_COLUMNS) {
+      if (col in converted && typeof converted[col] === 'number') {
+        converted[col] = converted[col] * 1000;
+      }
+    }
+    return converted;
   }
 
   private buildQuery(): { sql: string; params: any[] } {
@@ -138,7 +154,7 @@ class MySQLQueryBuilder implements QueryBuilder {
           sql = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES `;
 
           const valueSets = this.insertData.map((row: any) => {
-            params.push(...columns.map(col => this.convertValue(row[col])));
+            params.push(...columns.map(col => this.convertValue(row[col], col)));
             return `(${placeholders})`;
           });
 
@@ -149,7 +165,7 @@ class MySQLQueryBuilder implements QueryBuilder {
       case 'update':
         if (this.updateData) {
           const setClauses = Object.keys(this.updateData).map(key => {
-            params.push(this.convertValue(this.updateData[key]));
+            params.push(this.convertValue(this.updateData[key], key));
             return `${key} = ?`;
           });
           sql = `UPDATE ${this.tableName} SET ${setClauses.join(', ')}`;
@@ -218,7 +234,7 @@ class MySQLQueryBuilder implements QueryBuilder {
             };
           }
 
-          data = selectResult.rows || [];
+          data = (selectResult.rows || []).map((row: any) => this.convertRowFromMySQL(row));
         } else {
           const selectSql = `SELECT ${this.selectColumns} FROM ${this.tableName} WHERE id >= ? AND id < ?`;
           const selectResult = await (window as any).electron.db.query(selectSql, [insertId, insertId + affectedRows]);
@@ -231,8 +247,10 @@ class MySQLQueryBuilder implements QueryBuilder {
             };
           }
 
-          data = selectResult.rows || [];
+          data = (selectResult.rows || []).map((row: any) => this.convertRowFromMySQL(row));
         }
+      } else if (Array.isArray(data)) {
+        data = data.map((row: any) => this.convertRowFromMySQL(row));
       }
 
       return {

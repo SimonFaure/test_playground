@@ -121,6 +121,9 @@ app.whenReady().then(() => {
     }
   });
 
+  let activePort = null;
+  let rxBuffer = Buffer.alloc(0);
+
   ipcMain.handle('serialport:list', async () => {
     try {
       const { SerialPort } = require('serialport');
@@ -129,6 +132,113 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error listing serial ports:', error);
       return [];
+    }
+  });
+
+  ipcMain.handle('serialport:open', async (event, portPath, baudRate = 38400) => {
+    try {
+      if (activePort && activePort.isOpen) {
+        activePort.close();
+      }
+
+      const { SerialPort } = require('serialport');
+      activePort = new SerialPort({
+        path: portPath,
+        baudRate: baudRate,
+        dataBits: 8,
+        stopBits: 1,
+        parity: 'none',
+        autoOpen: true,
+      });
+
+      rxBuffer = Buffer.alloc(0);
+
+      return new Promise((resolve, reject) => {
+        activePort.on('open', () => {
+          console.log('Serial port opened successfully');
+          resolve({ success: true });
+        });
+
+        activePort.on('error', (err) => {
+          console.error('Serial port error:', err.message);
+          reject({ success: false, error: err.message });
+        });
+
+        activePort.on('data', (chunk) => {
+          rxBuffer = Buffer.concat([rxBuffer, chunk]);
+        });
+
+        activePort.on('close', () => {
+          console.log('Serial port closed');
+        });
+      });
+    } catch (error) {
+      console.error('Error opening serial port:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('serialport:write', async (event, data) => {
+    try {
+      if (!activePort || !activePort.isOpen) {
+        return { success: false, error: 'Port not open' };
+      }
+
+      const buffer = Buffer.from(data);
+      return new Promise((resolve) => {
+        activePort.write(buffer, (err) => {
+          if (err) {
+            resolve({ success: false, error: err.message });
+          } else {
+            resolve({ success: true });
+          }
+        });
+      });
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('serialport:read', async (event, length) => {
+    try {
+      if (length <= rxBuffer.length) {
+        const data = rxBuffer.slice(0, length);
+        rxBuffer = rxBuffer.slice(length);
+        return { success: true, data: Array.from(data) };
+      }
+      return { success: false, data: [] };
+    } catch (error) {
+      return { success: false, error: error.message, data: [] };
+    }
+  });
+
+  ipcMain.handle('serialport:peek', async (event, length) => {
+    try {
+      const data = rxBuffer.slice(0, Math.min(length, rxBuffer.length));
+      return { success: true, data: Array.from(data), length: data.length };
+    } catch (error) {
+      return { success: false, error: error.message, data: [], length: 0 };
+    }
+  });
+
+  ipcMain.handle('serialport:is-open', async () => {
+    return { isOpen: activePort && activePort.isOpen };
+  });
+
+  ipcMain.handle('serialport:close', async () => {
+    try {
+      if (activePort && activePort.isOpen) {
+        return new Promise((resolve) => {
+          activePort.close(() => {
+            activePort = null;
+            rxBuffer = Buffer.alloc(0);
+            resolve({ success: true });
+          });
+        });
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   });
 

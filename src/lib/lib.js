@@ -410,16 +410,40 @@ export class Station {
  * @param {number} n - Nombre d’octets à lire.
  * @returns {Promise<Buffer>} Un buffer contenant exactement `n` octets.
  */
-export async function SerialRead(n){ return WorkingEnv.rx.read(n); }
+export async function SerialRead(n){
+    const isElectron = typeof window !== 'undefined' && window.electron?.isElectron;
+    if (isElectron) {
+        let attempts = 0;
+        const maxAttempts = 100;
+        while (attempts < maxAttempts) {
+            const result = await window.electron.serialport.peek(n);
+            if (result.success && result.length >= n) {
+                const readResult = await window.electron.serialport.read(n);
+                return Buffer.from(readResult.data);
+            }
+            await new Promise(resolve => setTimeout(resolve, 10));
+            attempts++;
+        }
+        return Buffer.alloc(0);
+    }
+    return WorkingEnv.rx.read(n);
+}
 
 
 /**
  * Regarde (sans consommer) les `n` prochains octets du tampon de réception série.
  *
  * @param {number} n - Nombre d'octets à prévisualiser.
- * @returns {Promise<Buffer>} - Un buffer contenant jusqu'à `n` octets, s’ils sont disponibles.
+ * @returns {Promise<Buffer>} - Un buffer contenant jusqu'à `n` octets, s'ils sont disponibles.
  */
-export async function SerialPeek(n){ return WorkingEnv.rx.peek(n); }
+export async function SerialPeek(n){
+    const isElectron = typeof window !== 'undefined' && window.electron?.isElectron;
+    if (isElectron) {
+        const result = await window.electron.serialport.peek(n);
+        return result.success ? Buffer.from(result.data) : Buffer.alloc(0);
+    }
+    return WorkingEnv.rx.peek(n);
+}
 
 
 /**
@@ -446,6 +470,21 @@ export async function SerialWrite(buffer, flush=false) {
  *                      `false` si aucun port n’est ouvert.
  */
 export async function SerialFlush() {
+    const isElectron = typeof window !== 'undefined' && window.electron?.isElectron;
+
+    if (isElectron) {
+        const status = await window.electron.serialport.isOpen();
+        if (status.isOpen) {
+            if(!WorkingEnv.tx.length) return true;
+            console.log(pc.dim("Pushing on port: "), WorkingEnv.tx.toString('hex'));
+            const data = await WorkingEnv.tx.read(WorkingEnv.tx.length);
+            await window.electron.serialport.write(Array.from(data));
+            return true;
+        }
+        console.warn(pc.dim("No port opened"));
+        return false;
+    }
+
     if(WorkingEnv?.port?.isOpen){
         if(!WorkingEnv.tx.length) return true;
         console.log(pc.dim("Pushing on port: "), WorkingEnv.tx.toString('hex'));

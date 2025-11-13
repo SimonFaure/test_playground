@@ -6,6 +6,12 @@ contextBridge.exposeInMainWorld('electron', {
   isElectron: true,
   serialport: {
     list: () => ipcRenderer.invoke('serialport:list'),
+    open: (portPath, baudRate) => ipcRenderer.invoke('serialport:open', portPath, baudRate),
+    write: (data) => ipcRenderer.invoke('serialport:write', data),
+    read: (length) => ipcRenderer.invoke('serialport:read', length),
+    peek: (length) => ipcRenderer.invoke('serialport:peek', length),
+    isOpen: () => ipcRenderer.invoke('serialport:is-open'),
+    close: () => ipcRenderer.invoke('serialport:close'),
   },
   config: {
     load: () => ipcRenderer.invoke('config:load'),

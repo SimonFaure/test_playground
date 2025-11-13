@@ -49,20 +49,28 @@ export function ConfigurationPage() {
     setDbError(null);
     try {
       const { supabase } = await import('../lib/db');
+
+      if (!supabase) {
+        setDbError('Database not configured. Environment variables missing.');
+        setDbLoading(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('configuration')
         .select('id')
         .limit(1);
 
       if (error) {
-        setDbError('Failed to connect to database');
+        console.error('Database connection error:', error);
+        setDbError(`Failed to connect: ${error.message}`);
       } else {
         const tables = ['launched_games', 'launched_game_meta', 'teams', 'si_puces', 'game_types', 'configuration', 'launched_game_devices'];
         setDbTables(tables);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking database connection:', error);
-      setDbError('Failed to connect to database');
+      setDbError(`Connection failed: ${error?.message || 'Unknown error'}`);
     } finally {
       setDbLoading(false);
     }

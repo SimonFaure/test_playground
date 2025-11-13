@@ -96,6 +96,12 @@ export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
  *                             Si `null`, conserve le port déjà assigné à `WorkingEnv.path`.
  */
 export function InitWorkingEnv(path=null){
+    const isElectron = typeof window !== 'undefined' && window.electron?.isElectron;
+    if (!isElectron) {
+        console.warn('InitWorkingEnv can only be called in Electron context');
+        return;
+    }
+
     WorkingEnv.rate = 38400;
     WorkingEnv.rx = new SerialBuffer();
     WorkingEnv.tx = new SerialBuffer();
@@ -109,9 +115,9 @@ export function InitWorkingEnv(path=null){
         autoOpen: true,
     });
     WorkingEnv.port.on('open', () => { console.log(pc.green('Port ouvert avec succès')); });
-    WorkingEnv.port.on('error', (err) => { console.error(pc.red('Erreur à l’ouverture :'), err.message); });
+    WorkingEnv.port.on('error', (err) => { console.error(pc.red('Erreur à l\'ouverture :'), err.message); });
     WorkingEnv.port.on('data', (chunk) => { WorkingEnv.rx.append(chunk); });
-    WorkingEnv.port.on('close', () => {})
+    WorkingEnv.port.on('close', () => {});
 }
 
 

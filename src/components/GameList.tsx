@@ -391,7 +391,6 @@ export function GameList() {
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
                     >
                       <Play size={16} />
-                      Launch
                     </button>
                   ) : null}
                 </div>

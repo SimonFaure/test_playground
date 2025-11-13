@@ -137,6 +137,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
           const data = await response.json();
           setGameData(data);
+          gameDataRef.current = data;
 
           if (data.game_sounds) {
             const loadedAudio: Record<string, HTMLAudioElement> = {};
@@ -507,7 +508,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
   }
 
   const getImageUrl = (imageId: string) => {
-    if (!imageId) return '';
+    if (!imageId || imageId === 'undefined' || imageId === 'null') return '';
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
     if (isElectron) {
@@ -552,7 +553,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
               <div className="game_instructions_button" id="game_instructions_button_image">
                 <img src={getImageUrl(gameData.game_meta.game_instructions_button_image)} alt="start" />
               </div>
-              <div className="game_instructions_button hide" id="game_instructions_button_hover_image">
+              <div className="game_instructions_button" id="game_instructions_button_hover_image">
                 <img src={getImageUrl(gameData.game_meta.game_instructions_button_hover_image)} alt="start-hover" />
               </div>
             </div>

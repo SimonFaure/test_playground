@@ -19,12 +19,18 @@
     font-size: 30px; 
 } */
 .game_instructions_wrapper {
-    /* display: none; */
-    position: absolute;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     opacity: 1;
     height: 100vh;
-    padding: 50px;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
 }
 /* #enigma_container_2{
     opacity: 1;
@@ -44,9 +50,10 @@
     background-repeat: no-repeat;
     background-size: contain;
     display: flex;
-    flex-direction: row;
-    align-items: end;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 #game_instructions_button_hover_image {
@@ -54,23 +61,42 @@
 }
 
 #game_instructions_button_image_container {
-    position: relative;
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
     width: 200px;
     height: 200px;
-    margin-bottom: 30px;
     z-index: 1000;
     cursor: pointer;
 }
 
 .game_instructions_button {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 200px;
+    transition: opacity 0.3s ease;
 }
 
 .game_instructions_button img {
     width: 200px;
+}
+
+#game_instructions_button_image_container:hover #game_instructions_button_image {
+    opacity: 0;
+}
+
+#game_instructions_button_image_container:hover #game_instructions_button_hover_image {
+    opacity: 1;
+}
+
+#game_instructions_button_hover_image {
+    opacity: 0;
+}
+
+.progress_bar_container {
+    display: none !important;
 }
 
 .enigma_wrapper{

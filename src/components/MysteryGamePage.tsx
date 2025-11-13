@@ -413,6 +413,17 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
   };
 
   useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' && !gameStarted) {
+        handleStartGame();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [gameStarted]);
+
+  useEffect(() => {
     const initializeUSB = async () => {
       if (usbReaderService.isElectron() && config.usbPort) {
         try {
@@ -516,10 +527,9 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       if (fileName) {
         return `app-file://${gameUniqid}/media/${imageId}/${fileName}`;
       }
-      return `app-file://${gameUniqid}/media/${imageId}`;
     }
 
-    return `/data/games/${gameUniqid}/media/${imageId}`;
+    return '';
   };
 
   const backgroundImageUrl = getImageUrl(gameData.game_meta.background_image);

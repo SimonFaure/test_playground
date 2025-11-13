@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { getPatternFolders, getGamePublic } from '../utils/patterns';
 import { usbReaderService, USBPort } from '../services/usbReader';
 import { supabase } from '../lib/db';
+import { ConfirmDialog } from './ConfirmDialog';
 import type { SiPuce } from '../types/database';
 
 interface LaunchGameModalProps {
@@ -64,6 +65,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableChips, setAvailableChips] = useState<SiPuce[]>([]);
   const [usedChipIds, setUsedChipIds] = useState<Set<number>>(new Set());
+  const [showUsbAlert, setShowUsbAlert] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -239,7 +241,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     }
 
     if (usbReaderService.isElectron() && !config.usbPort) {
-      alert('Please select a USB port to launch the game in Electron mode.');
+      setShowUsbAlert(true);
       return;
     }
 
@@ -553,6 +555,16 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
           )}
         </form>
       </div>
+
+      <ConfirmDialog
+        isOpen={showUsbAlert}
+        onConfirm={() => setShowUsbAlert(false)}
+        onCancel={() => setShowUsbAlert(false)}
+        title="USB Port Required"
+        message="Please select a USB port to launch the game in Electron mode. You can select a port from the USB Port dropdown above."
+        variant="warning"
+        confirmText="OK"
+      />
     </div>
   );
 }

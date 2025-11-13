@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor, StopCircle } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
+import { ConfirmDialog } from './ConfirmDialog';
 import type { GameConfig } from './LaunchGameModal';
 
 interface LaunchedGame {
@@ -55,6 +56,20 @@ export function LaunchedGamesList() {
   const [minimizedTeams, setMinimizedTeams] = useState<Set<number>>(new Set());
   const [showDevices, setShowDevices] = useState<number | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant: 'danger' | 'warning' | 'info';
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'warning',
+  });
 
   useEffect(() => {
     loadGames();
@@ -147,55 +162,70 @@ export function LaunchedGamesList() {
   };
 
   const handleEndGame = async (gameId: number) => {
-    const confirmed = confirm('Are you sure you want to end this game?');
-    if (!confirmed) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'End Game',
+      message: 'Are you sure you want to end this game? This action will mark the game as completed.',
+      variant: 'warning',
+      confirmText: 'End Game',
+      onConfirm: async () => {
+        const { error } = await supabase
+          .from('launched_games')
+          .update({ ended: true })
+          .eq('id', gameId);
 
-    const { error } = await supabase
-      .from('launched_games')
-      .update({ ended: true })
-      .eq('id', gameId);
-
-    if (error) {
-      console.error('Error ending game:', error);
-      alert('Failed to end game');
-    } else {
-      loadGames();
-      if (selectedGameId === gameId) {
-        loadTeams(gameId);
-      }
-    }
+        if (error) {
+          console.error('Error ending game:', error);
+          alert('Failed to end game');
+        } else {
+          loadGames();
+          if (selectedGameId === gameId) {
+            loadTeams(gameId);
+          }
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
   };
 
   const handleDeleteGame = async (gameId: number) => {
-    const confirmed = confirm('Are you sure you want to delete this game? This will also delete all associated teams.');
-    if (!confirmed) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Game',
+      message: 'Are you sure you want to delete this game? This will permanently remove the game and all associated teams. This action cannot be undone.',
+      variant: 'danger',
+      confirmText: 'Delete Game',
+      onConfirm: async () => {
+        const { error: teamsError } = await supabase
+          .from('teams')
+          .delete()
+          .eq('launched_game_id', gameId);
 
-    const { error: teamsError } = await supabase
-      .from('teams')
-      .delete()
-      .eq('launched_game_id', gameId);
+        if (teamsError) {
+          console.error('Error deleting teams:', teamsError);
+          alert('Failed to delete teams');
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+          return;
+        }
 
-    if (teamsError) {
-      console.error('Error deleting teams:', teamsError);
-      alert('Failed to delete teams');
-      return;
-    }
+        const { error: gameError } = await supabase
+          .from('launched_games')
+          .delete()
+          .eq('id', gameId);
 
-    const { error: gameError } = await supabase
-      .from('launched_games')
-      .delete()
-      .eq('id', gameId);
-
-    if (gameError) {
-      console.error('Error deleting game:', gameError);
-      alert('Failed to delete game');
-    } else {
-      if (selectedGameId === gameId) {
-        setSelectedGameId(null);
-        setTeams([]);
-      }
-      loadGames();
-    }
+        if (gameError) {
+          console.error('Error deleting game:', gameError);
+          alert('Failed to delete game');
+        } else {
+          if (selectedGameId === gameId) {
+            setSelectedGameId(null);
+            setTeams([]);
+          }
+          loadGames();
+        }
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+      },
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -864,6 +894,16 @@ export function LaunchedGamesList() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+      />
     </div>
   );
 }

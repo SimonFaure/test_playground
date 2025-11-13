@@ -231,7 +231,17 @@ export function GameList() {
             console.log('Successfully saved launched game meta to database');
           }
 
-          const deviceId = usbReaderService.isElectron() ? config.usbPort || 'electron-no-usb' : 'bolt';
+          let deviceId = 'bolt';
+
+          if (usbReaderService.isElectron()) {
+            try {
+              const computerName = await (window as any).electron.getComputerName();
+              deviceId = computerName || 'unknown';
+            } catch (error) {
+              console.error('Error getting computer name:', error);
+              deviceId = 'electron-unknown';
+            }
+          }
 
           const { error: deviceError } = await supabase.from('launched_game_devices').insert({
             launched_game_id: launchedGame.id,

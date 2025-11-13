@@ -224,6 +224,11 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       return;
     }
 
+    if (!gameData) {
+      console.error('Game data not loaded yet');
+      return;
+    }
+
     try {
       const { data: team, error: teamError } = await supabase
         .from('teams')
@@ -268,10 +273,10 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
         let totalScore = 0;
 
         console.log('=== MATCHING ENIGMAS ===');
-        console.log('Game enigmas:', gameData?.game_enigmas.map(ge => ({ number: ge.number, id: ge.id, good_points: ge.good_answer_points, wrong_points: ge.wrong_answer_points })));
+        console.log('Game enigmas:', gameData.game_enigmas.map(ge => ({ number: ge.number, id: ge.id, good_points: ge.good_answer_points, wrong_points: ge.wrong_answer_points })));
 
         const enigmaResults = patternEnigmas.map((enigma) => {
-          const gameEnigma = gameData?.game_enigmas.find(ge => ge.number === enigma.enigma_id);
+          const gameEnigma = gameData.game_enigmas.find(ge => ge.number === enigma.enigma_id);
           console.log(`Looking for enigma_id "${enigma.enigma_id}":`, gameEnigma ? `Found (number: ${gameEnigma.number}, good: ${gameEnigma.good_answer_points}, wrong: ${gameEnigma.wrong_answer_points})` : 'NOT FOUND');
 
           const goodPoints = parseInt(gameEnigma?.good_answer_points || '0');

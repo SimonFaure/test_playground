@@ -449,27 +449,30 @@ export function LaunchedGamesList() {
                       Teams ({teams.length})
                     </h3>
                     {teams.length > 0 && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
+                      <button
+                        onClick={() => {
+                          if (minimizedTeams.size === teams.length) {
+                            setMinimizedTeams(new Set());
+                          } else {
                             const allTeamIds = new Set(teams.map(t => t.id));
                             setMinimizedTeams(allTeamIds);
-                          }}
-                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
-                          title="Minimize all teams"
-                        >
-                          <Minimize2 size={14} />
-                          All
-                        </button>
-                        <button
-                          onClick={() => setMinimizedTeams(new Set())}
-                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
-                          title="Expand all teams"
-                        >
-                          <Maximize2 size={14} />
-                          All
-                        </button>
-                      </div>
+                          }
+                        }}
+                        className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
+                        title={minimizedTeams.size === teams.length ? "Expand all teams" : "Minimize all teams"}
+                      >
+                        {minimizedTeams.size === teams.length ? (
+                          <>
+                            <Maximize2 size={14} />
+                            Expand All
+                          </>
+                        ) : (
+                          <>
+                            <Minimize2 size={14} />
+                            Minimize All
+                          </>
+                        )}
+                      </button>
                     )}
                   </div>
 

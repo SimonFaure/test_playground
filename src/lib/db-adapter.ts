@@ -192,20 +192,44 @@ class MySQLQueryBuilder implements QueryBuilder {
 
       let data = result.rows || [];
 
+      if (this.operation === 'insert' && result.rows) {
+        console.log('Insert completed, insertId:', result.rows.insertId, 'affectedRows:', result.rows.affectedRows);
+      }
+
       if (this.operation === 'insert' && this.shouldReturnInserted && result.rows && result.rows.insertId) {
         console.log('Insert operation detected, insertId:', result.rows.insertId);
-        const selectSql = `SELECT ${this.selectColumns} FROM ${this.tableName} WHERE id = ?`;
-        const selectResult = await (window as any).electron.db.query(selectSql, [result.rows.insertId]);
-        console.log('Retrieved inserted row:', selectResult);
+        console.log('Affected rows:', result.rows.affectedRows);
 
-        if (selectResult.error) {
-          return {
-            data: null,
-            error: { message: selectResult.error }
-          };
+        const insertId = result.rows.insertId;
+        const affectedRows = result.rows.affectedRows || 1;
+
+        if (affectedRows === 1) {
+          const selectSql = `SELECT ${this.selectColumns} FROM ${this.tableName} WHERE id = ?`;
+          const selectResult = await (window as any).electron.db.query(selectSql, [insertId]);
+          console.log('Retrieved inserted row:', selectResult);
+
+          if (selectResult.error) {
+            return {
+              data: null,
+              error: { message: selectResult.error }
+            };
+          }
+
+          data = selectResult.rows || [];
+        } else {
+          const selectSql = `SELECT ${this.selectColumns} FROM ${this.tableName} WHERE id >= ? AND id < ?`;
+          const selectResult = await (window as any).electron.db.query(selectSql, [insertId, insertId + affectedRows]);
+          console.log('Retrieved inserted rows:', selectResult);
+
+          if (selectResult.error) {
+            return {
+              data: null,
+              error: { message: selectResult.error }
+            };
+          }
+
+          data = selectResult.rows || [];
         }
-
-        data = selectResult.rows || [];
       }
 
       return {

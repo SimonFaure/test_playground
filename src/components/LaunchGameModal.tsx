@@ -109,7 +109,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     if (isOpen) {
       setConfig({
         name: '',
-        numberOfTeams: 1,
+        numberOfTeams: 10,
         firstChipIndex: 1,
         pattern: defaultPattern,
         duration: 60,
@@ -236,7 +236,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 id="numberOfTeams"
                 min="1"
                 value={config.numberOfTeams}
-                onChange={(e) => setConfig({ ...config, numberOfTeams: parseInt(e.target.value) || 10 })}
+                onChange={(e) => setConfig({ ...config, numberOfTeams: parseInt(e.target.value) || 1 })}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />

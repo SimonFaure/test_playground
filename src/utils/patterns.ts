@@ -91,13 +91,36 @@ export async function loadPatternEnigmas(gameTypeName: string, patternName: stri
       const csvContent = await window.electron.patterns.readFile(gameTypeName, patternName, 'patterns_survival_balises.csv');
       const parsed = parseCSV(csvContent);
 
-      return parsed.map((row: any) => ({
-        id: row.id,
-        pattern_id: row.pattern_id,
-        enigma_id: row.enigma_id,
-        good_answers: JSON.parse(row.good_answers || '[]'),
-        wrong_answers: JSON.parse(row.wrong_answers || '[]'),
-      }));
+      return parsed.map((row: any) => {
+        let goodAnswers: string[] = [];
+        let wrongAnswers: string[] = [];
+
+        try {
+          const goodAnswersStr = row.good_answers || '[]';
+          const fixedGoodAnswers = goodAnswersStr.replace(/""/g, '"');
+          goodAnswers = JSON.parse(fixedGoodAnswers);
+        } catch (e) {
+          console.warn('Error parsing good_answers for row', row.id, ':', e);
+          goodAnswers = [];
+        }
+
+        try {
+          const wrongAnswersStr = row.wrong_answers || '[]';
+          const fixedWrongAnswers = wrongAnswersStr.replace(/""/g, '"');
+          wrongAnswers = JSON.parse(fixedWrongAnswers);
+        } catch (e) {
+          console.warn('Error parsing wrong_answers for row', row.id, ':', e);
+          wrongAnswers = [];
+        }
+
+        return {
+          id: row.id,
+          pattern_id: row.pattern_id,
+          enigma_id: row.enigma_id,
+          good_answers: goodAnswers,
+          wrong_answers: wrongAnswers,
+        };
+      });
     }
 
     console.warn('Electron patterns API not available');

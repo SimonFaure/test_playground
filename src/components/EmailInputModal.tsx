@@ -8,6 +8,7 @@ interface EmailInputModalProps {
 export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
 
   if (!isOpen) return null;
 
@@ -16,7 +17,35 @@ export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
     return emailRegex.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const checkEmailExists = async (email: string): Promise<boolean> => {
+    try {
+      const ADMIN_TAGHUNTER_URL = 'https://gaolbjmyiitbdbbszteg.supabase.co';
+      const ADMIN_TAGHUNTER_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdhb2xiam15aWl0YmRiYnN6dGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjczNDk5ODEsImV4cCI6MjA0MjkyNTk4MX0.dU5OPkO5xgRhWA3aYLGD6Z0U7bKNLRVkZCqUbL5IlFo';
+
+      const response = await fetch(
+        `${ADMIN_TAGHUNTER_URL}/functions/v1/check-email?email=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${ADMIN_TAGHUNTER_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Failed to check email:', response.statusText);
+        return false;
+      }
+
+      const data = await response.json();
+      return data.exists === true;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim()) {
@@ -26,6 +55,18 @@ export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
 
     if (!validateEmail(email)) {
       setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsValidating(true);
+    setError('');
+
+    const emailExists = await checkEmailExists(email.trim());
+
+    setIsValidating(false);
+
+    if (!emailExists) {
+      setError('This email is not registered. Please contact support.');
       return;
     }
 
@@ -66,9 +107,10 @@ export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition"
+            disabled={isValidating}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Continue
+            {isValidating ? 'Validating...' : 'Continue'}
           </button>
         </form>
       </div>

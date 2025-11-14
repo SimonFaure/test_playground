@@ -19,16 +19,10 @@ export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
 
   const checkEmailExists = async (email: string): Promise<boolean> => {
     try {
-      const ADMIN_TAGHUNTER_URL = 'https://gaolbjmyiitbdbbszteg.supabase.co';
-      const ADMIN_TAGHUNTER_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdhb2xiam15aWl0YmRiYnN6dGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjczNDk5ODEsImV4cCI6MjA0MjkyNTk4MX0.dU5OPkO5xgRhWA3aYLGD6Z0U7bKNLRVkZCqUbL5IlFo';
-
       const response = await fetch(
-        `${ADMIN_TAGHUNTER_URL}/functions/v1/check-email?email=${encodeURIComponent(email)}`,
+        `https://admin.taghunter.fr/backend/api/check_email.php?email=${encodeURIComponent(email)}`,
         {
-          headers: {
-            'Authorization': `Bearer ${ADMIN_TAGHUNTER_ANON_KEY}`,
-            'Content-Type': 'application/json'
-          }
+          credentials: 'include'
         }
       );
 

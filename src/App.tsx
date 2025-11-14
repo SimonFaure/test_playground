@@ -5,6 +5,7 @@ import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
+import { EmailInputModal } from './components/EmailInputModal';
 import { supabase } from './lib/db';
 
 type Page = 'games' | 'launched-games' | 'config' | 'admin-config';
@@ -13,18 +14,35 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const processedRef = useRef<boolean>(false);
+  const checkedConfigRef = useRef<boolean>(false);
 
   useEffect(() => {
-    const checkDatabaseOnLaunch = async () => {
+    const checkConfigAndDatabase = async () => {
+      if (checkedConfigRef.current) return;
+      checkedConfigRef.current = true;
+
       const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
-      if (isElectron && (window as any).electron?.db?.connect) {
+      if (isElectron) {
         try {
-          await (window as any).electron.db.connect();
+          const config = await (window as any).electron.config.load();
+          if (!config) {
+            setShowEmailModal(true);
+          }
         } catch (error) {
-          console.error('Failed to connect to database on launch:', error);
+          console.error('Failed to check config:', error);
+          setShowEmailModal(true);
+        }
+
+        if ((window as any).electron?.db?.connect) {
+          try {
+            await (window as any).electron.db.connect();
+          } catch (error) {
+            console.error('Failed to connect to database on launch:', error);
+          }
         }
       } else if (!isElectron && supabase) {
         console.log('=== SUPABASE DATABASE TABLES ===');
@@ -52,7 +70,7 @@ function App() {
       }
     };
 
-    checkDatabaseOnLaunch();
+    checkConfigAndDatabase();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       setPressedKeys(prev => new Set(prev).add(e.key.toLowerCase()));
@@ -97,6 +115,25 @@ function App() {
 
   const handleAdminSuccess = () => {
     setIsAdminMode(true);
+  };
+
+  const handleEmailSubmit = async (email: string) => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+    if (isElectron) {
+      try {
+        const newConfig = {
+          email,
+          usbPort: '',
+          language: 'english',
+        };
+        await (window as any).electron.config.save(newConfig);
+        setShowEmailModal(false);
+        console.log('Email saved to config:', email);
+      } catch (error) {
+        console.error('Failed to save email:', error);
+      }
+    }
   };
 
   return (
@@ -165,6 +202,11 @@ function App() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSuccess={handleAdminSuccess}
+      />
+
+      <EmailInputModal
+        isOpen={showEmailModal}
+        onSubmit={handleEmailSubmit}
       />
     </div>
   );

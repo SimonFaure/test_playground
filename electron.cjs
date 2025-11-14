@@ -320,7 +320,6 @@ app.whenReady().then(() => {
   ipcMain.handle('config:load', async () => {
     const fs = require('fs');
     try {
-      const configPath = await ipcMain.emit('config:get-path');
       const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
       const configFilePath = path.join(configDir, 'config.json');
 
@@ -329,16 +328,14 @@ app.whenReady().then(() => {
       }
 
       if (!fs.existsSync(configFilePath)) {
-        const defaultConfig = { usbPort: '', language: 'english' };
-        fs.writeFileSync(configFilePath, JSON.stringify(defaultConfig, null, 2));
-        return defaultConfig;
+        return null;
       }
 
       const data = fs.readFileSync(configFilePath, 'utf-8');
       return JSON.parse(data);
     } catch (error) {
       console.error('Error loading config:', error);
-      return { usbPort: '', language: 'english' };
+      return null;
     }
   });
 

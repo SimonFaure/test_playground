@@ -19,22 +19,33 @@ export function EmailInputModal({ isOpen, onSubmit }: EmailInputModalProps) {
 
   const checkEmailExists = async (email: string): Promise<boolean> => {
     try {
-      const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/check_email.php?email=${encodeURIComponent(email)}`,
-        {
-          credentials: 'include'
-        }
-      );
+      const url = `https://admin.taghunter.fr/backend/api/check_email.php?email=${encodeURIComponent(email)}`;
+      console.log('📤 Checking email existence:', {
+        url,
+        email,
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
 
       if (!response.ok) {
-        console.error('Failed to check email:', response.statusText);
+        console.error('❌ Failed to check email:', response.statusText);
         return false;
       }
 
       const data = await response.json();
+      console.log('📥 Email check response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data
+      });
+
       return data.exists === true;
     } catch (error) {
-      console.error('Error checking email:', error);
+      console.error('❌ Error checking email:', error);
       return false;
     }
   };

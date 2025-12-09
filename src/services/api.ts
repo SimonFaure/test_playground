@@ -32,12 +32,25 @@ export async function getUserScenarios(email: string) {
   const endpoint = '/get_user_scenarios.php';
   const url = `${API_BASE_URL}${endpoint}?email=${encodeURIComponent(email)}`;
 
+  console.log('📤 Fetching user scenarios:', {
+    url,
+    email,
+    method: 'GET',
+    credentials: 'include'
+  });
+
   try {
     const response = await fetch(url, {
       credentials: 'include',
     });
 
     const data = await response.json();
+
+    console.log('📥 User scenarios response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data
+    });
 
     await logApiCall({
       endpoint,
@@ -54,6 +67,8 @@ export async function getUserScenarios(email: string) {
     return { success: true, data: data.scenarios || [] };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    console.error('❌ Error fetching user scenarios:', error);
 
     await logApiCall({
       endpoint,

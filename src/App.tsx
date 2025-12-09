@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, ShieldCheck, List } from 'lucide-react';
+import { Settings, ShieldCheck, List, BookOpen, Activity } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { EmailInputModal } from './components/EmailInputModal';
+import { ApiDocsPage } from './components/ApiDocsPage';
+import { ApiLogsPage } from './components/ApiLogsPage';
 import { supabase } from './lib/db';
+import { getUserScenarios } from './services/api';
 
-type Page = 'games' | 'launched-games' | 'config' | 'admin-config';
+type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
@@ -31,6 +34,13 @@ function App() {
           const config = await (window as any).electron.config.load();
           if (!config) {
             setShowEmailModal(true);
+          } else if (config.email) {
+            const result = await getUserScenarios(config.email);
+            if (result.success) {
+              console.log('User scenarios loaded:', result.data);
+            } else {
+              console.error('Failed to load user scenarios:', result.error);
+            }
           }
         } catch (error) {
           console.error('Failed to check config:', error);
@@ -105,7 +115,7 @@ function App() {
       processedRef.current = true;
       setPressedKeys(new Set());
       setIsAdminMode(false);
-      if (currentPage === 'admin-config') {
+      if (currentPage === 'admin-config' || currentPage === 'api-docs' || currentPage === 'api-logs') {
         setCurrentPage('games');
       }
     } else if (!hasAMO && !hasAME) {
@@ -130,6 +140,13 @@ function App() {
         await (window as any).electron.config.save(newConfig);
         setShowEmailModal(false);
         console.log('Email saved to config:', email);
+
+        const result = await getUserScenarios(email);
+        if (result.success) {
+          console.log('User scenarios synced:', result.data);
+        } else {
+          console.error('Failed to sync user scenarios:', result.error);
+        }
       } catch (error) {
         console.error('Failed to save email:', error);
       }
@@ -176,17 +193,41 @@ function App() {
 
               </button>
               {isAdminMode && (
-                <button
-                  onClick={() => setCurrentPage('admin-config')}
-                  className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
-                    currentPage === 'admin-config'
-                      ? 'bg-red-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <ShieldCheck size={16} />
-                  Admin Config
-                </button>
+                <>
+                  <button
+                    onClick={() => setCurrentPage('admin-config')}
+                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                      currentPage === 'admin-config'
+                        ? 'bg-red-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <ShieldCheck size={16} />
+                    Admin Config
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage('api-docs')}
+                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                      currentPage === 'api-docs'
+                        ? 'bg-red-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <BookOpen size={16} />
+                    API Docs
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage('api-logs')}
+                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                      currentPage === 'api-logs'
+                        ? 'bg-red-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Activity size={16} />
+                    API Logs
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -197,6 +238,8 @@ function App() {
       {currentPage === 'launched-games' && <LaunchedGamesList />}
       {currentPage === 'config' && <ConfigurationPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
+      {currentPage === 'api-docs' && isAdminMode && <ApiDocsPage />}
+      {currentPage === 'api-logs' && isAdminMode && <ApiLogsPage />}
 
       <AdminPasswordModal
         isOpen={showPasswordModal}

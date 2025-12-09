@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Database } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Database, Cloud } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
+import { getUserScenarios, getAllScenarios } from '../services/api';
 
 interface SerialPortInfo {
   path: string;
@@ -24,6 +25,9 @@ export function ConfigurationPage() {
   const [dbTables, setDbTables] = useState<string[]>([]);
   const [dbLoading, setDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
@@ -106,6 +110,46 @@ export function ConfigurationPage() {
       setMessage({ type: 'error', text: 'Failed to save configuration' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSyncScenarios = async () => {
+    if (!config.email) {
+      setSyncMessage({ type: 'error', text: 'Email not found. Please restart the app.' });
+      setTimeout(() => setSyncMessage(null), 3000);
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const result = await getUserScenarios(config.email);
+
+      if (result.success) {
+        setLastSyncTime(new Date());
+        setSyncMessage({
+          type: 'success',
+          text: `Successfully synced ${result.data.length} scenarios`
+        });
+        console.log('Synced user scenarios:', result.data);
+      } else {
+        setSyncMessage({
+          type: 'error',
+          text: `Failed to sync: ${result.error}`
+        });
+      }
+
+      setTimeout(() => setSyncMessage(null), 5000);
+    } catch (error) {
+      console.error('Error syncing scenarios:', error);
+      setSyncMessage({
+        type: 'error',
+        text: 'Failed to sync scenarios'
+      });
+      setTimeout(() => setSyncMessage(null), 5000);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -356,6 +400,51 @@ export function ConfigurationPage() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Cloud className="text-blue-400" size={24} />
+              <h2 className="text-xl font-semibold">Sync Scenarios</h2>
+            </div>
+            <button
+              onClick={handleSyncScenarios}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          </div>
+
+          {syncMessage && (
+            <div
+              className={`mb-4 p-4 rounded-lg ${
+                syncMessage.type === 'success'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
+              }`}
+            >
+              {syncMessage.text}
+            </div>
+          )}
+
+          <div className="text-sm text-slate-400 space-y-2">
+            <p>
+              Sync your scenarios from the Taghunter Admin system. This will fetch all scenarios assigned to your account.
+            </p>
+            {lastSyncTime && (
+              <p className="text-slate-500">
+                Last synced: {lastSyncTime.toLocaleString()}
+              </p>
+            )}
+            {config.email && (
+              <p className="text-slate-500">
+                Account: {config.email}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6">

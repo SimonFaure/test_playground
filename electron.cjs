@@ -562,6 +562,121 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:save-game-data', async (event, uniqid, gameData) => {
+    const fs = require('fs');
+    try {
+      let scenariosDir;
+      if (process.platform === 'win32') {
+        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', uniqid);
+      } else if (process.platform === 'darwin') {
+        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', uniqid);
+      } else {
+        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios', uniqid);
+      }
+
+      if (!fs.existsSync(scenariosDir)) {
+        fs.mkdirSync(scenariosDir, { recursive: true });
+      }
+
+      const gameDataPath = path.join(scenariosDir, 'game-data.json');
+      fs.writeFileSync(gameDataPath, JSON.stringify(gameData, null, 2));
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving game data:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('scenarios:save-media', async (event, uniqid, folder, filename, base64Data) => {
+    const fs = require('fs');
+    try {
+      let scenariosDir;
+      if (process.platform === 'win32') {
+        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', uniqid);
+      } else if (process.platform === 'darwin') {
+        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', uniqid);
+      } else {
+        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios', uniqid);
+      }
+
+      const mediaDir = path.join(scenariosDir, 'media', folder);
+
+      if (!fs.existsSync(mediaDir)) {
+        fs.mkdirSync(mediaDir, { recursive: true });
+      }
+
+      const filePath = path.join(mediaDir, filename);
+      const buffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(filePath, buffer);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving media file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('scenarios:refresh', async () => {
+    const fs = require('fs');
+    try {
+      let scenariosDir;
+      if (process.platform === 'win32') {
+        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
+      } else if (process.platform === 'darwin') {
+        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
+      } else {
+        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios');
+      }
+
+      const scenariosPath = path.join(scenariosDir, 'scenarios.json');
+
+      if (!fs.existsSync(scenariosPath)) {
+        const defaultScenarios = { game_types: [], scenarios: [] };
+        fs.writeFileSync(scenariosPath, JSON.stringify(defaultScenarios, null, 2));
+        return defaultScenarios;
+      }
+
+      const folders = fs.readdirSync(scenariosDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+      const scenarios = [];
+      const gameTypesSet = new Set();
+
+      for (const folder of folders) {
+        const gameDataPath = path.join(scenariosDir, folder, 'game-data.json');
+        if (fs.existsSync(gameDataPath)) {
+          const gameDataContent = fs.readFileSync(gameDataPath, 'utf8');
+          const gameData = JSON.parse(gameDataContent);
+
+          scenarios.push({
+            id: gameData.id || folder,
+            title: gameData.title || 'Untitled',
+            description: gameData.description || '',
+            game_type_id: gameData.game_type || 'unknown',
+            uniqid: folder
+          });
+
+          gameTypesSet.add(gameData.game_type || 'unknown');
+        }
+      }
+
+      const gameTypes = Array.from(gameTypesSet).map(type => ({
+        id: type,
+        name: type
+      }));
+
+      const updatedData = { game_types: gameTypes, scenarios };
+      fs.writeFileSync(scenariosPath, JSON.stringify(updatedData, null, 2));
+
+      return updatedData;
+    } catch (error) {
+      console.error('Error refreshing scenarios:', error);
+      return { game_types: [], scenarios: [] };
+    }
+  });
+
   ipcMain.handle('db:connect', async () => {
     try {
       if (!connectToDatabase) {

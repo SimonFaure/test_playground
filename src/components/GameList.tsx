@@ -399,6 +399,22 @@ export function GameList() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {scenarios.length === 0 && !loading && (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-slate-400 text-lg mb-2">No scenarios found</div>
+              <p className="text-slate-500 text-sm">
+                Please configure your email in settings to sync scenarios from the server
+              </p>
+            </div>
+          )}
+          {scenarios.length > 0 && filteredScenarios.length === 0 && !loading && (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-slate-400 text-lg mb-2">No scenarios match your filters</div>
+              <p className="text-slate-500 text-sm">
+                Try adjusting your search or filter criteria
+              </p>
+            </div>
+          )}
           {filteredScenarios.map((scenario) => {
             const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
             return (

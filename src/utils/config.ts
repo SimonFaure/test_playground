@@ -1,6 +1,7 @@
 export interface AppConfig {
   usbPort: string;
   language: 'english' | 'french';
+  email?: string;
 }
 
 const isElectron = () => {
@@ -23,7 +24,8 @@ export const loadConfig = async (): Promise<AppConfig> => {
     console.error('Error loading config:', error);
     return {
       usbPort: '',
-      language: 'english'
+      language: 'english',
+      email: ''
     };
   }
 };

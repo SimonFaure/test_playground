@@ -137,6 +137,29 @@ export function ConfigurationPage() {
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
           <div className="flex items-center gap-2 mb-6">
             <Globe className="text-blue-400" size={24} />
+            <h2 className="text-xl font-semibold">User Email</h2>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={config.email || ''}
+              onChange={(e) => setConfig({ ...config, email: e.target.value })}
+              placeholder="your.email@example.com"
+              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+            <p className="text-xs text-slate-400 mt-2">
+              Used to sync scenarios from the Taghunter Admin system
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Globe className="text-blue-400" size={24} />
             <h2 className="text-xl font-semibold">Language</h2>
           </div>
 

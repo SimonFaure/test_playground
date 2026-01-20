@@ -7,7 +7,10 @@ import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
+import { ScenarioDownloadModal } from './components/ScenarioDownloadModal';
 import { supabase } from './lib/db';
+import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
+import { loadConfig } from './utils/config';
 
 type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
 
@@ -15,6 +18,9 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
+  const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const processedRef = useRef<boolean>(false);
   const checkedConfigRef = useRef<boolean>(false);
@@ -33,6 +39,28 @@ function App() {
           } catch (error) {
             console.error('Failed to connect to database on launch:', error);
           }
+        }
+
+        try {
+          const config = await loadConfig();
+          if (config.email) {
+            setUserEmail(config.email);
+
+            const remoteScenarios = await getUserScenarios(config.email);
+            const localData = await (window as any).electron.scenarios.load();
+            const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+
+            const missingScenarios = remoteScenarios.filter(
+              scenario => !localUniqids.has(scenario.uniqid)
+            );
+
+            if (missingScenarios.length > 0) {
+              setScenariosToDownload(missingScenarios);
+              setShowDownloadModal(true);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check for missing scenarios:', error);
         }
       } else if (!isElectron && supabase) {
         console.log('=== SUPABASE DATABASE TABLES ===');
@@ -199,6 +227,17 @@ function App() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSuccess={handleAdminSuccess}
+      />
+
+      <ScenarioDownloadModal
+        isOpen={showDownloadModal}
+        scenarios={scenariosToDownload}
+        email={userEmail}
+        onComplete={() => {
+          setShowDownloadModal(false);
+          window.location.reload();
+        }}
+        onCancel={() => setShowDownloadModal(false)}
       />
     </div>
   );

@@ -43,5 +43,8 @@ contextBridge.exposeInMainWorld('electron', {
   scenarios: {
     getFolderPath: () => ipcRenderer.invoke('scenarios:get-folder-path'),
     load: () => ipcRenderer.invoke('scenarios:load'),
+    saveGameData: (uniqid, gameData) => ipcRenderer.invoke('scenarios:save-game-data', uniqid, gameData),
+    saveMedia: (uniqid, folder, filename, base64Data) => ipcRenderer.invoke('scenarios:save-media', uniqid, folder, filename, base64Data),
+    refresh: () => ipcRenderer.invoke('scenarios:refresh'),
   }
 });

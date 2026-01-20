@@ -63,9 +63,21 @@ export function GameList() {
 
   const loadScenarios = async () => {
     try {
-      const gameTypesMap = new Map(gamesData.game_types.map(gt => [gt.id, gt]));
+      let scenariosData;
 
-      const scenariosWithTypes = gamesData.scenarios.map(scenario => ({
+      const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+      if (isElectron && (window as any).electron?.scenarios?.load) {
+        scenariosData = await (window as any).electron.scenarios.load();
+        console.log('Loaded scenarios from local folder:', scenariosData);
+      } else {
+        scenariosData = gamesData;
+        console.log('Loaded scenarios from bundled JSON:', scenariosData);
+      }
+
+      const gameTypesMap = new Map(scenariosData.game_types.map(gt => [gt.id, gt]));
+
+      const scenariosWithTypes = scenariosData.scenarios.map(scenario => ({
         ...scenario,
         game_type: gameTypesMap.get(scenario.game_type_id)!
       }));

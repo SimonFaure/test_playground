@@ -5,11 +5,9 @@ import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
-import { EmailInputModal } from './components/EmailInputModal';
 import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
 import { supabase } from './lib/db';
-import { getUserScenarios } from './services/api';
 
 type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
 
@@ -17,7 +15,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const processedRef = useRef<boolean>(false);
   const checkedConfigRef = useRef<boolean>(false);
@@ -30,23 +27,6 @@ function App() {
       const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
       if (isElectron) {
-        try {
-          const config = await (window as any).electron.config.load();
-          if (!config) {
-            setShowEmailModal(true);
-          } else if (config.email) {
-            const result = await getUserScenarios(config.email);
-            if (result.success) {
-              console.log('User scenarios loaded:', result.data);
-            } else {
-              console.error('Failed to load user scenarios:', result.error);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to check config:', error);
-          setShowEmailModal(true);
-        }
-
         if ((window as any).electron?.db?.connect) {
           try {
             await (window as any).electron.db.connect();
@@ -125,32 +105,6 @@ function App() {
 
   const handleAdminSuccess = () => {
     setIsAdminMode(true);
-  };
-
-  const handleEmailSubmit = async (email: string) => {
-    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
-
-    if (isElectron) {
-      try {
-        const newConfig = {
-          email,
-          usbPort: '',
-          language: 'english',
-        };
-        await (window as any).electron.config.save(newConfig);
-        setShowEmailModal(false);
-        console.log('Email saved to config:', email);
-
-        const result = await getUserScenarios(email);
-        if (result.success) {
-          console.log('User scenarios synced:', result.data);
-        } else {
-          console.error('Failed to sync user scenarios:', result.error);
-        }
-      } catch (error) {
-        console.error('Failed to save email:', error);
-      }
-    }
   };
 
   return (
@@ -245,11 +199,6 @@ function App() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSuccess={handleAdminSuccess}
-      />
-
-      <EmailInputModal
-        isOpen={showEmailModal}
-        onSubmit={handleEmailSubmit}
       />
     </div>
   );

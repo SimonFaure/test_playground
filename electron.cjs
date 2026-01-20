@@ -502,6 +502,66 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:get-folder-path', async () => {
+    const fs = require('fs');
+    let scenariosDir;
+
+    if (process.platform === 'win32') {
+      scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
+    } else if (process.platform === 'darwin') {
+      scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
+    } else {
+      scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios');
+    }
+
+    if (!fs.existsSync(scenariosDir)) {
+      fs.mkdirSync(scenariosDir, { recursive: true });
+    }
+
+    return scenariosDir;
+  });
+
+  ipcMain.handle('scenarios:load', async () => {
+    const fs = require('fs');
+    try {
+      const scenariosDir = await ipcMain.handleOnce('scenarios:get-folder-path', async () => {
+        let dir;
+        if (process.platform === 'win32') {
+          dir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
+        } else if (process.platform === 'darwin') {
+          dir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
+        } else {
+          dir = path.join('/usr', 'share', 'taghunter', 'scenarios');
+        }
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        return dir;
+      });
+
+      let scenariosPath;
+      if (process.platform === 'win32') {
+        scenariosPath = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', 'scenarios.json');
+      } else if (process.platform === 'darwin') {
+        scenariosPath = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', 'scenarios.json');
+      } else {
+        scenariosPath = path.join('/usr', 'share', 'taghunter', 'scenarios', 'scenarios.json');
+      }
+
+      if (!fs.existsSync(scenariosPath)) {
+        const defaultScenarios = { game_types: [], scenarios: [] };
+        fs.writeFileSync(scenariosPath, JSON.stringify(defaultScenarios, null, 2));
+        return defaultScenarios;
+      }
+
+      const data = fs.readFileSync(scenariosPath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error loading scenarios:', error);
+      return { game_types: [], scenarios: [] };
+    }
+  });
+
   ipcMain.handle('db:connect', async () => {
     try {
       if (!connectToDatabase) {

@@ -7,7 +7,10 @@ interface ApiLog {
   endpoint: string;
   method: string;
   request_params: Record<string, unknown>;
+  request_body?: Record<string, unknown>;
+  request_headers?: Record<string, string>;
   response_data: unknown;
+  response_headers?: Record<string, string>;
   status_code: number;
   error_message?: string;
   created_at: string;
@@ -196,14 +199,38 @@ export function ApiLogsPage() {
 
                   {isExpanded && (
                     <div className="px-6 pb-6 space-y-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Parameters</h4>
-                        <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
-                          <code className="text-sm text-blue-300">
-                            {JSON.stringify(log.request_params, null, 2)}
-                          </code>
-                        </pre>
-                      </div>
+                      {log.request_headers && Object.keys(log.request_headers).length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Headers</h4>
+                          <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
+                            <code className="text-sm text-blue-300">
+                              {JSON.stringify(log.request_headers, null, 2)}
+                            </code>
+                          </pre>
+                        </div>
+                      )}
+
+                      {log.request_params && Object.keys(log.request_params).length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Parameters</h4>
+                          <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
+                            <code className="text-sm text-blue-300">
+                              {JSON.stringify(log.request_params, null, 2)}
+                            </code>
+                          </pre>
+                        </div>
+                      )}
+
+                      {log.request_body && Object.keys(log.request_body).length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Body</h4>
+                          <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
+                            <code className="text-sm text-blue-300">
+                              {JSON.stringify(log.request_body, null, 2)}
+                            </code>
+                          </pre>
+                        </div>
+                      )}
 
                       {log.error_message ? (
                         <div>
@@ -213,14 +240,27 @@ export function ApiLogsPage() {
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-300 mb-2">Response Data</h4>
-                          <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
-                            <code className="text-sm text-green-300">
-                              {JSON.stringify(log.response_data, null, 2)}
-                            </code>
-                          </pre>
-                        </div>
+                        <>
+                          {log.response_headers && Object.keys(log.response_headers).length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-300 mb-2">Response Headers</h4>
+                              <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
+                                <code className="text-sm text-green-300">
+                                  {JSON.stringify(log.response_headers, null, 2)}
+                                </code>
+                              </pre>
+                            </div>
+                          )}
+
+                          <div>
+                            <h4 className="text-sm font-semibold text-slate-300 mb-2">Response Data</h4>
+                            <pre className="bg-slate-900 rounded-lg p-4 overflow-x-auto border border-slate-700">
+                              <code className="text-sm text-green-300">
+                                {JSON.stringify(log.response_data, null, 2)}
+                              </code>
+                            </pre>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}

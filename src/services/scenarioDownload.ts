@@ -29,6 +29,7 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
   const url = `${API_BASE_URL}/playground.php?action=get_user_scenarios&email=${encodeURIComponent(email)}`;
 
   try {
+    const requestHeaders = { credentials: 'include' };
     const response = await fetch(url, { credentials: 'include' });
 
     const responseHeaders: Record<string, string> = {};
@@ -41,6 +42,7 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
         requestParams: { email },
+        requestHeaders: { credentials: 'include' },
         responseHeaders,
         statusCode: response.status,
         errorMessage: `Failed to fetch scenarios: ${response.statusText}`
@@ -54,6 +56,7 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
       endpoint: new URL(url).pathname + new URL(url).search,
       method: 'GET',
       requestParams: { email },
+      requestHeaders: { credentials: 'include' },
       responseData: data,
       responseHeaders,
       statusCode: response.status
@@ -82,6 +85,7 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
         requestParams: { email, uniqid },
+        requestHeaders: { credentials: 'include' },
         responseHeaders,
         statusCode: response.status,
         errorMessage: `Failed to fetch game data: ${response.statusText}`
@@ -95,6 +99,7 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
       endpoint: new URL(url).pathname + new URL(url).search,
       method: 'GET',
       requestParams: { email, uniqid },
+      requestHeaders: { credentials: 'include' },
       responseData: data,
       responseHeaders,
       statusCode: response.status
@@ -123,6 +128,7 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
         requestParams: { uniqid, filename },
+        requestHeaders: { credentials: 'include' },
         responseHeaders,
         statusCode: response.status,
         errorMessage: `Failed to download media: ${response.statusText}`
@@ -134,6 +140,7 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
       endpoint: new URL(url).pathname + new URL(url).search,
       method: 'GET',
       requestParams: { uniqid, filename },
+      requestHeaders: { credentials: 'include' },
       responseData: `Binary file: ${filename}`,
       responseHeaders,
       statusCode: response.status

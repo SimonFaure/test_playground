@@ -504,15 +504,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('scenarios:get-folder-path', async () => {
     const fs = require('fs');
-    let scenariosDir;
-
-    if (process.platform === 'win32') {
-      scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
-    } else if (process.platform === 'darwin') {
-      scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
-    } else {
-      scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios');
-    }
+    const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
 
     if (!fs.existsSync(scenariosDir)) {
       fs.mkdirSync(scenariosDir, { recursive: true });
@@ -524,28 +516,11 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:load', async () => {
     const fs = require('fs');
     try {
-      const scenariosDir = await ipcMain.handleOnce('scenarios:get-folder-path', async () => {
-        let dir;
-        if (process.platform === 'win32') {
-          dir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
-        } else if (process.platform === 'darwin') {
-          dir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
-        } else {
-          dir = path.join('/usr', 'share', 'taghunter', 'scenarios');
-        }
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        return dir;
-      });
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      const scenariosPath = path.join(scenariosDir, 'scenarios.json');
 
-      let scenariosPath;
-      if (process.platform === 'win32') {
-        scenariosPath = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', 'scenarios.json');
-      } else if (process.platform === 'darwin') {
-        scenariosPath = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', 'scenarios.json');
-      } else {
-        scenariosPath = path.join('/usr', 'share', 'taghunter', 'scenarios', 'scenarios.json');
+      if (!fs.existsSync(scenariosDir)) {
+        fs.mkdirSync(scenariosDir, { recursive: true });
       }
 
       if (!fs.existsSync(scenariosPath)) {
@@ -565,14 +540,7 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:save-game-data', async (event, uniqid, gameData) => {
     const fs = require('fs');
     try {
-      let scenariosDir;
-      if (process.platform === 'win32') {
-        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', uniqid);
-      } else if (process.platform === 'darwin') {
-        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', uniqid);
-      } else {
-        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios', uniqid);
-      }
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios', uniqid);
 
       if (!fs.existsSync(scenariosDir)) {
         fs.mkdirSync(scenariosDir, { recursive: true });
@@ -591,15 +559,7 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:save-media', async (event, uniqid, folder, filename, base64Data) => {
     const fs = require('fs');
     try {
-      let scenariosDir;
-      if (process.platform === 'win32') {
-        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios', uniqid);
-      } else if (process.platform === 'darwin') {
-        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios', uniqid);
-      } else {
-        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios', uniqid);
-      }
-
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios', uniqid);
       const mediaDir = path.join(scenariosDir, 'media', folder);
 
       if (!fs.existsSync(mediaDir)) {
@@ -620,16 +580,12 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:refresh', async () => {
     const fs = require('fs');
     try {
-      let scenariosDir;
-      if (process.platform === 'win32') {
-        scenariosDir = path.join('C:', 'ProgramData', 'Taghunter', 'scenarios');
-      } else if (process.platform === 'darwin') {
-        scenariosDir = path.join('/Library', 'Application Support', 'Taghunter', 'scenarios');
-      } else {
-        scenariosDir = path.join('/usr', 'share', 'taghunter', 'scenarios');
-      }
-
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
       const scenariosPath = path.join(scenariosDir, 'scenarios.json');
+
+      if (!fs.existsSync(scenariosDir)) {
+        fs.mkdirSync(scenariosDir, { recursive: true });
+      }
 
       if (!fs.existsSync(scenariosPath)) {
         const defaultScenarios = { game_types: [], scenarios: [] };

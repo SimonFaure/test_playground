@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -784,6 +784,22 @@ app.whenReady().then(() => {
       return { success: true };
     } catch (error) {
       console.error('Error clearing API logs:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('system:open-data-folder', async () => {
+    try {
+      const dataDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      await shell.openPath(dataDir);
+      return { success: true };
+    } catch (error) {
+      console.error('Error opening data folder:', error);
       return { success: false, error: error.message };
     }
   });

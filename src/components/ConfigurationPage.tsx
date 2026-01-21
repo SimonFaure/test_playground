@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Database, Download } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Database, Download, FolderOpen } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
@@ -141,6 +141,17 @@ export function ConfigurationPage() {
       setMessage({ type: 'error', text: 'Failed to check scenarios' });
     } finally {
       setIsCheckingScenarios(false);
+    }
+  };
+
+  const handleOpenDataFolder = async () => {
+    try {
+      await (window as any).electron.system.openDataFolder();
+      setMessage({ type: 'success', text: 'Data folder opened in File Explorer' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      console.error('Error opening data folder:', error);
+      setMessage({ type: 'error', text: 'Failed to open data folder' });
     }
   };
 
@@ -427,6 +438,27 @@ export function ConfigurationPage() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Data Folder</h3>
+              <p className="text-sm text-slate-400">
+                Open the application data folder to view scenarios, games, and configuration files.
+              </p>
+            </div>
+            <button
+              onClick={handleOpenDataFolder}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg transition-colors"
+            >
+              <FolderOpen size={16} />
+              Open Folder
+            </button>
+          </div>
+          <div className="text-xs font-mono text-slate-500 bg-slate-900/50 p-3 rounded border border-slate-700">
+            %APPDATA%\TagHunterPlayground\
+          </div>
         </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6">

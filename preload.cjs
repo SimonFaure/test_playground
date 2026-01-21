@@ -51,5 +51,8 @@ contextBridge.exposeInMainWorld('electron', {
     write: (logData) => ipcRenderer.invoke('api-logs:write', logData),
     read: () => ipcRenderer.invoke('api-logs:read'),
     clear: () => ipcRenderer.invoke('api-logs:clear'),
+  },
+  system: {
+    openDataFolder: () => ipcRenderer.invoke('system:open-data-folder'),
   }
 });

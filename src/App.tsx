@@ -123,7 +123,7 @@ function App() {
       processedRef.current = true;
       setPressedKeys(new Set());
       setIsAdminMode(false);
-      if (currentPage === 'admin-config' || currentPage === 'api-logs') {
+      if (currentPage === 'admin-config') {
         setCurrentPage('games');
       }
     } else if (!hasAMO && !hasAME) {
@@ -185,31 +185,29 @@ function App() {
                 <BookOpen size={16} />
                 API Docs
               </button>
+              <button
+                onClick={() => setCurrentPage('api-logs')}
+                className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                  currentPage === 'api-logs'
+                    ? isAdminMode ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Activity size={16} />
+                API Logs
+              </button>
               {isAdminMode && (
-                <>
-                  <button
-                    onClick={() => setCurrentPage('admin-config')}
-                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
-                      currentPage === 'admin-config'
-                        ? 'bg-red-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    <ShieldCheck size={16} />
-                    Admin Config
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage('api-logs')}
-                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
-                      currentPage === 'api-logs'
-                        ? 'bg-red-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    <Activity size={16} />
-                    API Logs
-                  </button>
-                </>
+                <button
+                  onClick={() => setCurrentPage('admin-config')}
+                  className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                    currentPage === 'admin-config'
+                      ? 'bg-red-600 text-white'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  <ShieldCheck size={16} />
+                  Admin Config
+                </button>
               )}
             </div>
           </div>
@@ -220,8 +218,8 @@ function App() {
       {currentPage === 'launched-games' && <LaunchedGamesList />}
       {currentPage === 'config' && <ConfigurationPage />}
       {currentPage === 'api-docs' && <ApiDocsPage />}
+      {currentPage === 'api-logs' && <ApiLogsPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
-      {currentPage === 'api-logs' && isAdminMode && <ApiLogsPage />}
 
       <AdminPasswordModal
         isOpen={showPasswordModal}

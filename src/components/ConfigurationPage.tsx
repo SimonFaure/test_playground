@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Database } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Database, Download } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
+import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
+import { ScenarioDownloadModal } from './ScenarioDownloadModal';
 
 interface SerialPortInfo {
   path: string;
@@ -24,6 +26,9 @@ export function ConfigurationPage() {
   const [dbTables, setDbTables] = useState<string[]>([]);
   const [dbLoading, setDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isCheckingScenarios, setIsCheckingScenarios] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
@@ -58,8 +63,7 @@ export function ConfigurationPage() {
 
       const { error } = await supabase
         .from('configuration')
-        .select('id')
-        .limit(1);
+        .select('id', { count: 'exact', head: true });
 
       if (error) {
         console.error('Database connection error:', error);
@@ -109,6 +113,37 @@ export function ConfigurationPage() {
     }
   };
 
+  const handleCheckScenarios = async () => {
+    if (!config.email) {
+      setMessage({ type: 'error', text: 'Please enter an email address first' });
+      return;
+    }
+
+    setIsCheckingScenarios(true);
+    try {
+      const remoteScenarios = await getUserScenarios(config.email);
+      const localData = await (window as any).electron.scenarios.load();
+      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+
+      const missingScenarios = remoteScenarios.filter(
+        scenario => !localUniqids.has(scenario.uniqid)
+      );
+
+      if (missingScenarios.length > 0) {
+        setScenariosToDownload(missingScenarios);
+        setShowDownloadModal(true);
+      } else {
+        setMessage({ type: 'success', text: 'All scenarios are up to date!' });
+        setTimeout(() => setMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error checking scenarios:', error);
+      setMessage({ type: 'error', text: 'Failed to check scenarios' });
+    } finally {
+      setIsCheckingScenarios(false);
+    }
+  };
+
 
   if (!isElectron) {
     return (
@@ -135,9 +170,21 @@ export function ConfigurationPage() {
         </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
-          <div className="flex items-center gap-2 mb-6">
-            <Globe className="text-blue-400" size={24} />
-            <h2 className="text-xl font-semibold">User Email</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Globe className="text-blue-400" size={24} />
+              <h2 className="text-xl font-semibold">User Email & Scenarios</h2>
+            </div>
+            {isElectron && config.email && (
+              <button
+                onClick={handleCheckScenarios}
+                disabled={isCheckingScenarios}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={16} className={isCheckingScenarios ? 'animate-pulse' : ''} />
+                {isCheckingScenarios ? 'Checking...' : 'Download Scenarios'}
+              </button>
+            )}
           </div>
 
           <div className="mb-6">
@@ -394,6 +441,20 @@ export function ConfigurationPage() {
           </div>
         </div>
       </div>
+
+      {isElectron && (
+        <ScenarioDownloadModal
+          isOpen={showDownloadModal}
+          scenarios={scenariosToDownload}
+          email={config.email || ''}
+          onComplete={() => {
+            setShowDownloadModal(false);
+            setMessage({ type: 'success', text: 'Scenarios downloaded successfully!' });
+            setTimeout(() => setMessage(null), 3000);
+          }}
+          onCancel={() => setShowDownloadModal(false)}
+        />
+      )}
     </div>
   );
 }

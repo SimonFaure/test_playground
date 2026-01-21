@@ -43,7 +43,7 @@ function App() {
 
         try {
           const config = await loadConfig();
-          if (config.email) {
+          if (config?.email) {
             setUserEmail(config.email);
 
             const remoteScenarios = await getUserScenarios(config.email);

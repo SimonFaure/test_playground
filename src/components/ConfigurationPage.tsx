@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Database, Download, FolderOpen } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
@@ -394,7 +394,7 @@ export function ConfigurationPage() {
           </div>
         )}
 
-        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+        {/* <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Database className="text-blue-400" size={24} />
@@ -438,7 +438,7 @@ export function ConfigurationPage() {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
 
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">

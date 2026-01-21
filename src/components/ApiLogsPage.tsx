@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, ChevronDown, ChevronRight, RefreshCw, Trash2 } from 'lucide-react';
-import { supabase } from '../lib/db';
 
 interface ApiLog {
-  id: number;
   endpoint: string;
   method: string;
   request_params: Record<string, unknown>;
@@ -13,7 +11,7 @@ interface ApiLog {
   response_headers?: Record<string, string>;
   status_code: number;
   error_message?: string;
-  created_at: string;
+  timestamp: string;
 }
 
 export function ApiLogsPage() {
@@ -23,8 +21,8 @@ export function ApiLogsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadLogs = async () => {
-    if (!supabase) {
-      setError('Database not configured');
+    if (!window.electron?.apiLogs) {
+      setError('API logs not available');
       setIsLoading(false);
       return;
     }
@@ -33,17 +31,17 @@ export function ApiLogsPage() {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('api_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const result = await window.electron.apiLogs.read();
 
-      if (fetchError) {
-        throw fetchError;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load logs');
       }
 
-      setLogs(data || []);
+      const sortedLogs = (result.logs || []).sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      setLogs(sortedLogs);
     } catch (err) {
       console.error('Error loading API logs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load logs');
@@ -53,20 +51,17 @@ export function ApiLogsPage() {
   };
 
   const clearLogs = async () => {
-    if (!supabase) return;
+    if (!window.electron?.apiLogs) return;
 
     if (!confirm('Are you sure you want to clear all API logs?')) {
       return;
     }
 
     try {
-      const { error: deleteError } = await supabase
-        .from('api_logs')
-        .delete()
-        .neq('id', 0);
+      const result = await window.electron.apiLogs.clear();
 
-      if (deleteError) {
-        throw deleteError;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to clear logs');
       }
 
       setLogs([]);
@@ -150,19 +145,20 @@ export function ApiLogsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {logs.map((log) => {
-              const isExpanded = expandedLogs.has(log.id);
+            {logs.map((log, index) => {
+              const logId = index;
+              const isExpanded = expandedLogs.has(logId);
               const hasError = log.error_message || log.status_code >= 400;
 
               return (
                 <div
-                  key={log.id}
+                  key={logId}
                   className={`bg-slate-800/50 rounded-lg overflow-hidden border ${
                     hasError ? 'border-red-500/30' : 'border-slate-700'
                   }`}
                 >
                   <button
-                    onClick={() => toggleLog(log.id)}
+                    onClick={() => toggleLog(logId)}
                     className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors"
                   >
                     <div className="flex items-center gap-4 flex-1">
@@ -179,7 +175,7 @@ export function ApiLogsPage() {
                       <div className="flex-1 text-left">
                         <p className="font-mono text-sm text-slate-300">{log.endpoint}</p>
                         <p className="text-xs text-slate-500 mt-1">
-                          {new Date(log.created_at).toLocaleString()}
+                          {new Date(log.timestamp).toLocaleString()}
                         </p>
                       </div>
 

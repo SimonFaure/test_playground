@@ -46,5 +46,10 @@ contextBridge.exposeInMainWorld('electron', {
     saveGameData: (uniqid, gameData) => ipcRenderer.invoke('scenarios:save-game-data', uniqid, gameData),
     saveMedia: (uniqid, folder, filename, base64Data) => ipcRenderer.invoke('scenarios:save-media', uniqid, folder, filename, base64Data),
     refresh: () => ipcRenderer.invoke('scenarios:refresh'),
+  },
+  apiLogs: {
+    write: (logData) => ipcRenderer.invoke('api-logs:write', logData),
+    read: () => ipcRenderer.invoke('api-logs:read'),
+    clear: () => ipcRenderer.invoke('api-logs:clear'),
   }
 });

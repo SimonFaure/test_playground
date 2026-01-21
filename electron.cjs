@@ -715,6 +715,79 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('api-logs:write', async (event, logData) => {
+    const fs = require('fs');
+    try {
+      const logsDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+      const logsPath = path.join(logsDir, 'api-logs.json');
+
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+      }
+
+      let logs = [];
+      if (fs.existsSync(logsPath)) {
+        const content = fs.readFileSync(logsPath, 'utf8');
+        try {
+          logs = JSON.parse(content);
+        } catch {
+          logs = [];
+        }
+      }
+
+      logs.push({
+        ...logData,
+        timestamp: new Date().toISOString()
+      });
+
+      const maxLogs = 1000;
+      if (logs.length > maxLogs) {
+        logs = logs.slice(-maxLogs);
+      }
+
+      fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+      return { success: true };
+    } catch (error) {
+      console.error('Error writing API log:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('api-logs:read', async () => {
+    const fs = require('fs');
+    try {
+      const logsDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+      const logsPath = path.join(logsDir, 'api-logs.json');
+
+      if (!fs.existsSync(logsPath)) {
+        return { success: true, logs: [] };
+      }
+
+      const content = fs.readFileSync(logsPath, 'utf8');
+      const logs = JSON.parse(content);
+      return { success: true, logs };
+    } catch (error) {
+      console.error('Error reading API logs:', error);
+      return { success: false, logs: [], error: error.message };
+    }
+  });
+
+  ipcMain.handle('api-logs:clear', async () => {
+    const fs = require('fs');
+    try {
+      const logsDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+      const logsPath = path.join(logsDir, 'api-logs.json');
+
+      if (fs.existsSync(logsPath)) {
+        fs.unlinkSync(logsPath);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Error clearing API logs:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

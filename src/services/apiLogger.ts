@@ -1,5 +1,3 @@
-import { supabase } from '../lib/db';
-
 interface ApiLogData {
   endpoint: string;
   method: string;
@@ -13,26 +11,19 @@ interface ApiLogData {
 }
 
 export async function logApiCall(data: ApiLogData): Promise<void> {
-  if (!supabase) {
-    console.warn('API logging disabled: Supabase not configured');
-    return;
-  }
-
   try {
-    const { error } = await supabase.from('api_logs').insert({
-      endpoint: data.endpoint,
-      method: data.method,
-      request_params: data.requestParams || {},
-      request_body: data.requestBody || {},
-      request_headers: data.requestHeaders || {},
-      response_data: data.responseData || null,
-      response_headers: data.responseHeaders || {},
-      status_code: data.statusCode,
-      error_message: data.errorMessage || null
-    });
-
-    if (error) {
-      console.error('Failed to log API call:', error);
+    if (window.electron?.apiLogs) {
+      await window.electron.apiLogs.write({
+        endpoint: data.endpoint,
+        method: data.method,
+        request_params: data.requestParams || {},
+        request_body: data.requestBody || {},
+        request_headers: data.requestHeaders || {},
+        response_data: data.responseData || null,
+        response_headers: data.responseHeaders || {},
+        status_code: data.statusCode,
+        error_message: data.errorMessage || null
+      });
     }
   } catch (err) {
     console.error('Error in API logger:', err);

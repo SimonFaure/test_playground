@@ -123,7 +123,7 @@ function App() {
       processedRef.current = true;
       setPressedKeys(new Set());
       setIsAdminMode(false);
-      if (currentPage === 'admin-config' || currentPage === 'api-docs' || currentPage === 'api-logs') {
+      if (currentPage === 'admin-config' || currentPage === 'api-logs') {
         setCurrentPage('games');
       }
     } else if (!hasAMO && !hasAME) {
@@ -174,6 +174,17 @@ function App() {
                 <Settings size={16} />
 
               </button>
+              <button
+                onClick={() => setCurrentPage('api-docs')}
+                className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                  currentPage === 'api-docs'
+                    ? isAdminMode ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <BookOpen size={16} />
+                API Docs
+              </button>
               {isAdminMode && (
                 <>
                   <button
@@ -186,17 +197,6 @@ function App() {
                   >
                     <ShieldCheck size={16} />
                     Admin Config
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage('api-docs')}
-                    className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
-                      currentPage === 'api-docs'
-                        ? 'bg-red-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    <BookOpen size={16} />
-                    API Docs
                   </button>
                   <button
                     onClick={() => setCurrentPage('api-logs')}
@@ -219,8 +219,8 @@ function App() {
       {currentPage === 'games' && <GameList />}
       {currentPage === 'launched-games' && <LaunchedGamesList />}
       {currentPage === 'config' && <ConfigurationPage />}
+      {currentPage === 'api-docs' && <ApiDocsPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
-      {currentPage === 'api-docs' && isAdminMode && <ApiDocsPage />}
       {currentPage === 'api-logs' && isAdminMode && <ApiLogsPage />}
 
       <AdminPasswordModal

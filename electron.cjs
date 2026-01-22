@@ -621,15 +621,21 @@ app.whenReady().then(() => {
           const gameDataContent = fs.readFileSync(gameDataPath, 'utf8');
           const gameData = JSON.parse(gameDataContent);
 
+          const gameMeta = gameData.game_meta || {};
+          const game = gameData.game || {};
+
           scenarios.push({
-            id: gameData.id || folder,
-            title: gameData.title || 'Untitled',
-            description: gameData.description || '',
-            game_type_id: gameData.game_type || 'unknown',
+            id: game.id || folder,
+            title: game.title || 'Untitled',
+            description: gameMeta.scenario || '',
+            game_type_id: game.type || 'unknown',
+            difficulty: gameMeta.game_public === 'kids' ? 'Easy' : gameMeta.game_public === 'ado_adultes' ? 'Hard' : 'Medium',
+            duration_minutes: parseInt(gameMeta.default_time || '60', 10),
+            image_url: '',
             uniqid: folder
           });
 
-          gameTypesSet.add(gameData.game_type || 'unknown');
+          gameTypesSet.add(game.type || 'unknown');
         }
       }
 
@@ -645,6 +651,31 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error refreshing scenarios:', error);
       return { game_types: [], scenarios: [] };
+    }
+  });
+
+  ipcMain.handle('scenarios:delete', async (event, uniqid) => {
+    const fs = require('fs');
+    try {
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      const scenarioPath = path.join(scenariosDir, uniqid);
+
+      if (fs.existsSync(scenarioPath)) {
+        fs.rmSync(scenarioPath, { recursive: true, force: true });
+        console.log(`Deleted scenario: ${uniqid}`);
+      }
+
+      const scenariosPath = path.join(scenariosDir, 'scenarios.json');
+      if (fs.existsSync(scenariosPath)) {
+        const data = JSON.parse(fs.readFileSync(scenariosPath, 'utf8'));
+        data.scenarios = data.scenarios.filter(s => s.uniqid !== uniqid);
+        fs.writeFileSync(scenariosPath, JSON.stringify(data, null, 2));
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting scenario:', error);
+      return { success: false, error: error.message };
     }
   });
 

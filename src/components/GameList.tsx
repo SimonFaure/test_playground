@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Clock, Search, Upload, Play } from 'lucide-react';
+import { Clock, Search, Upload, Play, Trash2 } from 'lucide-react';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
+import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchGameModal, GameConfig } from './LaunchGameModal';
 import { GamePage } from './GamePage';
 import { validateAndExtractZip } from '../utils/zipHandler';
@@ -50,6 +51,8 @@ export function GameList() {
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<{ uniqid: string; title: string; gameTypeName: string } | null>(null);
   const [launchedGame, setLaunchedGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [scenarioToDelete, setScenarioToDelete] = useState<{ uniqid: string; title: string } | null>(null);
 
   useEffect(() => {
     loadScenarios();
@@ -68,6 +71,7 @@ export function GameList() {
       const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
       if (isElectron && (window as any).electron?.scenarios?.load) {
+        await (window as any).electron.scenarios.refresh();
         scenariosData = await (window as any).electron.scenarios.load();
         console.log('Loaded scenarios from local folder:', scenariosData);
       } else {
@@ -311,6 +315,41 @@ export function GameList() {
     setLaunchedGame(null);
   };
 
+  const handleDeleteClick = (uniqid: string, title: string) => {
+    setScenarioToDelete({ uniqid, title });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!scenarioToDelete) return;
+
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+    if (isElectron && (window as any).electron?.scenarios?.delete) {
+      try {
+        const result = await (window as any).electron.scenarios.delete(scenarioToDelete.uniqid);
+        if (result.success) {
+          showAlert('success', `Successfully deleted scenario: ${scenarioToDelete.title}`);
+          loadScenarios();
+          loadLocalGames();
+        } else {
+          showAlert('error', `Failed to delete scenario: ${result.error}`);
+        }
+      } catch (error) {
+        console.error('Error deleting scenario:', error);
+        showAlert('error', 'Failed to delete scenario');
+      }
+    }
+
+    setDeleteConfirmOpen(false);
+    setScenarioToDelete(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+    setScenarioToDelete(null);
+  };
+
   if (launchedGame) {
     return (
       <GamePage
@@ -331,7 +370,7 @@ export function GameList() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-screen">
       {alert.show && (
         <Alert type={alert.type} message={alert.message} onClose={closeAlert} />
       )}
@@ -451,14 +490,25 @@ export function GameList() {
                     <Clock size={16} />
                     <span>{scenario.duration_minutes} minutes</span>
                   </div>
-                  {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
-                    <button
-                      onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
-                    >
-                      <Play size={16} />
-                    </button>
-                  ) : null}
+                  <div className="flex items-center gap-2">
+                    {scenario.uniqid && hasLocal && (
+                      <button
+                        onClick={() => handleDeleteClick(scenario.uniqid || '', scenario.title)}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition font-medium text-sm border border-red-600/30 hover:border-red-600"
+                        title="Delete scenario"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                    {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
+                      <button
+                        onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
+                      >
+                        <Play size={16} />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
@@ -506,6 +556,17 @@ export function GameList() {
         gameUniqid={selectedGame?.uniqid || ''}
         gameTypeName={selectedGame?.gameTypeName || ''}
         onLaunch={handleGameLaunch}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        title="Delete Scenario"
+        message={`Are you sure you want to delete "${scenarioToDelete?.title}"? This action cannot be undone and will permanently remove all scenario files.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
       />
     </div>
   );

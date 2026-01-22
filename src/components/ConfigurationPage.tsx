@@ -94,11 +94,6 @@ export function ConfigurationPage() {
   };
 
   const handleSave = async () => {
-    if (isElectron && !config.usbPort) {
-      setMessage({ type: 'error', text: 'Please select a USB port' });
-      return;
-    }
-
     setIsSaving(true);
     try {
       await saveConfig(config);
@@ -198,6 +193,18 @@ export function ConfigurationPage() {
             )}
           </div>
 
+          {message && (
+            <div
+              className={`mb-4 p-4 rounded-lg ${
+                message.type === 'success'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Email Address
@@ -212,6 +219,26 @@ export function ConfigurationPage() {
             <p className="text-xs text-slate-400 mt-2">
               Used to sync scenarios from the Taghunter Admin system
             </p>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={isSaving || JSON.stringify(config) === JSON.stringify(savedConfig)}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              {isSaving ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  Save Configuration
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -279,18 +306,6 @@ export function ConfigurationPage() {
             </button>
           </div>
 
-          {message && (
-            <div
-              className={`mb-4 p-4 rounded-lg ${
-                message.type === 'success'
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
-
           {isLoading ? (
             <div className="text-center py-8 text-slate-400">Loading USB ports...</div>
           ) : ports.length === 0 ? (
@@ -346,52 +361,7 @@ export function ConfigurationPage() {
             </div>
           )}
 
-          {ports.length > 0 && (
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSave}
-                disabled={isSaving || (isElectron && !config.usbPort) || JSON.stringify(config) === JSON.stringify(savedConfig)}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} />
-                    Save Configuration
-                  </>
-                )}
-              </button>
-            </div>
-          )}
         </div>
-        )}
-
-        {!isElectron && (
-          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
-            <div className="flex justify-end">
-              <button
-                onClick={handleSave}
-                disabled={isSaving || JSON.stringify(config) === JSON.stringify(savedConfig)}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} />
-                    Save Configuration
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         )}
 
         {/* <div className="bg-slate-800/50 rounded-lg p-6 mb-6">

@@ -21,7 +21,7 @@ interface Scenario {
   game_type_id: string;
   title: string;
   description: string;
-  difficulty: string;
+  difficulty: string | null;
   duration_minutes: number;
   image_url: string;
   uniqid?: string;
@@ -95,7 +95,7 @@ export function GameList() {
       const matchesSearch = scenario.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            scenario.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = selectedGameType === 'all' || scenario.game_type.name === selectedGameType;
-      const matchesDifficulty = selectedDifficulty === 'all' || scenario.difficulty.toLowerCase() === selectedDifficulty.toLowerCase();
+      const matchesDifficulty = selectedDifficulty === 'all' || (scenario.difficulty?.toLowerCase() || 'medium') === selectedDifficulty.toLowerCase();
       const matchesLaunchable = !showOnlyLaunchable || (scenario.uniqid && localGameIds.has(scenario.uniqid));
       return matchesSearch && matchesType && matchesDifficulty && matchesLaunchable;
     })
@@ -109,8 +109,8 @@ export function GameList() {
 
   const gameTypes = [...new Set(scenarios.map((s) => s.game_type.name))];
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
+  const getDifficultyColor = (difficulty: string | null) => {
+    switch (difficulty?.toLowerCase()) {
       case 'easy':
         return 'bg-green-900/30 text-green-400 border-green-700';
       case 'medium':
@@ -437,7 +437,7 @@ export function GameList() {
                     {scenario.game_type.name}
                   </span>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(scenario.difficulty)}`}>
-                    {scenario.difficulty}
+                    {scenario.difficulty || 'Medium'}
                   </span>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">

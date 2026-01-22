@@ -40,7 +40,7 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
         throw new Error('Database not configured');
       }
 
-      await Promise.all([
+      const updates = [
         supabase.from('configuration').upsert(
           { key: 'usb_port', value: config.usbPort, updated_at: new Date().toISOString() },
           { onConflict: 'key' }
@@ -49,7 +49,18 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
           { key: 'language', value: config.language, updated_at: new Date().toISOString() },
           { onConflict: 'key' }
         )
-      ]);
+      ];
+
+      if (config.email !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'email', value: config.email, updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      await Promise.all(updates);
     }
   } catch (error) {
     console.error('Error saving config:', error);

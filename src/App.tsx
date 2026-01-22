@@ -334,16 +334,18 @@ function App() {
         onSuccess={handleAdminSuccess}
       />
 
-      <ScenarioDownloadModal
-        isOpen={showDownloadModal}
-        scenarios={scenariosToDownload}
-        email={userEmail}
-        onComplete={() => {
-          setShowDownloadModal(false);
-          window.location.reload();
-        }}
-        onCancel={() => setShowDownloadModal(false)}
-      />
+      {userEmail && (
+        <ScenarioDownloadModal
+          isOpen={showDownloadModal}
+          scenarios={scenariosToDownload}
+          email={userEmail}
+          onComplete={() => {
+            setShowDownloadModal(false);
+            window.location.reload();
+          }}
+          onCancel={() => setShowDownloadModal(false)}
+        />
+      )}
     </div>
   );
 }

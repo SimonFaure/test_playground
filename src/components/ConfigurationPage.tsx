@@ -498,11 +498,11 @@ export function ConfigurationPage() {
         </div>
       </div>
 
-      {isElectron && (
+      {isElectron && config.email && (
         <ScenarioDownloadModal
           isOpen={showDownloadModal}
           scenarios={scenariosToDownload}
-          email={config.email || ''}
+          email={config.email}
           onComplete={() => {
             setShowDownloadModal(false);
             setMessage({ type: 'success', text: 'Scenarios downloaded successfully!' });

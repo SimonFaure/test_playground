@@ -49,37 +49,32 @@ function App() {
           const config = await loadConfig();
           console.log('[App Launch] Config loaded:', { hasEmail: !!config?.email, email: config?.email });
 
-          if (!config?.onboardingCompleted) {
-            console.log('[App Launch] First launch detected - showing onboarding');
+          if (!config?.email) {
+            console.log('[App Launch] Email missing - showing onboarding');
             setShowOnboarding(true);
             return;
           }
 
-          if (config?.email) {
-            setUserEmail(config.email);
-            console.log('[App Launch] Fetching user scenarios for:', config.email);
+          setUserEmail(config.email);
+          console.log('[App Launch] Fetching user scenarios for:', config.email);
 
-            const remoteScenarios = await getUserScenarios(config.email);
-            console.log('[App Launch] Remote scenarios fetched:', remoteScenarios.length);
+          const remoteScenarios = await getUserScenarios(config.email);
+          console.log('[App Launch] Remote scenarios fetched:', remoteScenarios.length);
 
-            const localData = await (window as any).electron.scenarios.load();
-            console.log('[App Launch] Local scenarios:', localData.scenarios.length);
+          const localData = await (window as any).electron.scenarios.load();
+          console.log('[App Launch] Local scenarios:', localData.scenarios.length);
 
-            const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+          const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
 
-            const missingScenarios = remoteScenarios.filter(
-              scenario => !localUniqids.has(scenario.uniqid)
-            );
+          const missingScenarios = remoteScenarios.filter(
+            scenario => !localUniqids.has(scenario.uniqid)
+          );
 
-            console.log('[App Launch] Missing scenarios:', missingScenarios.length);
+          console.log('[App Launch] Missing scenarios:', missingScenarios.length);
 
-            if (missingScenarios.length > 0) {
-              setScenariosToDownload(missingScenarios);
-              setShowDownloadModal(true);
-            }
-          } else {
-            console.warn('[App Launch] No email configured - showing setup modal');
-            setShowEmailSetup(true);
+          if (missingScenarios.length > 0) {
+            setScenariosToDownload(missingScenarios);
+            setShowDownloadModal(true);
           }
         } catch (error) {
           console.error('[App Launch] Failed to check for missing scenarios:', error);

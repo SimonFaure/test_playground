@@ -16,6 +16,9 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [email, setEmail] = useState('');
 
   const handleComplete = () => {
+    if (!email.trim()) {
+      return;
+    }
     onComplete({ fullscreenOnLaunch, autoLaunch, email });
   };
 
@@ -137,7 +140,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   </div>
                   <div>
                     <div className="font-semibold text-lg">Email Address</div>
-                    <div className="text-sm text-slate-400">For updates and support (optional)</div>
+                    <div className="text-sm text-slate-400">Required for syncing scenarios from the server</div>
                   </div>
                 </div>
                 <input
@@ -159,7 +162,8 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
               </button>
               <button
                 onClick={handleComplete}
-                className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                disabled={!email.trim()}
+                className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <Check size={20} />
                 Complete Setup

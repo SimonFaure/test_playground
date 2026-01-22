@@ -30,8 +30,22 @@ try {
   };
 }
 
-function createWindow() {
-  // Handle both development and production preload paths
+async function createWindow() {
+  const fs = require('fs');
+  const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+  const configFilePath = path.join(configDir, 'config.json');
+
+  let config = { fullscreenOnLaunch: false };
+
+  try {
+    if (fs.existsSync(configFilePath)) {
+      const data = fs.readFileSync(configFilePath, 'utf-8');
+      config = JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading config for window creation:', error);
+  }
+
   const preloadPath = app.isPackaged
     ? path.join(__dirname, '..', 'app.asar.unpacked', 'preload.cjs')
     : path.join(__dirname, 'preload.cjs');
@@ -41,6 +55,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    fullscreen: config.fullscreenOnLaunch === true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -311,7 +326,7 @@ app.whenReady().then(() => {
     }
 
     if (!fs.existsSync(configPath)) {
-      fs.writeFileSync(configPath, JSON.stringify({ usbPort: '', language: 'english' }, null, 2));
+      fs.writeFileSync(configPath, JSON.stringify({ usbPort: '', language: 'english', fullscreenOnLaunch: false }, null, 2));
     }
 
     return configPath;

@@ -2,6 +2,7 @@ export interface AppConfig {
   usbPort: string;
   language: 'english' | 'french';
   email?: string;
+  fullscreenOnLaunch?: boolean;
 }
 
 const isElectron = () => {
@@ -55,6 +56,15 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
         updates.push(
           supabase.from('configuration').upsert(
             { key: 'email', value: config.email, updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.fullscreenOnLaunch !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'fullscreen_on_launch', value: config.fullscreenOnLaunch.toString(), updated_at: new Date().toISOString() },
             { onConflict: 'key' }
           )
         );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen, Monitor } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
@@ -17,8 +17,8 @@ interface SerialPortInfo {
 
 export function ConfigurationPage() {
   const [ports, setPorts] = useState<SerialPortInfo[]>([]);
-  const [config, setConfig] = useState<AppConfig>({ usbPort: '', language: 'english' });
-  const [savedConfig, setSavedConfig] = useState<AppConfig>({ usbPort: '', language: 'english' });
+  const [config, setConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false });
+  const [savedConfig, setSavedConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -288,6 +288,34 @@ export function ConfigurationPage() {
             </button>
           </div>
         </div>
+
+        {isElectron && (
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Monitor className="text-blue-400" size={24} />
+              <h2 className="text-xl font-semibold">Display Settings</h2>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-slate-600 transition-all">
+              <div>
+                <div className="font-semibold text-lg">Fullscreen on Launch</div>
+                <div className="text-sm text-slate-400">Automatically open the app in fullscreen mode</div>
+              </div>
+              <button
+                onClick={() => setConfig({ ...config, fullscreenOnLaunch: !config.fullscreenOnLaunch })}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                  config.fullscreenOnLaunch ? 'bg-blue-600' : 'bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    config.fullscreenOnLaunch ? 'translate-x-8' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
 
         {isElectron && (
           <div className="bg-slate-800/50 rounded-lg p-6 mb-6">

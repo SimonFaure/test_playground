@@ -3,6 +3,8 @@ export interface AppConfig {
   language: 'english' | 'french';
   email?: string;
   fullscreenOnLaunch?: boolean;
+  autoLaunch?: boolean;
+  onboardingCompleted?: boolean;
 }
 
 const isElectron = () => {
@@ -65,6 +67,24 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
         updates.push(
           supabase.from('configuration').upsert(
             { key: 'fullscreen_on_launch', value: config.fullscreenOnLaunch.toString(), updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.autoLaunch !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'auto_launch', value: config.autoLaunch.toString(), updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.onboardingCompleted !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'onboarding_completed', value: config.onboardingCompleted.toString(), updated_at: new Date().toISOString() },
             { onConflict: 'key' }
           )
         );

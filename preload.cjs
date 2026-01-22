@@ -54,5 +54,8 @@ contextBridge.exposeInMainWorld('electron', {
   },
   system: {
     openDataFolder: () => ipcRenderer.invoke('system:open-data-folder'),
-  }
+    setAutoLaunch: (enable) => ipcRenderer.invoke('system:set-auto-launch', enable),
+    getAutoLaunch: () => ipcRenderer.invoke('system:get-auto-launch'),
+  },
+  setAutoLaunch: (enable) => ipcRenderer.invoke('system:set-auto-launch', enable),
 });

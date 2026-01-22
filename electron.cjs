@@ -326,7 +326,7 @@ app.whenReady().then(() => {
     }
 
     if (!fs.existsSync(configPath)) {
-      fs.writeFileSync(configPath, JSON.stringify({ usbPort: '', language: 'english', fullscreenOnLaunch: false }, null, 2));
+      fs.writeFileSync(configPath, JSON.stringify({ usbPort: '', language: 'english', fullscreenOnLaunch: false, autoLaunch: false, onboardingCompleted: false }, null, 2));
     }
 
     return configPath;
@@ -816,6 +816,29 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error opening data folder:', error);
       return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('system:set-auto-launch', async (event, enable) => {
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: enable,
+        openAsHidden: false,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error setting auto-launch:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('system:get-auto-launch', async () => {
+    try {
+      const settings = app.getLoginItemSettings();
+      return { success: true, enabled: settings.openAtLogin };
+    } catch (error) {
+      console.error('Error getting auto-launch status:', error);
+      return { success: false, enabled: false, error: error.message };
     }
   });
 

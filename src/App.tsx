@@ -9,6 +9,7 @@ import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
 import { ScenarioDownloadModal } from './components/ScenarioDownloadModal';
 import { EmailSetupModal } from './components/EmailSetupModal';
+import { OnboardingModal } from './components/OnboardingModal';
 import { supabase } from './lib/db';
 import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
 import { loadConfig, saveConfig } from './utils/config';
@@ -21,6 +22,7 @@ function App() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showEmailSetup, setShowEmailSetup] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
@@ -46,6 +48,12 @@ function App() {
         try {
           const config = await loadConfig();
           console.log('[App Launch] Config loaded:', { hasEmail: !!config?.email, email: config?.email });
+
+          if (!config?.onboardingCompleted) {
+            console.log('[App Launch] First launch detected - showing onboarding');
+            setShowOnboarding(true);
+            return;
+          }
 
           if (config?.email) {
             setUserEmail(config.email);
@@ -180,6 +188,51 @@ function App() {
     }
   };
 
+  const handleOnboardingComplete = async (settings: {
+    fullscreenOnLaunch: boolean;
+    autoLaunch: boolean;
+    email: string;
+  }) => {
+    try {
+      const config = await loadConfig();
+      const updatedConfig = {
+        ...config,
+        fullscreenOnLaunch: settings.fullscreenOnLaunch,
+        autoLaunch: settings.autoLaunch,
+        email: settings.email,
+        onboardingCompleted: true,
+      };
+
+      await saveConfig(updatedConfig);
+
+      if ((window as any).electron?.setAutoLaunch) {
+        await (window as any).electron.setAutoLaunch(settings.autoLaunch);
+      }
+
+      setUserEmail(settings.email);
+      setShowOnboarding(false);
+
+      if (settings.email) {
+        console.log('[Onboarding] Fetching scenarios for:', settings.email);
+
+        const remoteScenarios = await getUserScenarios(settings.email);
+        const localData = await (window as any).electron.scenarios.load();
+        const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+
+        const missingScenarios = remoteScenarios.filter(
+          scenario => !localUniqids.has(scenario.uniqid)
+        );
+
+        if (missingScenarios.length > 0) {
+          setScenariosToDownload(missingScenarios);
+          setShowDownloadModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('[Onboarding] Failed to save settings:', error);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${isAdminMode ? 'bg-gradient-to-br from-red-900 via-red-800 to-slate-900' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'}`}>
       <nav className={`backdrop-blur-sm border-b sticky top-0 z-50 ${isAdminMode ? 'bg-red-800/80 border-red-700' : 'bg-slate-800/80 border-slate-700'}`}>
@@ -265,6 +318,10 @@ function App() {
       {currentPage === 'api-docs' && <ApiDocsPage />}
       {currentPage === 'api-logs' && <ApiLogsPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
+
+      {showOnboarding && (
+        <OnboardingModal onComplete={handleOnboardingComplete} />
+      )}
 
       <EmailSetupModal
         isOpen={showEmailSetup}

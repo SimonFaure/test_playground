@@ -17,8 +17,8 @@ interface SerialPortInfo {
 
 export function ConfigurationPage() {
   const [ports, setPorts] = useState<SerialPortInfo[]>([]);
-  const [config, setConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false });
-  const [savedConfig, setSavedConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false });
+  const [config, setConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false, autoLaunch: false });
+  const [savedConfig, setSavedConfig] = useState<AppConfig>({ usbPort: '', language: 'english', fullscreenOnLaunch: false, autoLaunch: false });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -97,6 +97,11 @@ export function ConfigurationPage() {
     setIsSaving(true);
     try {
       await saveConfig(config);
+
+      if (isElectron && config.autoLaunch !== undefined && (window as any).electron?.setAutoLaunch) {
+        await (window as any).electron.setAutoLaunch(config.autoLaunch);
+      }
+
       setSavedConfig(config);
       setMessage({ type: 'success', text: 'Configuration saved successfully' });
       setTimeout(() => setMessage(null), 3000);
@@ -296,23 +301,44 @@ export function ConfigurationPage() {
               <h2 className="text-xl font-semibold">Display Settings</h2>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-slate-600 transition-all">
-              <div>
-                <div className="font-semibold text-lg">Fullscreen on Launch</div>
-                <div className="text-sm text-slate-400">Automatically open the app in fullscreen mode</div>
-              </div>
-              <button
-                onClick={() => setConfig({ ...config, fullscreenOnLaunch: !config.fullscreenOnLaunch })}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
-                  config.fullscreenOnLaunch ? 'bg-blue-600' : 'bg-slate-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    config.fullscreenOnLaunch ? 'translate-x-8' : 'translate-x-1'
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-slate-600 transition-all">
+                <div>
+                  <div className="font-semibold text-lg">Fullscreen on Launch</div>
+                  <div className="text-sm text-slate-400">Automatically open the app in fullscreen mode</div>
+                </div>
+                <button
+                  onClick={() => setConfig({ ...config, fullscreenOnLaunch: !config.fullscreenOnLaunch })}
+                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                    config.fullscreenOnLaunch ? 'bg-blue-600' : 'bg-slate-600'
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      config.fullscreenOnLaunch ? 'translate-x-8' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-slate-600 transition-all">
+                <div>
+                  <div className="font-semibold text-lg">Launch on Startup</div>
+                  <div className="text-sm text-slate-400">Start automatically when your computer boots</div>
+                </div>
+                <button
+                  onClick={() => setConfig({ ...config, autoLaunch: !config.autoLaunch })}
+                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                    config.autoLaunch ? 'bg-blue-600' : 'bg-slate-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      config.autoLaunch ? 'translate-x-8' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         )}

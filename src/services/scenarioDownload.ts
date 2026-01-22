@@ -28,9 +28,14 @@ export interface GameData {
 export async function getUserScenarios(email: string): Promise<ScenarioSummary[]> {
   const url = `${API_BASE_URL}/playground.php?action=get_user_scenarios&email=${encodeURIComponent(email)}`;
 
+  console.log('[getUserScenarios] Starting API call to:', url);
+
   try {
     const requestHeaders = { credentials: 'include' };
+    console.log('[getUserScenarios] Making fetch request...');
+
     const response = await fetch(url, { credentials: 'include' });
+    console.log('[getUserScenarios] Response received:', response.status, response.statusText);
 
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -38,6 +43,7 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
     });
 
     if (!response.ok) {
+      console.error('[getUserScenarios] Request failed:', response.status, response.statusText);
       await logApiCall({
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
@@ -50,7 +56,9 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
       throw new Error(`Failed to fetch scenarios: ${response.statusText}`);
     }
 
+    console.log('[getUserScenarios] Parsing JSON response...');
     const data = await response.json();
+    console.log('[getUserScenarios] Data parsed successfully:', { scenarioCount: data.scenarios?.length || 0 });
 
     await logApiCall({
       endpoint: new URL(url).pathname + new URL(url).search,
@@ -64,7 +72,24 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
 
     return data.scenarios || [];
   } catch (error) {
-    console.error('Error fetching user scenarios:', error);
+    console.error('[getUserScenarios] Error fetching user scenarios:', error);
+    if (error instanceof Error) {
+      console.error('[getUserScenarios] Error name:', error.name);
+      console.error('[getUserScenarios] Error message:', error.message);
+      console.error('[getUserScenarios] Error stack:', error.stack);
+    }
+
+    await logApiCall({
+      endpoint: new URL(url).pathname + new URL(url).search,
+      method: 'GET',
+      requestParams: { email },
+      requestHeaders: { credentials: 'include' },
+      statusCode: 0,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    }).catch(logError => {
+      console.error('[getUserScenarios] Failed to log error:', logError);
+    });
+
     throw error;
   }
 }

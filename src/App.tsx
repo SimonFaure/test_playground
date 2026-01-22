@@ -43,24 +43,38 @@ function App() {
 
         try {
           const config = await loadConfig();
+          console.log('[App Launch] Config loaded:', { hasEmail: !!config?.email, email: config?.email });
+
           if (config?.email) {
             setUserEmail(config.email);
+            console.log('[App Launch] Fetching user scenarios for:', config.email);
 
             const remoteScenarios = await getUserScenarios(config.email);
+            console.log('[App Launch] Remote scenarios fetched:', remoteScenarios.length);
+
             const localData = await (window as any).electron.scenarios.load();
+            console.log('[App Launch] Local scenarios:', localData.scenarios.length);
+
             const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
 
             const missingScenarios = remoteScenarios.filter(
               scenario => !localUniqids.has(scenario.uniqid)
             );
 
+            console.log('[App Launch] Missing scenarios:', missingScenarios.length);
+
             if (missingScenarios.length > 0) {
               setScenariosToDownload(missingScenarios);
               setShowDownloadModal(true);
             }
+          } else {
+            console.warn('[App Launch] No email configured - skipping scenario sync');
           }
         } catch (error) {
-          console.error('Failed to check for missing scenarios:', error);
+          console.error('[App Launch] Failed to check for missing scenarios:', error);
+          if (error instanceof Error) {
+            console.error('[App Launch] Error details:', error.message, error.stack);
+          }
         }
       } else if (!isElectron && supabase) {
         console.log('=== SUPABASE DATABASE TABLES ===');

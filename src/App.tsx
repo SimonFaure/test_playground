@@ -8,9 +8,10 @@ import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
 import { ScenarioDownloadModal } from './components/ScenarioDownloadModal';
+import { EmailSetupModal } from './components/EmailSetupModal';
 import { supabase } from './lib/db';
 import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
-import { loadConfig } from './utils/config';
+import { loadConfig, saveConfig } from './utils/config';
 
 type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
 
@@ -19,6 +20,7 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showEmailSetup, setShowEmailSetup] = useState(false);
   const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
@@ -68,7 +70,8 @@ function App() {
               setShowDownloadModal(true);
             }
           } else {
-            console.warn('[App Launch] No email configured - skipping scenario sync');
+            console.warn('[App Launch] No email configured - showing setup modal');
+            setShowEmailSetup(true);
           }
         } catch (error) {
           console.error('[App Launch] Failed to check for missing scenarios:', error);
@@ -147,6 +150,34 @@ function App() {
 
   const handleAdminSuccess = () => {
     setIsAdminMode(true);
+  };
+
+  const handleEmailSave = async (email: string) => {
+    try {
+      const config = await loadConfig();
+      await saveConfig({ ...config, email });
+      setUserEmail(email);
+      setShowEmailSetup(false);
+
+      console.log('[Email Setup] Email saved, fetching scenarios for:', email);
+
+      const remoteScenarios = await getUserScenarios(email);
+      console.log('[Email Setup] Remote scenarios fetched:', remoteScenarios.length);
+
+      const localData = await (window as any).electron.scenarios.load();
+      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+
+      const missingScenarios = remoteScenarios.filter(
+        scenario => !localUniqids.has(scenario.uniqid)
+      );
+
+      if (missingScenarios.length > 0) {
+        setScenariosToDownload(missingScenarios);
+        setShowDownloadModal(true);
+      }
+    } catch (error) {
+      console.error('[Email Setup] Failed to save email:', error);
+    }
   };
 
   return (
@@ -234,6 +265,11 @@ function App() {
       {currentPage === 'api-docs' && <ApiDocsPage />}
       {currentPage === 'api-logs' && <ApiLogsPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
+
+      <EmailSetupModal
+        isOpen={showEmailSetup}
+        onSave={handleEmailSave}
+      />
 
       <AdminPasswordModal
         isOpen={showPasswordModal}

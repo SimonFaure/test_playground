@@ -14,7 +14,19 @@ const isElectron = () => {
 export const loadConfig = async (): Promise<AppConfig> => {
   try {
     if (isElectron()) {
+      console.log('[Config] Loading config from Electron...');
       const config = await (window as any).electron.config.load();
+      console.log('[Config] Loaded config:', config);
+
+      if (!config) {
+        console.log('[Config] No config file found, returning default');
+        return {
+          usbPort: '',
+          language: 'english',
+          email: ''
+        };
+      }
+
       return config;
     } else {
       const response = await fetch('/data/config.json');
@@ -24,19 +36,24 @@ export const loadConfig = async (): Promise<AppConfig> => {
       return await response.json();
     }
   } catch (error) {
-    console.error('Error loading config:', error);
-    return {
+    console.error('[Config] Error loading config:', error);
+    const defaultConfig = {
       usbPort: '',
       language: 'english',
       email: ''
     };
+    console.log('[Config] Returning default config:', defaultConfig);
+    return defaultConfig;
   }
 };
 
 export const saveConfig = async (config: AppConfig): Promise<void> => {
   try {
+    console.log('[Config] Saving config:', config);
     if (isElectron()) {
+      console.log('[Config] Using Electron save...');
       await (window as any).electron.config.save(config);
+      console.log('[Config] Electron save completed');
     } else {
       const { supabase } = await import('../lib/db');
       if (!supabase) {

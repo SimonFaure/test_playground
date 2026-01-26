@@ -338,18 +338,23 @@ app.whenReady().then(() => {
       const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
       const configFilePath = path.join(configDir, 'config.json');
 
+      console.log('[Electron] Loading config from:', configFilePath);
+
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
 
       if (!fs.existsSync(configFilePath)) {
+        console.log('[Electron] Config file does not exist');
         return null;
       }
 
       const data = fs.readFileSync(configFilePath, 'utf-8');
-      return JSON.parse(data);
+      const config = JSON.parse(data);
+      console.log('[Electron] Config loaded:', config);
+      return config;
     } catch (error) {
-      console.error('Error loading config:', error);
+      console.error('[Electron] Error loading config:', error);
       return null;
     }
   });
@@ -360,14 +365,22 @@ app.whenReady().then(() => {
       const configDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
       const configPath = path.join(configDir, 'config.json');
 
+      console.log('[Electron] Saving config to:', configPath);
+      console.log('[Electron] Config data:', config);
+
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
 
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      console.log('[Electron] Config saved successfully');
+
+      const savedData = fs.readFileSync(configPath, 'utf-8');
+      console.log('[Electron] Verification - file contents:', savedData);
+
       return { success: true };
     } catch (error) {
-      console.error('Error saving config:', error);
+      console.error('[Electron] Error saving config:', error);
       throw error;
     }
   });

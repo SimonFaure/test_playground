@@ -189,7 +189,10 @@ function App() {
     email: string;
   }) => {
     try {
+      console.log('[Onboarding] Settings received:', settings);
       const config = await loadConfig();
+      console.log('[Onboarding] Current config loaded:', config);
+
       const updatedConfig = {
         ...config,
         fullscreenOnLaunch: settings.fullscreenOnLaunch,
@@ -198,7 +201,9 @@ function App() {
         onboardingCompleted: true,
       };
 
+      console.log('[Onboarding] Saving updated config:', updatedConfig);
       await saveConfig(updatedConfig);
+      console.log('[Onboarding] Config saved successfully');
 
       if ((window as any).electron?.setAutoLaunch) {
         await (window as any).electron.setAutoLaunch(settings.autoLaunch);

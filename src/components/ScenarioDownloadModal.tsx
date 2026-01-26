@@ -15,7 +15,19 @@ interface DownloadStatus {
   status: 'pending' | 'downloading' | 'completed' | 'error';
   progress: string;
   error?: string;
+  totalFiles?: number;
+  downloadedFiles?: number;
+  totalSize?: number;
+  downloadedSize?: number;
 }
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+};
 
 export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, onCancel }: ScenarioDownloadModalProps) {
   const [downloadStatuses, setDownloadStatuses] = useState<Map<string, DownloadStatus>>(
@@ -53,15 +65,33 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         await (window as any).electron.scenarios.saveGameData(scenario.uniqid, gameData);
 
         const mediaFiles = extractMediaFiles(gameData);
+        const totalFiles = mediaFiles.length;
+        let downloadedFiles = 0;
+        let downloadedSize = 0;
 
         if (mediaFiles.length > 0) {
-          updateStatus(scenario.uniqid, { progress: `Downloading media (0/${mediaFiles.length})...` });
+          updateStatus(scenario.uniqid, {
+            progress: `Downloading media files...`,
+            totalFiles,
+            downloadedFiles: 0,
+            downloadedSize: 0
+          });
 
           for (let i = 0; i < mediaFiles.length; i++) {
             const mediaFile = mediaFiles[i];
-            updateStatus(scenario.uniqid, { progress: `Downloading media (${i + 1}/${mediaFiles.length})...` });
 
             const blob = await downloadMediaFile(scenario.uniqid, mediaFile.filename);
+            const fileSize = blob.size;
+            downloadedFiles++;
+            downloadedSize += fileSize;
+
+            updateStatus(scenario.uniqid, {
+              progress: `Downloading media files...`,
+              downloadedFiles,
+              totalFiles,
+              downloadedSize
+            });
+
             const arrayBuffer = await blob.arrayBuffer();
             const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
@@ -74,7 +104,12 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
           }
         }
 
-        updateStatus(scenario.uniqid, { status: 'completed', progress: 'Completed' });
+        updateStatus(scenario.uniqid, {
+          status: 'completed',
+          progress: 'Completed',
+          downloadedFiles: totalFiles,
+          totalFiles
+        });
       } catch (error) {
         console.error(`Error downloading scenario ${scenario.uniqid}:`, error);
         updateStatus(scenario.uniqid, {
@@ -139,6 +174,34 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                         <span className="px-2 py-1 bg-slate-600 rounded">{scenario.game_type}</span>
                         <span>{status?.progress}</span>
                       </div>
+                      {status?.status === 'downloading' && status.totalFiles !== undefined && (
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-blue-400 font-medium">
+                              Files: {status.downloadedFiles}/{status.totalFiles}
+                            </span>
+                            {status.downloadedSize !== undefined && (
+                              <span className="text-slate-400">
+                                ({formatFileSize(status.downloadedSize)})
+                              </span>
+                            )}
+                          </div>
+                          {status.totalFiles > 0 && (
+                            <div className="w-full bg-slate-600 rounded-full h-1.5">
+                              <div
+                                className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${((status.downloadedFiles || 0) / status.totalFiles) * 100}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {status?.status === 'completed' && status.downloadedFiles !== undefined && (
+                        <div className="mt-2 text-xs text-green-400">
+                          Downloaded {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
+                          {status.downloadedSize !== undefined && ` (${formatFileSize(status.downloadedSize)})`}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
                       {status?.status === 'pending' && (

@@ -35,7 +35,7 @@ const formatFileSize = (bytes: number): string => {
 
 export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, onCancel }: ScenarioDownloadModalProps) {
   const [downloadStatuses, setDownloadStatuses] = useState<Map<string, DownloadStatus>>(
-    new Map(scenarios.map(s => [s.uniqid, { uniqid: s.uniqid, status: 'pending', progress: 'Waiting...' }]))
+    new Map(scenarios.map(s => [s.uniqid, { uniqid: s.uniqid, status: 'pending', progress: '⏳ Waiting to start...' }]))
   );
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -65,19 +65,25 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
     for (const scenario of scenarios) {
       try {
         console.log(`[Download] Starting download for scenario: ${scenario.uniqid}`);
-        updateStatus(scenario.uniqid, { status: 'downloading', progress: 'Fetching game data...' });
+        updateStatus(scenario.uniqid, { status: 'downloading', progress: '📥 Fetching game data from server...' });
 
         console.log(`[Download] Fetching game data from API...`);
         const gameData = await getScenarioGameData(email, scenario.uniqid);
         console.log(`[Download] Game data fetched successfully, size: ${JSON.stringify(gameData).length} characters`);
 
+        await new Promise(resolve => setTimeout(resolve, 200));
+        updateStatus(scenario.uniqid, { progress: '🔄 Processing game data...' });
         console.log(`[Download] Cleaning circular references...`);
         const cleanedGameData = removeCircularReferences(gameData);
         console.log(`[Download] Circular references cleaned, saving game data...`);
 
+        await new Promise(resolve => setTimeout(resolve, 200));
+        updateStatus(scenario.uniqid, { progress: '💾 Saving game data...' });
         await (window as any).electron.scenarios.saveGameData(scenario.uniqid, cleanedGameData);
         console.log(`[Download] Game data saved successfully`);
 
+        await new Promise(resolve => setTimeout(resolve, 200));
+        updateStatus(scenario.uniqid, { progress: '📋 Analyzing media files...' });
         console.log(`[Download] Extracting media files list...`);
         const mediaFiles = extractMediaFiles(gameData);
         const totalFiles = mediaFiles.length;
@@ -87,8 +93,10 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         const failedFilesList: string[] = [];
         console.log(`[Download] Found ${totalFiles} media files to download`);
 
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         updateStatus(scenario.uniqid, {
-          progress: `Downloading media files...`,
+          progress: `⬇️ Starting download of ${totalFiles} media files...`,
           totalFiles,
           downloadedFiles: 0,
           failedFiles: 0,
@@ -105,7 +113,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
             console.log(`[Download] [${fileProgress}] Downloading: ${mediaFile.folder}/${mediaFile.filename}`);
 
             updateStatus(scenario.uniqid, {
-              progress: `Downloading ${fileProgress}`,
+              progress: `⬇️ Downloading media files (${fileProgress})`,
               currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
               downloadedFiles,
               failedFiles,
@@ -127,7 +135,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
               console.log(`[Download] ✅ [${fileProgress}] Downloaded in ${downloadDuration}ms: ${mediaFile.filename} (${fileSize} bytes)`);
 
               updateStatus(scenario.uniqid, {
-                progress: `Processing ${fileProgress}`,
+                progress: `💾 Saving media files (${fileProgress})`,
                 currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
                 downloadedFiles,
                 failedFiles,
@@ -161,7 +169,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
               console.log(`[Download] ✅ [${fileProgress}] Saved: ${mediaFile.folder}/${mediaFile.filename}`);
 
               updateStatus(scenario.uniqid, {
-                progress: `Downloaded ${fileProgress}`,
+                progress: `⬇️ Downloading media files (${fileProgress})`,
                 currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
                 downloadedFiles,
                 failedFiles,
@@ -179,7 +187,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
               console.error(`[Download] ❌ [${fileProgress}] Continuing with next file...`);
 
               updateStatus(scenario.uniqid, {
-                progress: `Failed: ${failedFilePath} (continuing...)`,
+                progress: `⚠️ Download error - continuing (${fileProgress})`,
                 currentFile: failedFilePath,
                 downloadedFiles,
                 failedFiles,
@@ -205,7 +213,9 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         console.log(`[Download] Scenario download completed: ${scenario.uniqid}`);
         updateStatus(scenario.uniqid, {
           status: 'completed',
-          progress: failedFiles > 0 ? `Completed with ${failedFiles} error${failedFiles > 1 ? 's' : ''}` : 'Completed',
+          progress: failedFiles > 0
+            ? `⚠️ Completed with ${failedFiles} error${failedFiles > 1 ? 's' : ''}`
+            : '✅ Download completed successfully',
           downloadedFiles,
           failedFiles,
           totalFiles,
@@ -217,7 +227,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         console.error(`[Download] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
         updateStatus(scenario.uniqid, {
           status: 'error',
-          progress: 'Failed',
+          progress: '❌ Download failed',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
@@ -274,15 +284,25 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                     <div className="flex-1">
                       <h3 className="font-semibold text-white mb-1">{scenario.title}</h3>
                       <p className="text-sm text-slate-400 mb-2">{scenario.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="px-2 py-1 bg-slate-600 rounded">{scenario.game_type}</span>
-                        <span>{status?.progress}</span>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="px-2 py-1 bg-slate-600 rounded text-slate-300">{scenario.game_type}</span>
                       </div>
+                      {status?.progress && (
+                        <div className={`mt-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                          status.status === 'downloading' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                          status.status === 'completed' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                          status.status === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                          'bg-slate-600/50 text-slate-300'
+                        }`}>
+                          {status.progress}
+                        </div>
+                      )}
                       {status?.status === 'downloading' && typeof status.totalFiles === 'number' && (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-3">
                           {status.currentFile && (
-                            <div className="text-xs text-slate-200 bg-slate-600/50 px-2 py-1 rounded">
-                              <span className="font-semibold text-blue-300">Current:</span> {status.currentFile}
+                            <div className="text-xs text-slate-100 bg-blue-500/20 border border-blue-500/30 px-3 py-2 rounded-lg">
+                              <div className="font-semibold text-blue-300 mb-1">Currently processing:</div>
+                              <div className="text-slate-200 font-mono break-all">{status.currentFile}</div>
                             </div>
                           )}
                           <div className="flex items-center justify-between gap-3">

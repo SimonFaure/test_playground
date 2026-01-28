@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('electron', {
     saveMedia: (uniqid, folder, filename, base64Data) => ipcRenderer.invoke('scenarios:save-media', uniqid, folder, filename, base64Data),
     refresh: () => ipcRenderer.invoke('scenarios:refresh'),
     delete: (uniqid) => ipcRenderer.invoke('scenarios:delete', uniqid),
+    getImage: (uniqid) => ipcRenderer.invoke('scenarios:get-image', uniqid),
   },
   apiLogs: {
     write: (logData) => ipcRenderer.invoke('api-logs:write', logData),

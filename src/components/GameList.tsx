@@ -53,6 +53,7 @@ export function GameList() {
   const [launchedGame, setLaunchedGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scenarioToDelete, setScenarioToDelete] = useState<{ uniqid: string; title: string } | null>(null);
+  const [localImages, setLocalImages] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     loadScenarios();
@@ -62,6 +63,27 @@ export function GameList() {
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
     setLocalGameIds(new Set(ids));
+    await loadLocalImages(ids);
+  };
+
+  const loadLocalImages = async (gameIds: string[]) => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+    if (!isElectron) return;
+
+    const imageMap = new Map<string, string>();
+
+    for (const uniqid of gameIds) {
+      try {
+        const result = await (window as any).electron.scenarios.getImage(uniqid);
+        if (result.success && result.data) {
+          imageMap.set(uniqid, result.data);
+        }
+      } catch (error) {
+        console.error(`Error loading image for ${uniqid}:`, error);
+      }
+    }
+
+    setLocalImages(imageMap);
   };
 
   const loadScenarios = async () => {
@@ -167,8 +189,8 @@ export function GameList() {
     }
 
     showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
-    loadScenarios();
-    loadLocalGames();
+    await loadScenarios();
+    await loadLocalGames();
   };
 
   const handleClick = () => {
@@ -188,8 +210,8 @@ export function GameList() {
       }
 
       showAlert('success', `Successfully imported game scenario: ${result.uniqid}`);
-      loadScenarios();
-      loadLocalGames();
+      await loadScenarios();
+      await loadLocalGames();
     };
     input.click();
   };
@@ -330,8 +352,8 @@ export function GameList() {
         const result = await (window as any).electron.scenarios.delete(scenarioToDelete.uniqid);
         if (result.success) {
           showAlert('success', `Successfully deleted scenario: ${scenarioToDelete.title}`);
-          loadScenarios();
-          loadLocalGames();
+          await loadScenarios();
+          await loadLocalGames();
         } else {
           showAlert('error', `Failed to delete scenario: ${result.error}`);
         }
@@ -456,15 +478,18 @@ export function GameList() {
           )}
           {filteredScenarios.map((scenario) => {
             const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
+            const localImageUrl = scenario.uniqid ? localImages.get(scenario.uniqid) : null;
+            const displayImageUrl = localImageUrl || scenario.image_url;
+
             return (
             <div
               key={scenario.id}
               className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-slate-600 transition group"
             >
-              {scenario.image_url && (
+              {displayImageUrl && (
                 <div className="w-full h-48 overflow-hidden bg-slate-700">
                   <img
-                    src={scenario.image_url}
+                    src={displayImageUrl}
                     alt={scenario.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                   />

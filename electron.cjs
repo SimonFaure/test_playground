@@ -733,6 +733,48 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:get-image', async (event, uniqid) => {
+    const fs = require('fs');
+    try {
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      const gameDataPath = path.join(scenariosDir, uniqid, 'game-data.json');
+
+      if (!fs.existsSync(gameDataPath)) {
+        return { success: false, error: 'Game data not found' };
+      }
+
+      const gameDataContent = fs.readFileSync(gameDataPath, 'utf8');
+      const gameData = JSON.parse(gameDataContent);
+
+      if (!gameData.medias?.images?.game_visual) {
+        return { success: false, error: 'No visual image found' };
+      }
+
+      const imagePath = path.join(scenariosDir, uniqid, 'media', 'images', gameData.medias.images.game_visual);
+
+      if (!fs.existsSync(imagePath)) {
+        return { success: false, error: 'Image file not found' };
+      }
+
+      const imageBuffer = fs.readFileSync(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+      const ext = path.extname(gameData.medias.images.game_visual).toLowerCase();
+      let mimeType = 'image/jpeg';
+
+      if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      else if (ext === '.webp') mimeType = 'image/webp';
+
+      return {
+        success: true,
+        data: `data:${mimeType};base64,${base64Image}`
+      };
+    } catch (error) {
+      console.error('Error getting scenario image:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('scenarios:delete', async (event, uniqid) => {
     const fs = require('fs');
     try {

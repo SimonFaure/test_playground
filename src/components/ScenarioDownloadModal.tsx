@@ -20,6 +20,7 @@ interface DownloadStatus {
   downloadedFiles?: number;
   totalSize?: number;
   downloadedSize?: number;
+  currentFile?: string;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -92,6 +93,14 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
             const mediaFile = mediaFiles[i];
             console.log(`[Download] Downloading media file ${i + 1}/${totalFiles}: ${mediaFile.folder}/${mediaFile.filename}`);
 
+            updateStatus(scenario.uniqid, {
+              progress: `Downloading media files...`,
+              currentFile: mediaFile.filename,
+              downloadedFiles,
+              totalFiles,
+              downloadedSize
+            });
+
             try {
               const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
               const fileSize = blob.size;
@@ -101,6 +110,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
 
               updateStatus(scenario.uniqid, {
                 progress: `Downloading media files...`,
+                currentFile: mediaFile.filename,
                 downloadedFiles,
                 totalFiles,
                 downloadedSize
@@ -209,6 +219,11 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                       </div>
                       {status?.status === 'downloading' && status.totalFiles !== undefined && (
                         <div className="mt-2 space-y-1">
+                          {status.currentFile && (
+                            <div className="text-xs text-slate-300 truncate">
+                              <span className="font-medium">Downloading:</span> {status.currentFile}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 text-xs">
                             <span className="text-blue-400 font-medium">
                               Files: {status.downloadedFiles}/{status.totalFiles}

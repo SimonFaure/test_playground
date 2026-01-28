@@ -108,7 +108,16 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
 
               console.log(`[Download] Converting to base64...`);
               const arrayBuffer = await blob.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+              const bytes = new Uint8Array(arrayBuffer);
+              console.log(`[Download] Array buffer size: ${bytes.length} bytes`);
+
+              let binary = '';
+              const chunkSize = 8192;
+              for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.slice(i, i + chunkSize);
+                binary += String.fromCharCode(...chunk);
+              }
+              const base64 = btoa(binary);
               console.log(`[Download] Converted to base64, length: ${base64.length}`);
 
               console.log(`[Download] Saving media file to disk...`);

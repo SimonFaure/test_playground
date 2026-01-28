@@ -42,7 +42,9 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
       const newMap = new Map(prev);
       const current = newMap.get(uniqid);
       if (current) {
-        newMap.set(uniqid, { ...current, ...updates });
+        const updated = { ...current, ...updates };
+        newMap.set(uniqid, updated);
+        console.log(`[UI Update] Status for ${uniqid}:`, updated);
       }
       return newMap;
     });
@@ -81,13 +83,14 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         let downloadedSize = 0;
         console.log(`[Download] Found ${totalFiles} media files to download`);
 
+        updateStatus(scenario.uniqid, {
+          progress: `Downloading media files...`,
+          totalFiles,
+          downloadedFiles: 0,
+          downloadedSize: 0
+        });
+
         if (mediaFiles.length > 0) {
-          updateStatus(scenario.uniqid, {
-            progress: `Downloading media files...`,
-            totalFiles,
-            downloadedFiles: 0,
-            downloadedSize: 0
-          });
 
           for (let i = 0; i < mediaFiles.length; i++) {
             const mediaFile = mediaFiles[i];
@@ -100,6 +103,8 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
               totalFiles,
               downloadedSize
             });
+
+            await new Promise(resolve => setTimeout(resolve, 0));
 
             try {
               const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
@@ -115,6 +120,8 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                 totalFiles,
                 downloadedSize
               });
+
+              await new Promise(resolve => setTimeout(resolve, 0));
 
               console.log(`[Download] Converting to base64...`);
               const arrayBuffer = await blob.arrayBuffer();
@@ -204,9 +211,10 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
           <div className="space-y-3">
             {scenarios.map((scenario) => {
               const status = downloadStatuses.get(scenario.uniqid);
+              console.log(`[Render] Scenario ${scenario.uniqid} status:`, status);
               return (
                 <div
-                  key={scenario.uniqid}
+                  key={`${scenario.uniqid}-${status?.status}-${status?.downloadedFiles}`}
                   className="bg-slate-700/50 rounded-lg p-4 border border-slate-600"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -217,7 +225,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                         <span className="px-2 py-1 bg-slate-600 rounded">{scenario.game_type}</span>
                         <span>{status?.progress}</span>
                       </div>
-                      {status?.status === 'downloading' && status.totalFiles !== undefined && (
+                      {status?.status === 'downloading' && typeof status.totalFiles === 'number' && (
                         <div className="mt-2 space-y-1">
                           {status.currentFile && (
                             <div className="text-xs text-slate-300 truncate">
@@ -244,10 +252,10 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                           )}
                         </div>
                       )}
-                      {status?.status === 'completed' && status.downloadedFiles !== undefined && (
+                      {status?.status === 'completed' && typeof status.downloadedFiles === 'number' && (
                         <div className="mt-2 text-xs text-green-400">
-                          Downloaded {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
-                          {status.downloadedSize !== undefined && ` (${formatFileSize(status.downloadedSize)})`}
+                          ✓ Downloaded {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
+                          {typeof status.downloadedSize === 'number' && ` (${formatFileSize(status.downloadedSize)})`}
                         </div>
                       )}
                     </div>

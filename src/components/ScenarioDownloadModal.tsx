@@ -290,126 +290,90 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <p className="text-slate-300 mb-4">
-            The following scenarios need to be downloaded:
+          <p className="text-slate-300 mb-6">
+            {isDownloading ? 'Downloading scenarios...' : 'The following scenarios will be downloaded:'}
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {scenarios.map((scenario) => {
               const status = downloadStatuses.get(scenario.uniqid);
               console.log(`[Render] Scenario ${scenario.uniqid} status:`, status);
               return (
                 <div
                   key={`${scenario.uniqid}-${status?.status}-${status?.downloadedFiles}`}
-                  className="bg-slate-700/50 rounded-lg p-4 border border-slate-600"
+                  className={`flex items-center justify-between gap-4 p-4 rounded-lg border transition-all ${
+                    status?.status === 'completed'
+                      ? 'bg-green-500/10 border-green-500/30'
+                      : status?.status === 'downloading'
+                      ? 'bg-blue-500/10 border-blue-500/30'
+                      : status?.status === 'error'
+                      ? 'bg-red-500/10 border-red-500/30'
+                      : 'bg-slate-700/30 border-slate-600'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white mb-1">{scenario.title}</h3>
-                      <p className="text-sm text-slate-400 mb-2">{scenario.description}</p>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="px-2 py-1 bg-slate-600 rounded text-slate-300">{scenario.game_type}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0">
+                        {status?.status === 'pending' && (
+                          <div className="w-5 h-5 rounded-full border-2 border-slate-500" />
+                        )}
+                        {status?.status === 'downloading' && (
+                          <Loader className="text-blue-400 animate-spin" size={20} />
+                        )}
+                        {status?.status === 'completed' && (
+                          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                            <Check size={14} className="text-white font-bold" strokeWidth={3} />
+                          </div>
+                        )}
+                        {status?.status === 'error' && (
+                          <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                            <X size={14} className="text-white font-bold" strokeWidth={3} />
+                          </div>
+                        )}
                       </div>
-                      {status?.progress && (
-                        <div className={`mt-2 px-3 py-2 rounded-lg text-sm font-medium ${
-                          status.status === 'downloading' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                          status.status === 'completed' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
-                          status.status === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                          'bg-slate-600/50 text-slate-300'
-                        }`}>
-                          {status.progress}
-                        </div>
-                      )}
-                      {status?.status === 'downloading' && typeof status.totalFiles === 'number' && (
-                        <div className="mt-3 space-y-3">
-                          {status.currentFile && (
-                            <div className="text-xs text-slate-100 bg-blue-500/20 border border-blue-500/30 px-3 py-2 rounded-lg">
-                              <div className="font-semibold text-blue-300 mb-1">Currently processing:</div>
-                              <div className="text-slate-200 font-mono break-all">{status.currentFile}</div>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 text-sm">
-                              <span className="text-blue-400 font-bold text-lg">
-                                {status.downloadedFiles}/{status.totalFiles}
-                              </span>
-                              <span className="text-slate-300">files</span>
-                              {status.failedFiles !== undefined && status.failedFiles > 0 && (
-                                <span className="text-red-400 text-xs font-semibold">
-                                  ({status.failedFiles} failed)
-                                </span>
-                              )}
-                              {status.downloadedSize !== undefined && (
-                                <span className="text-slate-400 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white truncate">{scenario.title}</h3>
+                        {status?.status === 'downloading' && typeof status.totalFiles === 'number' && (
+                          <div className="mt-1 flex items-center gap-2 text-xs text-slate-300">
+                            <span>
+                              {status.downloadedFiles}/{status.totalFiles} files
+                            </span>
+                            <span className="text-slate-500">•</span>
+                            <span className="text-blue-400 font-semibold">
+                              {Math.round(((status.downloadedFiles || 0) / status.totalFiles) * 100)}%
+                            </span>
+                            {status.downloadedSize !== undefined && (
+                              <>
+                                <span className="text-slate-500">•</span>
+                                <span className="text-slate-400">
                                   {formatFileSize(status.downloadedSize)}
                                 </span>
-                              )}
-                            </div>
-                            <div className="text-blue-400 font-bold text-lg">
-                              {Math.round(((status.downloadedFiles || 0) / status.totalFiles) * 100)}%
-                            </div>
-                          </div>
-                          {status.totalFiles > 0 && (
-                            <div className="w-full bg-slate-600 rounded-full h-2.5 overflow-hidden">
-                              <div
-                                className="bg-gradient-to-r from-blue-500 to-blue-400 h-2.5 rounded-full transition-all duration-200 ease-out"
-                                style={{ width: `${((status.downloadedFiles || 0) / status.totalFiles) * 100}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {status?.status === 'completed' && typeof status.downloadedFiles === 'number' && (
-                        <div className={`mt-2 rounded-lg p-2 ${status.failedFiles && status.failedFiles > 0 ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
-                          <div className={`text-sm font-semibold ${status.failedFiles && status.failedFiles > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
-                            {status.failedFiles && status.failedFiles > 0 ? '⚠ Completed with Errors' : '✓ Download Complete'}
-                          </div>
-                          <div className={`text-xs mt-1 ${status.failedFiles && status.failedFiles > 0 ? 'text-yellow-300' : 'text-green-300'}`}>
-                            {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''} downloaded
-                            {typeof status.downloadedSize === 'number' && ` • ${formatFileSize(status.downloadedSize)}`}
-                            {status.failedFiles && status.failedFiles > 0 && (
-                              <span className="text-red-400 font-semibold"> • {status.failedFiles} failed</span>
+                              </>
                             )}
                           </div>
-                          {status.failedFilesList && status.failedFilesList.length > 0 && (
-                            <details className="mt-2">
-                              <summary className="text-xs text-yellow-300 cursor-pointer hover:text-yellow-200">
-                                View failed files ({status.failedFilesList.length})
-                              </summary>
-                              <div className="mt-1 text-xs text-red-300 bg-black/20 rounded p-2 max-h-32 overflow-y-auto">
-                                {status.failedFilesList.map((file, idx) => (
-                                  <div key={idx} className="truncate">• {file}</div>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                        </div>
-                      )}
+                        )}
+                        {status?.status === 'completed' && typeof status.downloadedFiles === 'number' && (
+                          <div className="mt-1 text-xs text-green-400">
+                            {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''} downloaded
+                            {typeof status.downloadedSize === 'number' && ` • ${formatFileSize(status.downloadedSize)}`}
+                          </div>
+                        )}
+                        {status?.status === 'error' && status.error && (
+                          <div className="mt-1 text-xs text-red-400">
+                            {status.error}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-shrink-0">
-                      {status?.status === 'pending' && (
-                        <div className="w-6 h-6 rounded-full bg-slate-600" />
-                      )}
-                      {status?.status === 'downloading' && (
-                        <Loader className="text-blue-400 animate-spin" size={24} />
-                      )}
-                      {status?.status === 'completed' && (
-                        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-                          <Check size={16} className="text-white" />
-                        </div>
-                      )}
-                      {status?.status === 'error' && (
-                        <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-                          <X size={16} className="text-white" />
-                        </div>
-                      )}
-                    </div>
+                    {status?.status === 'downloading' && status.totalFiles && status.totalFiles > 0 && (
+                      <div className="mt-2 w-full bg-slate-600 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-blue-400 h-1.5 rounded-full transition-all duration-200 ease-out"
+                          style={{ width: `${((status.downloadedFiles || 0) / status.totalFiles) * 100}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
-                  {status?.error && (
-                    <div className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded p-2">
-                      Error: {status.error}
-                    </div>
-                  )}
                 </div>
               );
             })}

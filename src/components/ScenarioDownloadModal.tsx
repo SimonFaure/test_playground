@@ -59,17 +59,26 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
 
     for (const scenario of scenarios) {
       try {
+        console.log(`[Download] Starting download for scenario: ${scenario.uniqid}`);
         updateStatus(scenario.uniqid, { status: 'downloading', progress: 'Fetching game data...' });
 
+        console.log(`[Download] Fetching game data from API...`);
         const gameData = await getScenarioGameData(email, scenario.uniqid);
+        console.log(`[Download] Game data fetched successfully, size: ${JSON.stringify(gameData).length} characters`);
 
+        console.log(`[Download] Cleaning circular references...`);
         const cleanedGameData = removeCircularReferences(gameData);
-        await (window as any).electron.scenarios.saveGameData(scenario.uniqid, cleanedGameData);
+        console.log(`[Download] Circular references cleaned, saving game data...`);
 
+        await (window as any).electron.scenarios.saveGameData(scenario.uniqid, cleanedGameData);
+        console.log(`[Download] Game data saved successfully`);
+
+        console.log(`[Download] Extracting media files list...`);
         const mediaFiles = extractMediaFiles(gameData);
         const totalFiles = mediaFiles.length;
         let downloadedFiles = 0;
         let downloadedSize = 0;
+        console.log(`[Download] Found ${totalFiles} media files to download`);
 
         if (mediaFiles.length > 0) {
           updateStatus(scenario.uniqid, {
@@ -81,31 +90,43 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
 
           for (let i = 0; i < mediaFiles.length; i++) {
             const mediaFile = mediaFiles[i];
+            console.log(`[Download] Downloading media file ${i + 1}/${totalFiles}: ${mediaFile.folder}/${mediaFile.filename}`);
 
-            const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
-            const fileSize = blob.size;
-            downloadedFiles++;
-            downloadedSize += fileSize;
+            try {
+              const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
+              const fileSize = blob.size;
+              downloadedFiles++;
+              downloadedSize += fileSize;
+              console.log(`[Download] Media file downloaded: ${mediaFile.filename} (${fileSize} bytes)`);
 
-            updateStatus(scenario.uniqid, {
-              progress: `Downloading media files...`,
-              downloadedFiles,
-              totalFiles,
-              downloadedSize
-            });
+              updateStatus(scenario.uniqid, {
+                progress: `Downloading media files...`,
+                downloadedFiles,
+                totalFiles,
+                downloadedSize
+              });
 
-            const arrayBuffer = await blob.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+              console.log(`[Download] Converting to base64...`);
+              const arrayBuffer = await blob.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+              console.log(`[Download] Converted to base64, length: ${base64.length}`);
 
-            await (window as any).electron.scenarios.saveMedia(
-              scenario.uniqid,
-              mediaFile.folder,
-              mediaFile.filename,
-              base64
-            );
+              console.log(`[Download] Saving media file to disk...`);
+              await (window as any).electron.scenarios.saveMedia(
+                scenario.uniqid,
+                mediaFile.folder,
+                mediaFile.filename,
+                base64
+              );
+              console.log(`[Download] Media file saved successfully: ${mediaFile.folder}/${mediaFile.filename}`);
+            } catch (mediaError) {
+              console.error(`[Download] Error downloading media file ${mediaFile.filename}:`, mediaError);
+              throw new Error(`Failed to download media file ${mediaFile.filename}: ${mediaError instanceof Error ? mediaError.message : 'Unknown error'}`);
+            }
           }
         }
 
+        console.log(`[Download] Scenario download completed: ${scenario.uniqid}`);
         updateStatus(scenario.uniqid, {
           status: 'completed',
           progress: 'Completed',
@@ -113,7 +134,8 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
           totalFiles
         });
       } catch (error) {
-        console.error(`Error downloading scenario ${scenario.uniqid}:`, error);
+        console.error(`[Download] ERROR downloading scenario ${scenario.uniqid}:`, error);
+        console.error(`[Download] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
         updateStatus(scenario.uniqid, {
           status: 'error',
           progress: 'Failed',

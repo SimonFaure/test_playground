@@ -111,8 +111,13 @@ export async function getUserScenarios(email: string): Promise<ScenarioSummary[]
 export async function getScenarioGameData(email: string, uniqid: string): Promise<GameData> {
   const url = `${API_BASE_URL}/playground.php?action=get_scenario_game_data&email=${encodeURIComponent(email)}&uniqid=${uniqid}`;
 
+  console.log(`[getScenarioGameData] Starting API call for scenario: ${uniqid}`);
+  console.log(`[getScenarioGameData] URL: ${url}`);
+
   try {
+    console.log(`[getScenarioGameData] Making fetch request...`);
     const response = await fetch(url, { credentials: 'include' });
+    console.log(`[getScenarioGameData] Response received:`, response.status, response.statusText);
 
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -120,6 +125,7 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
     });
 
     if (!response.ok) {
+      console.error(`[getScenarioGameData] Request failed:`, response.status, response.statusText);
       await logApiCall({
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
@@ -132,7 +138,10 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
       throw new Error(`Failed to fetch game data: ${response.statusText}`);
     }
 
+    console.log(`[getScenarioGameData] Parsing JSON response...`);
     const data = await response.json();
+    console.log(`[getScenarioGameData] Data parsed successfully`);
+    console.log(`[getScenarioGameData] Data keys:`, Object.keys(data));
 
     await logApiCall({
       endpoint: new URL(url).pathname + new URL(url).search,
@@ -144,9 +153,15 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
       statusCode: response.status
     });
 
+    console.log(`[getScenarioGameData] API call logged successfully`);
     return data;
   } catch (error) {
-    console.error('Error fetching game data:', error);
+    console.error('[getScenarioGameData] Error fetching game data:', error);
+    if (error instanceof Error) {
+      console.error('[getScenarioGameData] Error name:', error.name);
+      console.error('[getScenarioGameData] Error message:', error.message);
+      console.error('[getScenarioGameData] Error stack:', error.stack);
+    }
     throw error;
   }
 }
@@ -154,8 +169,13 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
 export async function downloadMediaFile(email: string, uniqid: string, filename: string): Promise<Blob> {
   const url = `${API_BASE_URL}/playground.php?action=get_media&email=${encodeURIComponent(email)}&uniqid=${uniqid}&filename=${encodeURIComponent(filename)}`;
 
+  console.log(`[downloadMediaFile] Downloading: ${filename}`);
+  console.log(`[downloadMediaFile] URL: ${url}`);
+
   try {
+    console.log(`[downloadMediaFile] Making fetch request...`);
     const response = await fetch(url, { credentials: 'include' });
+    console.log(`[downloadMediaFile] Response received:`, response.status, response.statusText);
 
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -163,6 +183,7 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
     });
 
     if (!response.ok) {
+      console.error(`[downloadMediaFile] Request failed:`, response.status, response.statusText);
       await logApiCall({
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
@@ -185,9 +206,17 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
       statusCode: response.status
     });
 
-    return await response.blob();
+    console.log(`[downloadMediaFile] Converting response to blob...`);
+    const blob = await response.blob();
+    console.log(`[downloadMediaFile] Blob created, size: ${blob.size} bytes`);
+    return blob;
   } catch (error) {
-    console.error('Error downloading media file:', error);
+    console.error(`[downloadMediaFile] Error downloading media file ${filename}:`, error);
+    if (error instanceof Error) {
+      console.error('[downloadMediaFile] Error name:', error.name);
+      console.error('[downloadMediaFile] Error message:', error.message);
+      console.error('[downloadMediaFile] Error stack:', error.stack);
+    }
     throw error;
   }
 }
@@ -195,14 +224,15 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
 export function extractMediaFiles(gameData: GameData): MediaFile[] {
   const mediaFiles: MediaFile[] = [];
 
-  console.log('Extracting media files from game data:', gameData);
+  console.log('[extractMediaFiles] Starting media file extraction');
+  console.log('[extractMediaFiles] Game data keys:', Object.keys(gameData));
 
   if (!gameData.medias) {
-    console.log('No medias field found in game data');
+    console.log('[extractMediaFiles] No medias field found in game data');
     return mediaFiles;
   }
 
-  console.log('Found medias:', gameData.medias);
+  console.log('[extractMediaFiles] Found medias object with keys:', Object.keys(gameData.medias));
 
   if (gameData.medias.images && typeof gameData.medias.images === 'object') {
     Object.values(gameData.medias.images).forEach(filename => {
@@ -288,7 +318,12 @@ export function extractMediaFiles(gameData: GameData): MediaFile[] {
     new Map(mediaFiles.map(file => [`${file.folder}/${file.filename}`, file])).values()
   );
 
-  console.log(`Extracted ${uniqueFiles.length} unique media files:`, uniqueFiles);
+  console.log(`[extractMediaFiles] Extracted ${uniqueFiles.length} unique media files`);
+  console.log(`[extractMediaFiles] Files by folder:`, {
+    images: uniqueFiles.filter(f => f.folder === 'images').length,
+    sounds: uniqueFiles.filter(f => f.folder === 'sounds').length,
+    videos: uniqueFiles.filter(f => f.folder === 'videos').length,
+  });
 
   return uniqueFiles;
 }

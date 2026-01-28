@@ -599,18 +599,24 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:save-game-data', async (event, uniqid, gameData) => {
     const fs = require('fs');
     try {
+      console.log(`[Electron] Saving game data for scenario: ${uniqid}`);
       const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios', uniqid);
+      console.log(`[Electron] Target directory: ${scenariosDir}`);
 
       if (!fs.existsSync(scenariosDir)) {
+        console.log(`[Electron] Creating directory: ${scenariosDir}`);
         fs.mkdirSync(scenariosDir, { recursive: true });
       }
 
       const gameDataPath = path.join(scenariosDir, 'game-data.json');
+      console.log(`[Electron] Game data path: ${gameDataPath}`);
 
+      console.log(`[Electron] Stringifying game data with circular reference protection...`);
       const seen = new WeakSet();
       const safeGameData = JSON.stringify(gameData, (key, value) => {
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
+            console.log(`[Electron] Found circular reference at key: ${key}`);
             return '[Circular Reference]';
           }
           seen.add(value);
@@ -618,11 +624,15 @@ app.whenReady().then(() => {
         return value;
       }, 2);
 
+      console.log(`[Electron] Game data stringified, length: ${safeGameData.length} characters`);
+      console.log(`[Electron] Writing to file...`);
       fs.writeFileSync(gameDataPath, safeGameData);
+      console.log(`[Electron] Game data saved successfully`);
 
       return { success: true };
     } catch (error) {
-      console.error('Error saving game data:', error);
+      console.error('[Electron] Error saving game data:', error);
+      console.error('[Electron] Error stack:', error.stack);
       throw error;
     }
   });
@@ -630,20 +640,28 @@ app.whenReady().then(() => {
   ipcMain.handle('scenarios:save-media', async (event, uniqid, folder, filename, base64Data) => {
     const fs = require('fs');
     try {
+      console.log(`[Electron] Saving media file: ${folder}/${filename} for scenario: ${uniqid}`);
       const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios', uniqid);
       const mediaDir = path.join(scenariosDir, 'media', folder);
+      console.log(`[Electron] Media directory: ${mediaDir}`);
 
       if (!fs.existsSync(mediaDir)) {
+        console.log(`[Electron] Creating media directory: ${mediaDir}`);
         fs.mkdirSync(mediaDir, { recursive: true });
       }
 
       const filePath = path.join(mediaDir, filename);
+      console.log(`[Electron] Converting base64 to buffer (${base64Data.length} characters)...`);
       const buffer = Buffer.from(base64Data, 'base64');
+      console.log(`[Electron] Buffer size: ${buffer.length} bytes`);
+      console.log(`[Electron] Writing file: ${filePath}`);
       fs.writeFileSync(filePath, buffer);
+      console.log(`[Electron] Media file saved successfully: ${filename}`);
 
       return { success: true };
     } catch (error) {
-      console.error('Error saving media file:', error);
+      console.error(`[Electron] Error saving media file ${filename}:`, error);
+      console.error('[Electron] Error stack:', error.stack);
       throw error;
     }
   });

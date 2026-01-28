@@ -91,65 +91,82 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         });
 
         if (mediaFiles.length > 0) {
+          console.log(`[Download] ==================== DOWNLOADING ${totalFiles} MEDIA FILES ====================`);
 
           for (let i = 0; i < mediaFiles.length; i++) {
             const mediaFile = mediaFiles[i];
-            console.log(`[Download] Downloading media file ${i + 1}/${totalFiles}: ${mediaFile.folder}/${mediaFile.filename}`);
+            const fileProgress = `${i + 1}/${totalFiles}`;
+            console.log(`[Download] [${fileProgress}] Downloading: ${mediaFile.folder}/${mediaFile.filename}`);
 
             updateStatus(scenario.uniqid, {
-              progress: `Downloading media files...`,
-              currentFile: mediaFile.filename,
+              progress: `Downloading ${fileProgress}`,
+              currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
               downloadedFiles,
               totalFiles,
               downloadedSize
             });
 
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise(resolve => setTimeout(resolve, 10));
 
             try {
+              const downloadStartTime = Date.now();
               const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
               const fileSize = blob.size;
+              const downloadDuration = Date.now() - downloadStartTime;
               downloadedFiles++;
               downloadedSize += fileSize;
-              console.log(`[Download] Media file downloaded: ${mediaFile.filename} (${fileSize} bytes)`);
+
+              console.log(`[Download] ✅ [${fileProgress}] Downloaded in ${downloadDuration}ms: ${mediaFile.filename} (${fileSize} bytes)`);
 
               updateStatus(scenario.uniqid, {
-                progress: `Downloading media files...`,
-                currentFile: mediaFile.filename,
+                progress: `Processing ${fileProgress}`,
+                currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
                 downloadedFiles,
                 totalFiles,
                 downloadedSize
               });
 
-              await new Promise(resolve => setTimeout(resolve, 0));
+              await new Promise(resolve => setTimeout(resolve, 10));
 
-              console.log(`[Download] Converting to base64...`);
+              console.log(`[Download] [${fileProgress}] Converting to base64: ${mediaFile.filename}`);
               const arrayBuffer = await blob.arrayBuffer();
               const bytes = new Uint8Array(arrayBuffer);
-              console.log(`[Download] Array buffer size: ${bytes.length} bytes`);
 
               let binary = '';
               const chunkSize = 8192;
-              for (let i = 0; i < bytes.length; i += chunkSize) {
-                const chunk = bytes.slice(i, i + chunkSize);
+              for (let j = 0; j < bytes.length; j += chunkSize) {
+                const chunk = bytes.slice(j, j + chunkSize);
                 binary += String.fromCharCode(...chunk);
               }
               const base64 = btoa(binary);
-              console.log(`[Download] Converted to base64, length: ${base64.length}`);
+              console.log(`[Download] [${fileProgress}] Converted to base64: ${base64.length} characters`);
 
-              console.log(`[Download] Saving media file to disk...`);
+              console.log(`[Download] [${fileProgress}] Saving to disk: ${mediaFile.folder}/${mediaFile.filename}`);
               await (window as any).electron.scenarios.saveMedia(
                 scenario.uniqid,
                 mediaFile.folder,
                 mediaFile.filename,
                 base64
               );
-              console.log(`[Download] Media file saved successfully: ${mediaFile.folder}/${mediaFile.filename}`);
+              console.log(`[Download] ✅ [${fileProgress}] Saved: ${mediaFile.folder}/${mediaFile.filename}`);
+
+              updateStatus(scenario.uniqid, {
+                progress: `Downloaded ${fileProgress}`,
+                currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
+                downloadedFiles,
+                totalFiles,
+                downloadedSize
+              });
+
+              await new Promise(resolve => setTimeout(resolve, 10));
             } catch (mediaError) {
-              console.error(`[Download] Error downloading media file ${mediaFile.filename}:`, mediaError);
+              console.error(`[Download] ❌ [${fileProgress}] ERROR downloading ${mediaFile.filename}:`, mediaError);
               throw new Error(`Failed to download media file ${mediaFile.filename}: ${mediaError instanceof Error ? mediaError.message : 'Unknown error'}`);
             }
           }
+          console.log(`[Download] ==================== ALL FILES DOWNLOADED ====================`);
+        } else {
+          console.log(`[Download] ⚠️ No media files to download`);
         }
 
         console.log(`[Download] Scenario download completed: ${scenario.uniqid}`);
@@ -226,26 +243,32 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                         <span>{status?.progress}</span>
                       </div>
                       {status?.status === 'downloading' && typeof status.totalFiles === 'number' && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-3 space-y-2">
                           {status.currentFile && (
-                            <div className="text-xs text-slate-300 truncate">
-                              <span className="font-medium">Downloading:</span> {status.currentFile}
+                            <div className="text-xs text-slate-200 bg-slate-600/50 px-2 py-1 rounded">
+                              <span className="font-semibold text-blue-300">Current:</span> {status.currentFile}
                             </div>
                           )}
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-blue-400 font-medium">
-                              Files: {status.downloadedFiles}/{status.totalFiles}
-                            </span>
-                            {status.downloadedSize !== undefined && (
-                              <span className="text-slate-400">
-                                ({formatFileSize(status.downloadedSize)})
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 text-sm">
+                              <span className="text-blue-400 font-bold text-lg">
+                                {status.downloadedFiles}/{status.totalFiles}
                               </span>
-                            )}
+                              <span className="text-slate-300">files</span>
+                              {status.downloadedSize !== undefined && (
+                                <span className="text-slate-400 text-xs">
+                                  ({formatFileSize(status.downloadedSize)})
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-blue-400 font-bold text-lg">
+                              {Math.round(((status.downloadedFiles || 0) / status.totalFiles) * 100)}%
+                            </div>
                           </div>
                           {status.totalFiles > 0 && (
-                            <div className="w-full bg-slate-600 rounded-full h-1.5">
+                            <div className="w-full bg-slate-600 rounded-full h-2.5 overflow-hidden">
                               <div
-                                className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                className="bg-gradient-to-r from-blue-500 to-blue-400 h-2.5 rounded-full transition-all duration-200 ease-out"
                                 style={{ width: `${((status.downloadedFiles || 0) / status.totalFiles) * 100}%` }}
                               />
                             </div>
@@ -253,9 +276,14 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                         </div>
                       )}
                       {status?.status === 'completed' && typeof status.downloadedFiles === 'number' && (
-                        <div className="mt-2 text-xs text-green-400">
-                          ✓ Downloaded {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
-                          {typeof status.downloadedSize === 'number' && ` (${formatFileSize(status.downloadedSize)})`}
+                        <div className="mt-2 bg-green-500/10 border border-green-500/30 rounded-lg p-2">
+                          <div className="text-sm text-green-400 font-semibold">
+                            ✓ Download Complete
+                          </div>
+                          <div className="text-xs text-green-300 mt-1">
+                            {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
+                            {typeof status.downloadedSize === 'number' && ` • ${formatFileSize(status.downloadedSize)}`}
+                          </div>
                         </div>
                       )}
                     </div>

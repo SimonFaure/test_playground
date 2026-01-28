@@ -221,95 +221,110 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
   }
 }
 
+function extractFilenamesFromObject(obj: any, folder: string, mediaFiles: MediaFile[], path: string = ''): void {
+  if (!obj || typeof obj !== 'object') return;
+
+  if (Array.isArray(obj)) {
+    obj.forEach((item, index) => {
+      if (typeof item === 'string' && item.trim()) {
+        console.log(`[extractMediaFiles] Found ${folder} file at ${path}[${index}]: ${item}`);
+        mediaFiles.push({ filename: item, folder });
+      } else if (typeof item === 'object') {
+        extractFilenamesFromObject(item, folder, mediaFiles, `${path}[${index}]`);
+      }
+    });
+  } else {
+    Object.entries(obj).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.trim()) {
+        console.log(`[extractMediaFiles] Found ${folder} file at ${path}.${key}: ${value}`);
+        mediaFiles.push({ filename: value, folder });
+      } else if (typeof value === 'object' && value !== null) {
+        extractFilenamesFromObject(value, folder, mediaFiles, `${path}.${key}`);
+      }
+    });
+  }
+}
+
 export function extractMediaFiles(gameData: GameData): MediaFile[] {
   const mediaFiles: MediaFile[] = [];
 
-  console.log('[extractMediaFiles] Starting media file extraction');
+  console.log('[extractMediaFiles] ==================== STARTING EXTRACTION ====================');
   console.log('[extractMediaFiles] Game data keys:', Object.keys(gameData));
+  console.log('[extractMediaFiles] Full game data structure:', JSON.stringify(gameData, null, 2).substring(0, 1000));
 
   if (!gameData.medias) {
-    console.log('[extractMediaFiles] No medias field found in game data');
+    console.log('[extractMediaFiles] ❌ No medias field found in game data');
+    console.log('[extractMediaFiles] Available keys:', Object.keys(gameData));
     return mediaFiles;
   }
 
-  console.log('[extractMediaFiles] Found medias object with keys:', Object.keys(gameData.medias));
+  console.log('[extractMediaFiles] ✅ Found medias object');
+  console.log('[extractMediaFiles] Medias keys:', Object.keys(gameData.medias));
+  console.log('[extractMediaFiles] Medias structure:', JSON.stringify(gameData.medias, null, 2).substring(0, 2000));
 
-  if (gameData.medias.images && typeof gameData.medias.images === 'object') {
-    Object.values(gameData.medias.images).forEach(filename => {
-      if (filename && typeof filename === 'string') {
-        mediaFiles.push({ filename, folder: 'images' });
-      }
-    });
-  }
+  const mediaTypes = ['images', 'sounds', 'videos'];
 
-  if (gameData.medias.sounds && typeof gameData.medias.sounds === 'object') {
-    Object.values(gameData.medias.sounds).forEach(filename => {
-      if (filename && typeof filename === 'string') {
-        mediaFiles.push({ filename, folder: 'sounds' });
-      }
-    });
-  }
+  mediaTypes.forEach(type => {
+    const folder = type.replace('sounds', 'sounds').replace('images', 'images').replace('videos', 'videos');
 
-  if (gameData.medias.videos && typeof gameData.medias.videos === 'object') {
-    Object.values(gameData.medias.videos).forEach(filename => {
-      if (filename && typeof filename === 'string') {
-        mediaFiles.push({ filename, folder: 'videos' });
+    if (gameData.medias[type]) {
+      console.log(`[extractMediaFiles] 📂 Processing ${type}...`);
+      console.log(`[extractMediaFiles] ${type} type:`, typeof gameData.medias[type]);
+      console.log(`[extractMediaFiles] ${type} is array:`, Array.isArray(gameData.medias[type]));
+
+      if (typeof gameData.medias[type] === 'object') {
+        const beforeCount = mediaFiles.length;
+        extractFilenamesFromObject(gameData.medias[type], folder, mediaFiles, type);
+        const addedCount = mediaFiles.length - beforeCount;
+        console.log(`[extractMediaFiles] ✅ Added ${addedCount} files from ${type}`);
       }
-    });
-  }
+    } else {
+      console.log(`[extractMediaFiles] ⚠️ No ${type} found in medias`);
+    }
+  });
 
   if (gameData.medias.levels && typeof gameData.medias.levels === 'object') {
-    Object.values(gameData.medias.levels).forEach(level => {
+    console.log('[extractMediaFiles] 📂 Processing levels...');
+    const levelsArray = Array.isArray(gameData.medias.levels)
+      ? gameData.medias.levels
+      : Object.values(gameData.medias.levels);
+
+    levelsArray.forEach((level, index) => {
       if (level && typeof level === 'object') {
-        if (level.images && typeof level.images === 'object') {
-          Object.values(level.images).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'images' });
-            }
-          });
-        }
-        if (level.sounds && typeof level.sounds === 'object') {
-          Object.values(level.sounds).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'sounds' });
-            }
-          });
-        }
-        if (level.videos && typeof level.videos === 'object') {
-          Object.values(level.videos).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'videos' });
-            }
-          });
-        }
+        console.log(`[extractMediaFiles] Processing level ${index}:`, Object.keys(level));
+
+        mediaTypes.forEach(type => {
+          if (level[type]) {
+            const folder = type.replace('sounds', 'sounds').replace('images', 'images').replace('videos', 'videos');
+            const beforeCount = mediaFiles.length;
+            extractFilenamesFromObject(level[type], folder, mediaFiles, `levels[${index}].${type}`);
+            const addedCount = mediaFiles.length - beforeCount;
+            console.log(`[extractMediaFiles] ✅ Added ${addedCount} files from level ${index} ${type}`);
+          }
+        });
       }
     });
   }
 
-  if (gameData.medias.enigmas && Array.isArray(gameData.medias.enigmas)) {
-    gameData.medias.enigmas.forEach(enigma => {
+  if (gameData.medias.enigmas) {
+    console.log('[extractMediaFiles] 📂 Processing enigmas...');
+    const enigmasArray = Array.isArray(gameData.medias.enigmas)
+      ? gameData.medias.enigmas
+      : Object.values(gameData.medias.enigmas);
+
+    enigmasArray.forEach((enigma, index) => {
       if (enigma && typeof enigma === 'object') {
-        if (enigma.images && typeof enigma.images === 'object') {
-          Object.values(enigma.images).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'images' });
-            }
-          });
-        }
-        if (enigma.sounds && typeof enigma.sounds === 'object') {
-          Object.values(enigma.sounds).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'sounds' });
-            }
-          });
-        }
-        if (enigma.videos && typeof enigma.videos === 'object') {
-          Object.values(enigma.videos).forEach(filename => {
-            if (filename && typeof filename === 'string') {
-              mediaFiles.push({ filename, folder: 'videos' });
-            }
-          });
-        }
+        console.log(`[extractMediaFiles] Processing enigma ${index}:`, Object.keys(enigma));
+
+        mediaTypes.forEach(type => {
+          if (enigma[type]) {
+            const folder = type.replace('sounds', 'sounds').replace('images', 'images').replace('videos', 'videos');
+            const beforeCount = mediaFiles.length;
+            extractFilenamesFromObject(enigma[type], folder, mediaFiles, `enigmas[${index}].${type}`);
+            const addedCount = mediaFiles.length - beforeCount;
+            console.log(`[extractMediaFiles] ✅ Added ${addedCount} files from enigma ${index} ${type}`);
+          }
+        });
       }
     });
   }
@@ -318,12 +333,15 @@ export function extractMediaFiles(gameData: GameData): MediaFile[] {
     new Map(mediaFiles.map(file => [`${file.folder}/${file.filename}`, file])).values()
   );
 
-  console.log(`[extractMediaFiles] Extracted ${uniqueFiles.length} unique media files`);
-  console.log(`[extractMediaFiles] Files by folder:`, {
+  console.log('[extractMediaFiles] ==================== EXTRACTION COMPLETE ====================');
+  console.log(`[extractMediaFiles] 📊 Total files found: ${mediaFiles.length}`);
+  console.log(`[extractMediaFiles] 📊 Unique files: ${uniqueFiles.length}`);
+  console.log(`[extractMediaFiles] 📊 Files by folder:`, {
     images: uniqueFiles.filter(f => f.folder === 'images').length,
     sounds: uniqueFiles.filter(f => f.folder === 'sounds').length,
     videos: uniqueFiles.filter(f => f.folder === 'videos').length,
   });
+  console.log('[extractMediaFiles] 📋 File list:', uniqueFiles.map(f => `${f.folder}/${f.filename}`));
 
   return uniqueFiles;
 }

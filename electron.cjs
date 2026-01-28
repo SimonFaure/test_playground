@@ -606,7 +606,19 @@ app.whenReady().then(() => {
       }
 
       const gameDataPath = path.join(scenariosDir, 'game-data.json');
-      fs.writeFileSync(gameDataPath, JSON.stringify(gameData, null, 2));
+
+      const seen = new WeakSet();
+      const safeGameData = JSON.stringify(gameData, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      }, 2);
+
+      fs.writeFileSync(gameDataPath, safeGameData);
 
       return { success: true };
     } catch (error) {
@@ -840,7 +852,18 @@ app.whenReady().then(() => {
         logs = logs.slice(-maxLogs);
       }
 
-      fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+      const seen = new WeakSet();
+      const safeLogs = JSON.stringify(logs, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
+        }
+        return value;
+      }, 2);
+
+      fs.writeFileSync(logsPath, safeLogs);
       return { success: true };
     } catch (error) {
       console.error('Error writing API log:', error);

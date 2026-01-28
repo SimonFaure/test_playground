@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Download, Check, X, Loader } from 'lucide-react';
 import { ScenarioSummary, getScenarioGameData, downloadMediaFile, extractMediaFiles } from '../services/scenarioDownload';
+import { removeCircularReferences } from '../utils/circularReferenceHandler';
 
 interface ScenarioDownloadModalProps {
   isOpen: boolean;
@@ -62,7 +63,8 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
 
         const gameData = await getScenarioGameData(email, scenario.uniqid);
 
-        await (window as any).electron.scenarios.saveGameData(scenario.uniqid, gameData);
+        const cleanedGameData = removeCircularReferences(gameData);
+        await (window as any).electron.scenarios.saveGameData(scenario.uniqid, cleanedGameData);
 
         const mediaFiles = extractMediaFiles(gameData);
         const totalFiles = mediaFiles.length;

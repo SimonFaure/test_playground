@@ -17,11 +17,25 @@ export interface MediaFile {
 }
 
 export interface GameData {
-  uniqid: string;
-  title: string;
-  description: string;
-  game_type: string;
-  media: MediaFile[];
+  scenario: {
+    id: number;
+    name: string;
+    uniqid: string;
+    scenario_type: string;
+  };
+  game_data: {
+    game_meta?: any;
+    translations?: any;
+    [key: string]: any;
+  };
+  medias: {
+    images?: Record<string, string>;
+    levels?: Record<string, any>;
+    sounds?: Record<string, string>;
+    videos?: Record<string, string>;
+    enigmas?: any[];
+    [key: string]: any;
+  };
   [key: string]: any;
 }
 
@@ -181,9 +195,93 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
 export function extractMediaFiles(gameData: GameData): MediaFile[] {
   const mediaFiles: MediaFile[] = [];
 
-  if (gameData.media && Array.isArray(gameData.media)) {
-    mediaFiles.push(...gameData.media);
+  if (!gameData.medias) {
+    return mediaFiles;
   }
 
-  return mediaFiles;
+  if (gameData.medias.images && typeof gameData.medias.images === 'object') {
+    Object.values(gameData.medias.images).forEach(filename => {
+      if (filename && typeof filename === 'string') {
+        mediaFiles.push({ filename, folder: 'images' });
+      }
+    });
+  }
+
+  if (gameData.medias.sounds && typeof gameData.medias.sounds === 'object') {
+    Object.values(gameData.medias.sounds).forEach(filename => {
+      if (filename && typeof filename === 'string') {
+        mediaFiles.push({ filename, folder: 'sounds' });
+      }
+    });
+  }
+
+  if (gameData.medias.videos && typeof gameData.medias.videos === 'object') {
+    Object.values(gameData.medias.videos).forEach(filename => {
+      if (filename && typeof filename === 'string') {
+        mediaFiles.push({ filename, folder: 'videos' });
+      }
+    });
+  }
+
+  if (gameData.medias.levels && typeof gameData.medias.levels === 'object') {
+    Object.values(gameData.medias.levels).forEach(level => {
+      if (level && typeof level === 'object') {
+        if (level.images && typeof level.images === 'object') {
+          Object.values(level.images).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'images' });
+            }
+          });
+        }
+        if (level.sounds && typeof level.sounds === 'object') {
+          Object.values(level.sounds).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'sounds' });
+            }
+          });
+        }
+        if (level.videos && typeof level.videos === 'object') {
+          Object.values(level.videos).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'videos' });
+            }
+          });
+        }
+      }
+    });
+  }
+
+  if (gameData.medias.enigmas && Array.isArray(gameData.medias.enigmas)) {
+    gameData.medias.enigmas.forEach(enigma => {
+      if (enigma && typeof enigma === 'object') {
+        if (enigma.images && typeof enigma.images === 'object') {
+          Object.values(enigma.images).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'images' });
+            }
+          });
+        }
+        if (enigma.sounds && typeof enigma.sounds === 'object') {
+          Object.values(enigma.sounds).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'sounds' });
+            }
+          });
+        }
+        if (enigma.videos && typeof enigma.videos === 'object') {
+          Object.values(enigma.videos).forEach(filename => {
+            if (filename && typeof filename === 'string') {
+              mediaFiles.push({ filename, folder: 'videos' });
+            }
+          });
+        }
+      }
+    });
+  }
+
+  const uniqueFiles = Array.from(
+    new Map(mediaFiles.map(file => [`${file.folder}/${file.filename}`, file])).values()
+  );
+
+  return uniqueFiles;
 }

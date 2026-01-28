@@ -9,6 +9,7 @@ export interface ScenarioSummary {
   game_type: string;
   scenario_type: string;
   uniqid: string;
+  available_for_purchase?: boolean;
 }
 
 export interface MediaFile {
@@ -344,4 +345,129 @@ export function extractMediaFiles(gameData: GameData): MediaFile[] {
   console.log('[extractMediaFiles] 📋 File list:', uniqueFiles.map(f => `${f.folder}/${f.filename}`));
 
   return uniqueFiles;
+}
+
+export interface AvailableScenario {
+  scenario: {
+    id: number;
+    name: string;
+    uniqid: string;
+    scenario_type: string;
+    available_for_purchase: boolean;
+  };
+  medias: {
+    images: {
+      game_visual: string;
+    };
+  };
+}
+
+export async function getAvailableScenarios(email: string): Promise<AvailableScenario[]> {
+  const url = `${API_BASE_URL}/playground.php?action=get_available_scenarios&email=${encodeURIComponent(email)}`;
+
+  console.log('[getAvailableScenarios] Starting API call to:', url);
+
+  try {
+    console.log('[getAvailableScenarios] Making fetch request...');
+    const response = await fetch(url, { credentials: 'include' });
+    console.log('[getAvailableScenarios] Response received:', response.status, response.statusText);
+
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+
+    if (!response.ok) {
+      console.error('[getAvailableScenarios] Request failed:', response.status, response.statusText);
+      await logApiCall({
+        endpoint: new URL(url).pathname + new URL(url).search,
+        method: 'GET',
+        requestParams: { email },
+        requestHeaders: { credentials: 'include' },
+        responseHeaders,
+        statusCode: response.status,
+        errorMessage: `Failed to fetch available scenarios: ${response.statusText}`
+      });
+      throw new Error(`Failed to fetch available scenarios: ${response.statusText}`);
+    }
+
+    console.log('[getAvailableScenarios] Parsing JSON response...');
+    const data = await response.json();
+    console.log('[getAvailableScenarios] Data parsed successfully:', { scenarioCount: Array.isArray(data) ? data.length : 0 });
+
+    await logApiCall({
+      endpoint: new URL(url).pathname + new URL(url).search,
+      method: 'GET',
+      requestParams: { email },
+      requestHeaders: { credentials: 'include' },
+      responseData: data,
+      responseHeaders,
+      statusCode: response.status
+    });
+
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[getAvailableScenarios] Error fetching available scenarios:', error);
+    if (error instanceof Error) {
+      console.error('[getAvailableScenarios] Error name:', error.name);
+      console.error('[getAvailableScenarios] Error message:', error.message);
+      console.error('[getAvailableScenarios] Error stack:', error.stack);
+    }
+
+    await logApiCall({
+      endpoint: new URL(url).pathname + new URL(url).search,
+      method: 'GET',
+      requestParams: { email },
+      requestHeaders: { credentials: 'include' },
+      statusCode: 0,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    }).catch(logError => {
+      console.error('[getAvailableScenarios] Failed to log error:', logError);
+    });
+
+    return [];
+  }
+}
+
+export async function downloadAvailableScenario(email: string, scenario: AvailableScenario): Promise<void> {
+  console.log(`[downloadAvailableScenario] Starting download for scenario: ${scenario.scenario.uniqid}`);
+
+  try {
+    const gameData = {
+      scenario: scenario.scenario,
+      medias: scenario.medias
+    };
+
+    await (window as any).electron.scenarios.saveGameData(scenario.scenario.uniqid, gameData);
+    console.log(`[downloadAvailableScenario] Game data saved successfully`);
+
+    if (scenario.medias?.images?.game_visual) {
+      console.log(`[downloadAvailableScenario] Downloading game visual: ${scenario.medias.images.game_visual}`);
+
+      const blob = await downloadMediaFile(email, scenario.scenario.uniqid, scenario.medias.images.game_visual);
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      let binary = '';
+      const chunkSize = 8192;
+      for (let j = 0; j < bytes.length; j += chunkSize) {
+        const chunk = bytes.slice(j, j + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      const base64 = btoa(binary);
+
+      await (window as any).electron.scenarios.saveMedia(
+        scenario.scenario.uniqid,
+        'images',
+        scenario.medias.images.game_visual,
+        base64
+      );
+      console.log(`[downloadAvailableScenario] Game visual saved successfully`);
+    }
+
+    console.log(`[downloadAvailableScenario] Available scenario download completed: ${scenario.scenario.uniqid}`);
+  } catch (error) {
+    console.error(`[downloadAvailableScenario] Error downloading available scenario ${scenario.scenario.uniqid}:`, error);
+    throw error;
+  }
 }

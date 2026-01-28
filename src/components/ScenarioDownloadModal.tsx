@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, Check, X, Loader } from 'lucide-react';
-import { ScenarioSummary, getScenarioGameData, downloadMediaFile, extractMediaFiles } from '../services/scenarioDownload';
+import { ScenarioSummary, getScenarioGameData, downloadMediaFile, extractMediaFiles, getAvailableScenarios, downloadAvailableScenario } from '../services/scenarioDownload';
 import { removeCircularReferences } from '../utils/circularReferenceHandler';
 
 interface ScenarioDownloadModalProps {
@@ -238,6 +238,29 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
     );
 
     if (allCompleted) {
+      console.log('[Download] All purchased scenarios downloaded. Fetching available scenarios...');
+
+      try {
+        const availableScenarios = await getAvailableScenarios(email);
+        console.log(`[Download] Found ${availableScenarios.length} available scenarios for purchase`);
+
+        if (availableScenarios.length > 0) {
+          console.log('[Download] Starting download of available scenarios...');
+
+          for (const availableScenario of availableScenarios) {
+            try {
+              console.log(`[Download] Downloading available scenario: ${availableScenario.scenario.uniqid}`);
+              await downloadAvailableScenario(email, availableScenario);
+              console.log(`[Download] ✅ Successfully downloaded available scenario: ${availableScenario.scenario.uniqid}`);
+            } catch (error) {
+              console.error(`[Download] ❌ Failed to download available scenario ${availableScenario.scenario.uniqid}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Download] Error fetching available scenarios:', error);
+      }
+
       await (window as any).electron.scenarios.refresh();
       setTimeout(() => {
         setIsDownloading(false);

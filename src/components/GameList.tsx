@@ -26,6 +26,7 @@ interface Scenario {
   duration_minutes: number;
   image_url: string;
   uniqid?: string;
+  available_for_purchase?: boolean;
 }
 
 interface ScenarioWithType extends Scenario {
@@ -132,6 +133,9 @@ export function GameList() {
       if (!aHasLocal && bHasLocal) return 1;
       return 0;
     });
+
+  const purchasedScenarios = filteredScenarios.filter(s => !s.available_for_purchase);
+  const availableForPurchaseScenarios = filteredScenarios.filter(s => s.available_for_purchase);
 
   const gameTypes = [...new Set(scenarios.map((s) => s.game_type.name))];
 
@@ -372,6 +376,86 @@ export function GameList() {
     setScenarioToDelete(null);
   };
 
+  const renderScenarioCard = (scenario: ScenarioWithType) => {
+    const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
+    const localImageUrl = scenario.uniqid ? localImages.get(scenario.uniqid) : null;
+    const displayImageUrl = localImageUrl || scenario.image_url;
+    const isAvailableForPurchase = scenario.available_for_purchase;
+
+    return (
+      <div
+        key={scenario.id}
+        className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-slate-600 transition group"
+      >
+        {displayImageUrl && (
+          <div className="w-full h-48 overflow-hidden bg-slate-700 relative">
+            <img
+              src={displayImageUrl}
+              alt={scenario.title}
+              className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+            />
+            {isAvailableForPurchase && (
+              <div className="absolute top-3 right-3 bg-amber-500/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg">
+                Available for Purchase
+              </div>
+            )}
+          </div>
+        )}
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-3">
+            <span className="text-blue-400 text-sm font-semibold">
+              {scenario.game_type.name}
+            </span>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(scenario.difficulty)}`}>
+              {scenario.difficulty || 'Medium'}
+            </span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
+            {scenario.title}
+          </h3>
+          <p className="text-slate-400 text-sm mb-4 line-clamp-2">
+            {scenario.description}
+          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-500 text-sm">
+              <Clock size={16} />
+              <span>{scenario.duration_minutes} minutes</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {!isAvailableForPurchase && scenario.uniqid && hasLocal && (
+                <button
+                  onClick={() => handleDeleteClick(scenario.uniqid || '', scenario.title)}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition font-medium text-sm border border-red-600/30 hover:border-red-600"
+                  title="Delete scenario"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+              {!isAvailableForPurchase && scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
+                <button
+                  onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
+                >
+                  <Play size={16} />
+                </button>
+              ) : null}
+              {isAvailableForPurchase && (
+                <a
+                  href="https://admin.taghunter.fr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition font-medium text-sm"
+                >
+                  Purchase
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (launchedGame) {
     return (
       <GamePage
@@ -459,113 +543,77 @@ export function GameList() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scenarios.length === 0 && !loading && (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-slate-400 text-lg mb-2">No scenarios found</div>
-              <p className="text-slate-500 text-sm">
-                Please configure your email in settings to sync scenarios from the server
-              </p>
-            </div>
-          )}
-          {scenarios.length > 0 && filteredScenarios.length === 0 && !loading && (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-slate-400 text-lg mb-2">No scenarios match your filters</div>
-              <p className="text-slate-500 text-sm">
-                Try adjusting your search or filter criteria
-              </p>
-            </div>
-          )}
-          {filteredScenarios.map((scenario) => {
-            const hasLocal = scenario.uniqid && localGameIds.has(scenario.uniqid);
-            const localImageUrl = scenario.uniqid ? localImages.get(scenario.uniqid) : null;
-            const displayImageUrl = localImageUrl || scenario.image_url;
+        {scenarios.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="text-slate-400 text-lg mb-2">No scenarios found</div>
+            <p className="text-slate-500 text-sm">
+              Please configure your email in settings to sync scenarios from the server
+            </p>
+          </div>
+        )}
 
-            return (
-            <div
-              key={scenario.id}
-              className="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700 hover:border-slate-600 transition group"
-            >
-              {displayImageUrl && (
-                <div className="w-full h-48 overflow-hidden bg-slate-700">
-                  <img
-                    src={displayImageUrl}
-                    alt={scenario.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                  />
-                </div>
-              )}
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-blue-400 text-sm font-semibold">
-                    {scenario.game_type.name}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(scenario.difficulty)}`}>
-                    {scenario.difficulty || 'Medium'}
-                  </span>
+        {scenarios.length > 0 && filteredScenarios.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="text-slate-400 text-lg mb-2">No scenarios match your filters</div>
+            <p className="text-slate-500 text-sm">
+              Try adjusting your search or filter criteria
+            </p>
+          </div>
+        )}
+
+        {purchasedScenarios.length > 0 && (
+          <>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white">Your Scenarios</h2>
+              <p className="text-slate-400 text-sm mt-1">Scenarios you own and can launch</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {purchasedScenarios.map(renderScenarioCard)}
+              <button
+                onClick={handleClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`bg-slate-800 rounded-xl shadow-xl overflow-hidden border transition group cursor-pointer flex flex-col items-center justify-center min-h-[300px] p-6 ${
+                  isDragging ? 'border-blue-400 bg-blue-900/20' : 'border-slate-700 hover:border-blue-500'
+                }`}
+              >
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition ${
+                  isDragging ? 'bg-blue-600/40' : 'bg-blue-600/20 group-hover:bg-blue-600/30'
+                }`}>
+                  <Upload className={`transition ${
+                    isDragging ? 'text-blue-300' : 'text-blue-400 group-hover:text-blue-300'
+                  }`} size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
-                  {scenario.title}
+                  Import Scenario
                 </h3>
-                <p className="text-slate-400 text-sm mb-4 line-clamp-2">
-                  {scenario.description}
+                <p className="text-slate-400 text-sm text-center">
+                  {isDragging ? 'Drop ZIP file here' : 'Drag and drop a ZIP file or click to browse'}
                 </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500 text-sm">
-                    <Clock size={16} />
-                    <span>{scenario.duration_minutes} minutes</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {scenario.uniqid && hasLocal && (
-                      <button
-                        onClick={() => handleDeleteClick(scenario.uniqid || '', scenario.title)}
-                        className="flex items-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition font-medium text-sm border border-red-600/30 hover:border-red-600"
-                        title="Delete scenario"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                    {scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
-                      <button
-                        onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"
-                      >
-                        <Play size={16} />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+              </button>
             </div>
-            );
-          })}
+          </>
+        )}
 
-          <button
-            onClick={handleClick}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`bg-slate-800 rounded-xl shadow-xl overflow-hidden border transition group cursor-pointer flex flex-col items-center justify-center min-h-[300px] p-6 ${
-              isDragging ? 'border-blue-400 bg-blue-900/20' : 'border-slate-700 hover:border-blue-500'
-            }`}
-          >
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition ${
-              isDragging ? 'bg-blue-600/40' : 'bg-blue-600/20 group-hover:bg-blue-600/30'
-            }`}>
-              <Upload className={`transition ${
-                isDragging ? 'text-blue-300' : 'text-blue-400 group-hover:text-blue-300'
-              }`} size={32} />
+        {availableForPurchaseScenarios.length > 0 && (
+          <>
+            <div className="mb-6 border-t border-slate-700 pt-12">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                Available for Purchase
+                <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-sm font-semibold rounded-full border border-amber-500/30">
+                  New
+                </span>
+              </h2>
+              <p className="text-slate-400 text-sm mt-1">Discover more scenarios and expand your collection</p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
-              Import Scenario
-            </h3>
-            <p className="text-slate-400 text-sm text-center">
-              {isDragging ? 'Drop ZIP file here' : 'Drag and drop a ZIP file or click to browse'}
-            </p>
-          </button>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {availableForPurchaseScenarios.map(renderScenarioCard)}
+            </div>
+          </>
+        )}
 
-        {filteredScenarios.length === 0 && (
+        {purchasedScenarios.length === 0 && availableForPurchaseScenarios.length === 0 && scenarios.length > 0 && (
           <div className="text-center py-12">
             <p className="text-slate-400 text-lg">No scenarios found matching your criteria</p>
           </div>

@@ -195,9 +195,14 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
 export function extractMediaFiles(gameData: GameData): MediaFile[] {
   const mediaFiles: MediaFile[] = [];
 
+  console.log('Extracting media files from game data:', gameData);
+
   if (!gameData.medias) {
+    console.log('No medias field found in game data');
     return mediaFiles;
   }
+
+  console.log('Found medias:', gameData.medias);
 
   if (gameData.medias.images && typeof gameData.medias.images === 'object') {
     Object.values(gameData.medias.images).forEach(filename => {
@@ -282,6 +287,8 @@ export function extractMediaFiles(gameData: GameData): MediaFile[] {
   const uniqueFiles = Array.from(
     new Map(mediaFiles.map(file => [`${file.folder}/${file.filename}`, file])).values()
   );
+
+  console.log(`Extracted ${uniqueFiles.length} unique media files:`, uniqueFiles);
 
   return uniqueFiles;
 }

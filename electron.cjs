@@ -399,18 +399,25 @@ app.whenReady().then(() => {
   ipcMain.handle('games:list', async () => {
     const fs = require('fs');
     try {
-      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const allGameIds = new Set();
 
-      if (!fs.existsSync(gamesDir)) {
-        fs.mkdirSync(gamesDir, { recursive: true });
-        return [];
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      if (fs.existsSync(gamesDir)) {
+        const gameFolders = fs.readdirSync(gamesDir, { withFileTypes: true })
+          .filter(dirent => dirent.isDirectory())
+          .map(dirent => dirent.name);
+        gameFolders.forEach(id => allGameIds.add(id));
       }
 
-      const folders = fs.readdirSync(gamesDir, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      if (fs.existsSync(scenariosDir)) {
+        const scenarioFolders = fs.readdirSync(scenariosDir, { withFileTypes: true })
+          .filter(dirent => dirent.isDirectory())
+          .map(dirent => dirent.name);
+        scenarioFolders.forEach(id => allGameIds.add(id));
+      }
 
-      return folders;
+      return Array.from(allGameIds);
     } catch (error) {
       console.error('Error listing games:', error);
       return [];
@@ -420,15 +427,23 @@ app.whenReady().then(() => {
   ipcMain.handle('games:read-file', async (event, gameId, filename) => {
     const fs = require('fs');
     try {
-      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
-      const filePath = path.join(gamesDir, gameId, filename);
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      const scenarioPath = path.join(scenariosDir, gameId, filename);
 
-      if (!fs.existsSync(filePath)) {
-        throw new Error(`File not found: ${filename}`);
+      if (fs.existsSync(scenarioPath)) {
+        const data = fs.readFileSync(scenarioPath, 'utf-8');
+        return data;
       }
 
-      const data = fs.readFileSync(filePath, 'utf-8');
-      return data;
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const gamePath = path.join(gamesDir, gameId, filename);
+
+      if (fs.existsSync(gamePath)) {
+        const data = fs.readFileSync(gamePath, 'utf-8');
+        return data;
+      }
+
+      throw new Error(`File not found: ${filename} in game/scenario: ${gameId}`);
     } catch (error) {
       console.error('Error reading game file:', error);
       throw error;
@@ -466,23 +481,39 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('games:get-media-path', async (event, gameId, filename) => {
+    const fs = require('fs');
+    const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+    const scenarioPath = path.join(scenariosDir, gameId, 'media', filename);
+
+    if (fs.existsSync(scenarioPath)) {
+      return scenarioPath;
+    }
+
     const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
-    const filePath = path.join(gamesDir, gameId, 'media', filename);
-    return filePath;
+    const gamePath = path.join(gamesDir, gameId, 'media', filename);
+    return gamePath;
   });
 
   ipcMain.handle('games:list-media-folder', async (event, gameId, folderId) => {
     const fs = require('fs');
     try {
-      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
-      const folderPath = path.join(gamesDir, gameId, 'media', folderId);
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+      const scenarioFolderPath = path.join(scenariosDir, gameId, 'media', folderId);
 
-      if (!fs.existsSync(folderPath)) {
-        return [];
+      if (fs.existsSync(scenarioFolderPath)) {
+        const files = fs.readdirSync(scenarioFolderPath);
+        return files.filter(file => !file.startsWith('.'));
       }
 
-      const files = fs.readdirSync(folderPath);
-      return files.filter(file => !file.startsWith('.'));
+      const gamesDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'games');
+      const gameFolderPath = path.join(gamesDir, gameId, 'media', folderId);
+
+      if (fs.existsSync(gameFolderPath)) {
+        const files = fs.readdirSync(gameFolderPath);
+        return files.filter(file => !file.startsWith('.'));
+      }
+
+      return [];
     } catch (error) {
       console.error(`Error listing media folder ${folderId}:`, error);
       return [];
@@ -634,21 +665,26 @@ app.whenReady().then(() => {
           const gameDataContent = fs.readFileSync(gameDataPath, 'utf8');
           const gameData = JSON.parse(gameDataContent);
 
-          const gameMeta = gameData.game_meta || {};
-          const game = gameData.game || {};
+          const scenario = gameData.scenario || {};
+          const gameMeta = gameData.game_data?.game_meta || {};
+
+          let imageUrl = '';
+          if (gameData.medias?.images?.game_visual) {
+            imageUrl = `app-file://${folder}/media/images/${gameData.medias.images.game_visual}`;
+          }
 
           scenarios.push({
-            id: game.id || folder,
-            title: game.title || 'Untitled',
+            id: scenario.id || folder,
+            title: gameMeta.title || scenario.name || 'Untitled',
             description: gameMeta.scenario || '',
-            game_type_id: game.type || 'unknown',
+            game_type_id: scenario.scenario_type || 'unknown',
             difficulty: gameMeta.game_public === 'kids' ? 'Easy' : gameMeta.game_public === 'ado_adultes' ? 'Hard' : 'Medium',
             duration_minutes: parseInt(gameMeta.default_time || '60', 10),
-            image_url: '',
+            image_url: imageUrl,
             uniqid: folder
           });
 
-          gameTypesSet.add(game.type || 'unknown');
+          gameTypesSet.add(scenario.scenario_type || 'unknown');
         }
       }
 

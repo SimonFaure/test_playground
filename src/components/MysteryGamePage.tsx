@@ -88,7 +88,22 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
 
         if (isElectron) {
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
-          const data = JSON.parse(gameDataContent);
+          let data = JSON.parse(gameDataContent);
+
+          if (data.scenario) {
+            data = {
+              game: {
+                id: data.scenario.id,
+                uniqid: data.scenario.uniqid,
+                type: data.scenario.scenario_type,
+                title: data.game_data?.game_meta?.title || data.scenario.name
+              },
+              game_meta: data.game_data?.game_meta || {},
+              game_enigmas: data.game_data?.game_enigmas || [],
+              game_sounds: data.game_data?.game_sounds || []
+            };
+          }
+
           setGameData(data);
           gameDataRef.current = data;
 
@@ -135,7 +150,22 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
           }
         } else {
           const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
-          const data = await response.json();
+          let data = await response.json();
+
+          if (data.scenario) {
+            data = {
+              game: {
+                id: data.scenario.id,
+                uniqid: data.scenario.uniqid,
+                type: data.scenario.scenario_type,
+                title: data.game_data?.game_meta?.title || data.scenario.name
+              },
+              game_meta: data.game_data?.game_meta || {},
+              game_enigmas: data.game_data?.game_enigmas || [],
+              game_sounds: data.game_data?.game_sounds || []
+            };
+          }
+
           setGameData(data);
           gameDataRef.current = data;
 

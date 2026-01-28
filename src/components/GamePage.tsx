@@ -26,17 +26,37 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
         if (isElectron) {
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
-          setGameMetadata({
-            type: data.game.type,
-            title: data.game.title
-          });
+
+          let type, title;
+          if (data.scenario) {
+            type = data.scenario.scenario_type;
+            title = data.game_data?.game_meta?.title || data.scenario.name;
+          } else if (data.game) {
+            type = data.game.type;
+            title = data.game.title;
+          } else {
+            type = 'unknown';
+            title = 'Unknown Game';
+          }
+
+          setGameMetadata({ type, title });
         } else {
           const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
           const data = await response.json();
-          setGameMetadata({
-            type: data.game.type,
-            title: data.game.title
-          });
+
+          let type, title;
+          if (data.scenario) {
+            type = data.scenario.scenario_type;
+            title = data.game_data?.game_meta?.title || data.scenario.name;
+          } else if (data.game) {
+            type = data.game.type;
+            title = data.game.title;
+          } else {
+            type = 'unknown';
+            title = 'Unknown Game';
+          }
+
+          setGameMetadata({ type, title });
         }
       } catch (error) {
         console.error('Error loading game metadata:', error);

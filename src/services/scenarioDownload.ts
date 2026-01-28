@@ -151,8 +151,8 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
   }
 }
 
-export async function downloadMediaFile(uniqid: string, filename: string): Promise<Blob> {
-  const url = `${API_BASE_URL}/playground.php?action=get_media&uniqid=${uniqid}&filename=${encodeURIComponent(filename)}`;
+export async function downloadMediaFile(email: string, uniqid: string, filename: string): Promise<Blob> {
+  const url = `${API_BASE_URL}/playground.php?action=get_media&email=${encodeURIComponent(email)}&uniqid=${uniqid}&filename=${encodeURIComponent(filename)}`;
 
   try {
     const response = await fetch(url, { credentials: 'include' });
@@ -166,7 +166,7 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
       await logApiCall({
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
-        requestParams: { uniqid, filename },
+        requestParams: { email, uniqid, filename },
         requestHeaders: { credentials: 'include' },
         responseHeaders,
         statusCode: response.status,
@@ -178,7 +178,7 @@ export async function downloadMediaFile(uniqid: string, filename: string): Promi
     await logApiCall({
       endpoint: new URL(url).pathname + new URL(url).search,
       method: 'GET',
-      requestParams: { uniqid, filename },
+      requestParams: { email, uniqid, filename },
       requestHeaders: { credentials: 'include' },
       responseData: `Binary file: ${filename}`,
       responseHeaders,

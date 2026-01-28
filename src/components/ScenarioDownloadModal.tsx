@@ -80,7 +80,7 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
           for (let i = 0; i < mediaFiles.length; i++) {
             const mediaFile = mediaFiles[i];
 
-            const blob = await downloadMediaFile(scenario.uniqid, mediaFile.filename);
+            const blob = await downloadMediaFile(email, scenario.uniqid, mediaFile.filename);
             const fileSize = blob.size;
             downloadedFiles++;
             downloadedSize += fileSize;

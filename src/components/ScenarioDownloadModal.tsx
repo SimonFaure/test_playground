@@ -18,9 +18,11 @@ interface DownloadStatus {
   error?: string;
   totalFiles?: number;
   downloadedFiles?: number;
+  failedFiles?: number;
   totalSize?: number;
   downloadedSize?: number;
   currentFile?: string;
+  failedFilesList?: string[];
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -80,14 +82,18 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         const mediaFiles = extractMediaFiles(gameData);
         const totalFiles = mediaFiles.length;
         let downloadedFiles = 0;
+        let failedFiles = 0;
         let downloadedSize = 0;
+        const failedFilesList: string[] = [];
         console.log(`[Download] Found ${totalFiles} media files to download`);
 
         updateStatus(scenario.uniqid, {
           progress: `Downloading media files...`,
           totalFiles,
           downloadedFiles: 0,
-          downloadedSize: 0
+          failedFiles: 0,
+          downloadedSize: 0,
+          failedFilesList: []
         });
 
         if (mediaFiles.length > 0) {
@@ -102,8 +108,10 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
               progress: `Downloading ${fileProgress}`,
               currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
               downloadedFiles,
+              failedFiles,
               totalFiles,
-              downloadedSize
+              downloadedSize,
+              failedFilesList
             });
 
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -122,8 +130,10 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                 progress: `Processing ${fileProgress}`,
                 currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
                 downloadedFiles,
+                failedFiles,
                 totalFiles,
-                downloadedSize
+                downloadedSize,
+                failedFilesList
               });
 
               await new Promise(resolve => setTimeout(resolve, 10));
@@ -154,17 +164,40 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                 progress: `Downloaded ${fileProgress}`,
                 currentFile: `${mediaFile.folder}/${mediaFile.filename}`,
                 downloadedFiles,
+                failedFiles,
                 totalFiles,
-                downloadedSize
+                downloadedSize,
+                failedFilesList
               });
 
               await new Promise(resolve => setTimeout(resolve, 10));
             } catch (mediaError) {
+              failedFiles++;
+              const failedFilePath = `${mediaFile.folder}/${mediaFile.filename}`;
+              failedFilesList.push(failedFilePath);
               console.error(`[Download] ❌ [${fileProgress}] ERROR downloading ${mediaFile.filename}:`, mediaError);
-              throw new Error(`Failed to download media file ${mediaFile.filename}: ${mediaError instanceof Error ? mediaError.message : 'Unknown error'}`);
+              console.error(`[Download] ❌ [${fileProgress}] Continuing with next file...`);
+
+              updateStatus(scenario.uniqid, {
+                progress: `Failed: ${failedFilePath} (continuing...)`,
+                currentFile: failedFilePath,
+                downloadedFiles,
+                failedFiles,
+                totalFiles,
+                downloadedSize,
+                failedFilesList
+              });
+
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
           }
-          console.log(`[Download] ==================== ALL FILES DOWNLOADED ====================`);
+
+          if (failedFiles > 0) {
+            console.log(`[Download] ==================== DOWNLOAD COMPLETED WITH ${failedFiles} FAILURES ====================`);
+            console.log(`[Download] Failed files:`, failedFilesList);
+          } else {
+            console.log(`[Download] ==================== ALL FILES DOWNLOADED SUCCESSFULLY ====================`);
+          }
         } else {
           console.log(`[Download] ⚠️ No media files to download`);
         }
@@ -172,9 +205,12 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
         console.log(`[Download] Scenario download completed: ${scenario.uniqid}`);
         updateStatus(scenario.uniqid, {
           status: 'completed',
-          progress: 'Completed',
-          downloadedFiles: totalFiles,
-          totalFiles
+          progress: failedFiles > 0 ? `Completed with ${failedFiles} error${failedFiles > 1 ? 's' : ''}` : 'Completed',
+          downloadedFiles,
+          failedFiles,
+          totalFiles,
+          downloadedSize,
+          failedFilesList
         });
       } catch (error) {
         console.error(`[Download] ERROR downloading scenario ${scenario.uniqid}:`, error);
@@ -255,9 +291,14 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                                 {status.downloadedFiles}/{status.totalFiles}
                               </span>
                               <span className="text-slate-300">files</span>
+                              {status.failedFiles !== undefined && status.failedFiles > 0 && (
+                                <span className="text-red-400 text-xs font-semibold">
+                                  ({status.failedFiles} failed)
+                                </span>
+                              )}
                               {status.downloadedSize !== undefined && (
                                 <span className="text-slate-400 text-xs">
-                                  ({formatFileSize(status.downloadedSize)})
+                                  {formatFileSize(status.downloadedSize)}
                                 </span>
                               )}
                             </div>
@@ -276,14 +317,29 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                         </div>
                       )}
                       {status?.status === 'completed' && typeof status.downloadedFiles === 'number' && (
-                        <div className="mt-2 bg-green-500/10 border border-green-500/30 rounded-lg p-2">
-                          <div className="text-sm text-green-400 font-semibold">
-                            ✓ Download Complete
+                        <div className={`mt-2 rounded-lg p-2 ${status.failedFiles && status.failedFiles > 0 ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-green-500/10 border border-green-500/30'}`}>
+                          <div className={`text-sm font-semibold ${status.failedFiles && status.failedFiles > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                            {status.failedFiles && status.failedFiles > 0 ? '⚠ Completed with Errors' : '✓ Download Complete'}
                           </div>
-                          <div className="text-xs text-green-300 mt-1">
-                            {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''}
+                          <div className={`text-xs mt-1 ${status.failedFiles && status.failedFiles > 0 ? 'text-yellow-300' : 'text-green-300'}`}>
+                            {status.downloadedFiles} file{status.downloadedFiles !== 1 ? 's' : ''} downloaded
                             {typeof status.downloadedSize === 'number' && ` • ${formatFileSize(status.downloadedSize)}`}
+                            {status.failedFiles && status.failedFiles > 0 && (
+                              <span className="text-red-400 font-semibold"> • {status.failedFiles} failed</span>
+                            )}
                           </div>
+                          {status.failedFilesList && status.failedFilesList.length > 0 && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-yellow-300 cursor-pointer hover:text-yellow-200">
+                                View failed files ({status.failedFilesList.length})
+                              </summary>
+                              <div className="mt-1 text-xs text-red-300 bg-black/20 rounded p-2 max-h-32 overflow-y-auto">
+                                {status.failedFilesList.map((file, idx) => (
+                                  <div key={idx} className="truncate">• {file}</div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </div>
                       )}
                     </div>

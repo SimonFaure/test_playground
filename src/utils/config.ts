@@ -5,6 +5,10 @@ export interface AppConfig {
   fullscreenOnLaunch?: boolean;
   autoLaunch?: boolean;
   onboardingCompleted?: boolean;
+  billingUpToDate?: boolean;
+  licenseType?: string;
+  lastBillingSyncDate?: string;
+  lastSuccessfulSync?: string;
 }
 
 const isElectron = () => {
@@ -102,6 +106,42 @@ export const saveConfig = async (config: AppConfig): Promise<void> => {
         updates.push(
           supabase.from('configuration').upsert(
             { key: 'onboarding_completed', value: config.onboardingCompleted.toString(), updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.billingUpToDate !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'billing_up_to_date', value: config.billingUpToDate.toString(), updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.licenseType !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'license_type', value: config.licenseType, updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.lastBillingSyncDate !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'last_billing_sync_date', value: config.lastBillingSyncDate, updated_at: new Date().toISOString() },
+            { onConflict: 'key' }
+          )
+        );
+      }
+
+      if (config.lastSuccessfulSync !== undefined) {
+        updates.push(
+          supabase.from('configuration').upsert(
+            { key: 'last_successful_sync', value: config.lastSuccessfulSync, updated_at: new Date().toISOString() },
             { onConflict: 'key' }
           )
         );

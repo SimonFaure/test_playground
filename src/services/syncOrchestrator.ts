@@ -1,0 +1,220 @@
+import { checkInternetConnection } from '../utils/connectivity';
+import { getBillingStatus, getCardsVersion, getPatterns, getLayouts, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
+import { getGameTypesFromScenarios } from '../utils/gameTypes';
+import { DownloadQueueManager, getPriorityForType } from './downloadQueue';
+import { DownloadItem } from '../types/downloadQueue';
+import { loadConfig, saveConfig } from '../utils/config';
+import { logApiCall } from './apiLogger';
+import { compareVersions } from '../utils/versionCheck';
+
+export interface SyncResult {
+  success: boolean;
+  billingUpdated: boolean;
+  downloadsNeeded: DownloadItem[];
+  error?: string;
+}
+
+export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
+  const startTime = Date.now();
+  const downloadQueue = new DownloadQueueManager();
+
+  try {
+    const config = await loadConfig();
+
+    if (!config.email) {
+      console.log('[Sync] No email configured, skipping resource sync');
+      return { success: true, billingUpdated: false, downloadsNeeded: [] };
+    }
+
+    console.log('[Sync] Step 1: Checking internet connectivity...');
+    const hasInternet = await checkInternetConnection();
+
+    if (!hasInternet) {
+      console.log('[Sync] No internet connection, skipping resource sync');
+      await logApiCall({
+        endpoint: 'resource-sync',
+        method: 'GET',
+        statusCode: 0,
+        duration: Date.now() - startTime,
+        success: false,
+        errorMessage: 'No internet connection',
+      });
+      return { success: true, billingUpdated: false, downloadsNeeded: [] };
+    }
+
+    const apiUrl = 'https://www.tag-hunter.com/backend/api/playground.php';
+
+    console.log('[Sync] Step 2: Fetching billing status...');
+    try {
+      const billingStatus = await getBillingStatus(apiUrl, config.email);
+      const updatedConfig = {
+        ...config,
+        billingUpToDate: billingStatus.billing_up_to_date,
+        licenseType: billingStatus.license_type,
+        lastBillingSyncDate: new Date().toISOString(),
+      };
+      await saveConfig(updatedConfig);
+      console.log('[Sync] Billing status updated:', billingStatus);
+    } catch (error) {
+      console.error('[Sync] Failed to fetch billing status:', error);
+    }
+
+    console.log('[Sync] Step 3: Checking cards version...');
+    try {
+      const remoteCards = await getCardsVersion(apiUrl, config.email);
+      const localVersionResult = await (window as any).electron.cards.getLocalVersion();
+      const localVersion = localVersionResult.version || 0;
+
+      console.log(`[Sync] Cards - Local: v${localVersion}, Remote: v${remoteCards.version}`);
+
+      if (compareVersions(localVersion, remoteCards.version)) {
+        console.log('[Sync] Cards update available, adding to queue');
+        downloadQueue.addItem({
+          type: 'cards',
+          name: 'Client Cards',
+          version: remoteCards.version,
+          priority: getPriorityForType('cards'),
+          downloadUrl: `${apiUrl}?action=get_cards&email=${encodeURIComponent(config.email)}`,
+          targetPath: `cards_v${remoteCards.version}.csv`,
+        });
+      }
+    } catch (error) {
+      console.error('[Sync] Failed to check cards version:', error);
+    }
+
+    console.log('[Sync] Step 4: Discovering game types from scenarios...');
+    const gameTypes = await getGameTypesFromScenarios();
+    console.log(`[Sync] Found ${gameTypes.length} game types:`, gameTypes);
+
+    if (gameTypes.length === 0) {
+      console.log('[Sync] No scenarios found, skipping patterns and layouts sync');
+    } else {
+      console.log('[Sync] Step 5: Checking patterns for each game type...');
+      for (const gameType of gameTypes) {
+        try {
+          const patternsResponse = await getPatterns(apiUrl, config.email, gameType);
+
+          for (const pattern of patternsResponse.patterns) {
+            const localVersionResult = await (window as any).electron.patterns.getLocalVersions(gameType, pattern.slug);
+            const localVersion = localVersionResult.version || 0;
+
+            console.log(`[Sync] Pattern ${pattern.slug} (${gameType}) - Local: v${localVersion}, Remote: v${pattern.version}`);
+
+            if (compareVersions(localVersion, pattern.version)) {
+              console.log(`[Sync] Pattern ${pattern.slug} update available, adding to queue`);
+              downloadQueue.addItem({
+                type: 'pattern',
+                name: pattern.name || pattern.slug,
+                version: pattern.version,
+                gameType: gameType,
+                priority: getPriorityForType('pattern'),
+                downloadUrl: pattern.download_url,
+                targetPath: `${gameType}/${pattern.type}_patterns/${pattern.slug}_${pattern.version}`,
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`[Sync] Failed to check patterns for ${gameType}:`, error);
+        }
+      }
+
+      console.log('[Sync] Step 6: Checking layouts for each game type...');
+      for (const gameType of gameTypes) {
+        try {
+          const layoutsResponse = await getLayouts(apiUrl, config.email, gameType);
+
+          for (const layout of layoutsResponse.layouts) {
+            const localVersionResult = await (window as any).electron.layouts.getLocalVersions(gameType);
+            const localVersion = localVersionResult.version || 0;
+
+            console.log(`[Sync] Layout ${layout.game_type} - Local: v${localVersion}, Remote: v${layout.version}`);
+
+            if (compareVersions(localVersion, layout.version)) {
+              console.log(`[Sync] Layout ${layout.game_type} update available, adding to queue`);
+              downloadQueue.addItem({
+                type: 'layout',
+                name: `${layout.game_type} Layout`,
+                version: layout.version,
+                gameType: layout.game_type,
+                priority: getPriorityForType('layout'),
+                downloadUrl: layout.download_url,
+                targetPath: `${layout.game_type}_${layout.version}`,
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`[Sync] Failed to check layouts for ${gameType}:`, error);
+        }
+      }
+    }
+
+    const downloadsNeeded = downloadQueue.getQueue();
+    console.log(`[Sync] Resource sync completed. ${downloadsNeeded.length} downloads needed`);
+
+    await logApiCall({
+      endpoint: 'resource-sync',
+      method: 'GET',
+      statusCode: 200,
+      duration: Date.now() - startTime,
+      success: true,
+    });
+
+    return {
+      success: true,
+      billingUpdated: true,
+      downloadsNeeded,
+    };
+  } catch (error) {
+    console.error('[Sync] Error during resource sync:', error);
+    await logApiCall({
+      endpoint: 'resource-sync',
+      method: 'GET',
+      statusCode: 0,
+      duration: Date.now() - startTime,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return {
+      success: false,
+      billingUpdated: false,
+      downloadsNeeded: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function downloadResourceItem(item: DownloadItem): Promise<void> {
+  console.log(`[Download] Starting download for ${item.type}: ${item.name}`);
+
+  switch (item.type) {
+    case 'cards':
+      const cardsContent = await downloadCardsFile(item.downloadUrl);
+      await (window as any).electron.cards.saveFile(item.version, cardsContent);
+      console.log(`[Download] Cards saved: v${item.version}`);
+      break;
+
+    case 'pattern':
+      const patternContent = await downloadPattern(item.downloadUrl);
+      const isUserPattern = item.targetPath.includes('user_patterns');
+      const patternSlug = item.name.toLowerCase().replace(/\s+/g, '_');
+      await (window as any).electron.patterns.saveFile(
+        item.gameType!,
+        patternSlug,
+        item.version,
+        patternContent,
+        isUserPattern
+      );
+      console.log(`[Download] Pattern saved: ${item.name} v${item.version}`);
+      break;
+
+    case 'layout':
+      const layoutContent = await downloadLayout(item.downloadUrl);
+      await (window as any).electron.layouts.saveFile(item.gameType!, item.version, layoutContent);
+      console.log(`[Download] Layout saved: ${item.gameType} v${item.version}`);
+      break;
+
+    default:
+      console.warn(`[Download] Unknown item type: ${item.type}`);
+  }
+}

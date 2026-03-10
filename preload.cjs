@@ -36,9 +36,19 @@ contextBridge.exposeInMainWorld('electron', {
     saveSelected: (clientData) => ipcRenderer.invoke('clients:save-selected', clientData),
     loadSelected: () => ipcRenderer.invoke('clients:load-selected'),
   },
+  cards: {
+    getLocalVersion: () => ipcRenderer.invoke('cards:get-local-version'),
+    saveFile: (version, content) => ipcRenderer.invoke('cards:save-file', version, content),
+  },
   patterns: {
     listFolders: (gameTypeName) => ipcRenderer.invoke('patterns:list-folders', gameTypeName),
     readFile: (gameTypeName, patternName, fileName) => ipcRenderer.invoke('patterns:read-file', gameTypeName, patternName, fileName),
+    getLocalVersions: (gameType, patternSlug) => ipcRenderer.invoke('patterns:get-local-versions', gameType, patternSlug),
+    saveFile: (gameType, patternSlug, version, content, isUserPattern) => ipcRenderer.invoke('patterns:save-file', gameType, patternSlug, version, content, isUserPattern),
+  },
+  layouts: {
+    getLocalVersions: (gameType) => ipcRenderer.invoke('layouts:get-local-versions', gameType),
+    saveFile: (gameType, version, content) => ipcRenderer.invoke('layouts:save-file', gameType, version, content),
   },
   scenarios: {
     getFolderPath: () => ipcRenderer.invoke('scenarios:get-folder-path'),

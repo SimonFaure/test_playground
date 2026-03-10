@@ -56,6 +56,16 @@ function App() {
           }
 
           setUserEmail(config.email);
+
+          console.log('[App Launch] Starting resource sync...');
+          const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
+          const syncResult = await syncResourcesBeforeScenarios();
+          console.log('[App Launch] Resource sync completed:', syncResult);
+
+          if (syncResult.downloadsNeeded.length > 0) {
+            console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
+          }
+
           console.log('[App Launch] Fetching user scenarios for:', config.email);
 
           const remoteScenarios = await getUserScenarios(config.email);
@@ -75,6 +85,14 @@ function App() {
           if (missingScenarios.length > 0) {
             setScenariosToDownload(missingScenarios);
             setShowDownloadModal(true);
+          }
+
+          if (syncResult.success) {
+            const updatedConfig = await loadConfig();
+            await saveConfig({
+              ...updatedConfig,
+              lastSuccessfulSync: new Date().toISOString(),
+            });
           }
         } catch (error) {
           console.error('[App Launch] Failed to check for missing scenarios:', error);

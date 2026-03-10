@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen, Monitor } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen, Monitor, CreditCard } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
@@ -155,6 +155,38 @@ export function ConfigurationPage() {
     }
   };
 
+  const handleRefreshBilling = async () => {
+    if (!config.email) {
+      setMessage({ type: 'error', text: 'Please enter an email address first' });
+      return;
+    }
+
+    setMessage({ type: 'success', text: 'Refreshing billing status...' });
+    try {
+      const { getBillingStatus } = await import('../services/resourceSync');
+      const apiUrl = 'https://www.tag-hunter.com/backend/api/playground.php';
+      const billingStatus = await getBillingStatus(apiUrl, config.email);
+
+      const updatedConfig = {
+        ...config,
+        billingUpToDate: billingStatus.billing_up_to_date,
+        licenseType: billingStatus.license_type,
+        lastBillingSyncDate: new Date().toISOString(),
+      };
+
+      await saveConfig(updatedConfig);
+      setConfig(updatedConfig);
+      setSavedConfig(updatedConfig);
+
+      setMessage({ type: 'success', text: 'Billing status refreshed successfully!' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      console.error('Error refreshing billing status:', error);
+      setMessage({ type: 'error', text: 'Failed to refresh billing status' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
 
   if (!isElectron) {
     return (
@@ -246,6 +278,70 @@ export function ConfigurationPage() {
             </button>
           </div>
         </div>
+
+        {isElectron && config.email && (
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <CreditCard className="text-blue-400" size={24} />
+                <h2 className="text-xl font-semibold">Billing Information</h2>
+              </div>
+              <button
+                onClick={handleRefreshBilling}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <RefreshCw size={16} />
+                Refresh Status
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30">
+                <div>
+                  <div className="text-sm font-medium text-slate-400 mb-1">Billing Status</div>
+                  <div className="flex items-center gap-2">
+                    {config.billingUpToDate === true ? (
+                      <>
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-lg font-semibold text-green-400">Up to Date</span>
+                      </>
+                    ) : config.billingUpToDate === false ? (
+                      <>
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-lg font-semibold text-red-400">Payment Required</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
+                        <span className="text-lg font-semibold text-slate-400">Unknown</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30">
+                <div>
+                  <div className="text-sm font-medium text-slate-400 mb-1">License Type</div>
+                  <div className="text-lg font-semibold text-white capitalize">
+                    {config.licenseType || 'Not Synced'}
+                  </div>
+                </div>
+              </div>
+
+              {config.lastBillingSyncDate && (
+                <div className="flex items-center justify-between p-4 rounded-lg border-2 border-slate-700 bg-slate-700/30">
+                  <div>
+                    <div className="text-sm font-medium text-slate-400 mb-1">Last Sync</div>
+                    <div className="text-lg font-semibold text-white">
+                      {new Date(config.lastBillingSyncDate).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
           <div className="flex items-center gap-2 mb-6">

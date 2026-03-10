@@ -19,6 +19,134 @@ export interface ApiEndpoint {
 
 export const apiEndpoints: ApiEndpoint[] = [
   {
+    name: 'Get Billing Status',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=get_billing_status',
+    description: 'Retrieves the billing status and license information for a user based on their email address.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      }
+    ],
+    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_billing_status&email=user@example.com',
+    exampleResponse: `{
+  "billing_up_to_date": true,
+  "license_type": "premium"
+}`,
+    statusCodes: [
+      { code: 200, description: 'Success - Returns billing status' },
+      { code: 400, description: 'Bad Request - Missing or invalid email parameter' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Get Cards Version',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=get_cards_version',
+    description: 'Retrieves the current version number of the cards database available for download.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      }
+    ],
+    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_cards_version&email=user@example.com',
+    exampleResponse: `{
+  "version": 5
+}`,
+    statusCodes: [
+      { code: 200, description: 'Success - Returns version number' },
+      { code: 400, description: 'Bad Request - Missing or invalid email parameter' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Get Patterns',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=get_patterns',
+    description: 'Retrieves available pattern configurations for a specific game type.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      },
+      {
+        name: 'game_type',
+        type: 'string',
+        required: true,
+        description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
+      }
+    ],
+    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_patterns&email=user@example.com&game_type=mystery',
+    exampleResponse: `{
+  "patterns": [
+    {
+      "slug": "ado_adultes",
+      "name": "Teen/Adult Pattern",
+      "version": 3,
+      "type": "default",
+      "download_url": "https://example.com/patterns/ado_adultes_v3.csv"
+    },
+    {
+      "slug": "kids",
+      "name": "Kids Pattern",
+      "version": 2,
+      "type": "user",
+      "download_url": "https://example.com/patterns/kids_v2.csv"
+    }
+  ]
+}`,
+    statusCodes: [
+      { code: 200, description: 'Success - Returns list of patterns' },
+      { code: 400, description: 'Bad Request - Missing required parameters' },
+      { code: 404, description: 'Not Found - Game type not found' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Get Layouts',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=get_layouts',
+    description: 'Retrieves available layout configurations for a specific game type.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      },
+      {
+        name: 'game_type',
+        type: 'string',
+        required: true,
+        description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
+      }
+    ],
+    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_layouts&email=user@example.com&game_type=mystery',
+    exampleResponse: `{
+  "layouts": [
+    {
+      "game_type": "mystery",
+      "version": 4,
+      "download_url": "https://example.com/layouts/mystery_v4.json"
+    }
+  ]
+}`,
+    statusCodes: [
+      { code: 200, description: 'Success - Returns list of layouts' },
+      { code: 400, description: 'Bad Request - Missing required parameters' },
+      { code: 404, description: 'Not Found - Game type not found' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
     name: 'Get User Scenarios',
     method: 'GET',
     path: '/backend/api/playground.php?action=get_user_scenarios',

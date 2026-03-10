@@ -1005,6 +1005,215 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('cards:get-local-version', async () => {
+    const fs = require('fs');
+    try {
+      const cardsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'cards', 'clients_cards');
+
+      if (!fs.existsSync(cardsDir)) {
+        fs.mkdirSync(cardsDir, { recursive: true });
+        return { success: true, version: 0 };
+      }
+
+      const files = fs.readdirSync(cardsDir).filter(f => f.endsWith('.csv'));
+      let highestVersion = 0;
+
+      for (const file of files) {
+        const match = file.match(/_v?(\d+)\.csv$/);
+        if (match) {
+          const version = parseInt(match[1], 10);
+          if (version > highestVersion) {
+            highestVersion = version;
+          }
+        }
+      }
+
+      return { success: true, version: highestVersion };
+    } catch (error) {
+      console.error('Error getting local cards version:', error);
+      return { success: false, version: 0, error: error.message };
+    }
+  });
+
+  ipcMain.handle('cards:save-file', async (event, version, content) => {
+    const fs = require('fs');
+    try {
+      const cardsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'cards', 'clients_cards');
+
+      if (!fs.existsSync(cardsDir)) {
+        fs.mkdirSync(cardsDir, { recursive: true });
+      }
+
+      const filename = `cards_v${version}.csv`;
+      const filePath = path.join(cardsDir, filename);
+      fs.writeFileSync(filePath, content);
+
+      const files = fs.readdirSync(cardsDir).filter(f => f.endsWith('.csv'));
+      const filesWithVersions = files.map(f => {
+        const match = f.match(/_v?(\d+)\.csv$/);
+        return { filename: f, version: match ? parseInt(match[1], 10) : 0 };
+      }).sort((a, b) => b.version - a.version);
+
+      if (filesWithVersions.length > 2) {
+        for (let i = 2; i < filesWithVersions.length; i++) {
+          const oldFile = path.join(cardsDir, filesWithVersions[i].filename);
+          fs.unlinkSync(oldFile);
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving cards file:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patterns:get-local-versions', async (event, gameType, patternSlug) => {
+    const fs = require('fs');
+    try {
+      const defaultPatternsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'patterns', gameType, 'default_patterns');
+      const userPatternsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'patterns', gameType, 'user_patterns');
+
+      let highestVersion = 0;
+
+      for (const dir of [defaultPatternsDir, userPatternsDir]) {
+        if (fs.existsSync(dir)) {
+          const files = fs.readdirSync(dir);
+          for (const file of files) {
+            if (file.startsWith(patternSlug + '_')) {
+              const match = file.match(/_v?(\d+)$/);
+              if (match) {
+                const version = parseInt(match[1], 10);
+                if (version > highestVersion) {
+                  highestVersion = version;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return { success: true, version: highestVersion };
+    } catch (error) {
+      console.error('Error getting local pattern versions:', error);
+      return { success: false, version: 0, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patterns:save-file', async (event, gameType, patternSlug, version, content, isUserPattern) => {
+    const fs = require('fs');
+    try {
+      const baseDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'patterns', gameType);
+      const patternsDir = isUserPattern
+        ? path.join(baseDir, 'user_patterns')
+        : path.join(baseDir, 'default_patterns');
+
+      if (!fs.existsSync(patternsDir)) {
+        fs.mkdirSync(patternsDir, { recursive: true });
+      }
+
+      const patternDir = path.join(patternsDir, `${patternSlug}_${version}`);
+      if (!fs.existsSync(patternDir)) {
+        fs.mkdirSync(patternDir, { recursive: true });
+      }
+
+      const filePath = path.join(patternDir, 'pattern.csv');
+      fs.writeFileSync(filePath, content);
+
+      const allPatternDirs = fs.readdirSync(patternsDir).filter(d => {
+        return d.startsWith(patternSlug + '_') && fs.statSync(path.join(patternsDir, d)).isDirectory();
+      });
+
+      const dirsWithVersions = allPatternDirs.map(d => {
+        const match = d.match(/_v?(\d+)$/);
+        return { dirname: d, version: match ? parseInt(match[1], 10) : 0 };
+      }).sort((a, b) => b.version - a.version);
+
+      if (dirsWithVersions.length > 2) {
+        for (let i = 2; i < dirsWithVersions.length; i++) {
+          const oldDir = path.join(patternsDir, dirsWithVersions[i].dirname);
+          fs.rmSync(oldDir, { recursive: true, force: true });
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving pattern file:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('layouts:get-local-versions', async (event, gameType) => {
+    const fs = require('fs');
+    try {
+      const layoutsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'layouts', 'default_layouts');
+
+      if (!fs.existsSync(layoutsDir)) {
+        return { success: true, version: 0 };
+      }
+
+      const files = fs.readdirSync(layoutsDir);
+      let highestVersion = 0;
+
+      for (const file of files) {
+        if (file.startsWith(gameType + '_')) {
+          const match = file.match(/_v?(\d+)$/);
+          if (match) {
+            const version = parseInt(match[1], 10);
+            if (version > highestVersion) {
+              highestVersion = version;
+            }
+          }
+        }
+      }
+
+      return { success: true, version: highestVersion };
+    } catch (error) {
+      console.error('Error getting local layout versions:', error);
+      return { success: false, version: 0, error: error.message };
+    }
+  });
+
+  ipcMain.handle('layouts:save-file', async (event, gameType, version, content) => {
+    const fs = require('fs');
+    try {
+      const layoutsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'layouts', 'default_layouts');
+
+      if (!fs.existsSync(layoutsDir)) {
+        fs.mkdirSync(layoutsDir, { recursive: true });
+      }
+
+      const layoutDir = path.join(layoutsDir, `${gameType}_${version}`);
+      if (!fs.existsSync(layoutDir)) {
+        fs.mkdirSync(layoutDir, { recursive: true });
+      }
+
+      const filePath = path.join(layoutDir, 'layout.json');
+      fs.writeFileSync(filePath, content);
+
+      const allLayoutDirs = fs.readdirSync(layoutsDir).filter(d => {
+        return d.startsWith(gameType + '_') && fs.statSync(path.join(layoutsDir, d)).isDirectory();
+      });
+
+      const dirsWithVersions = allLayoutDirs.map(d => {
+        const match = d.match(/_v?(\d+)$/);
+        return { dirname: d, version: match ? parseInt(match[1], 10) : 0 };
+      }).sort((a, b) => b.version - a.version);
+
+      if (dirsWithVersions.length > 2) {
+        for (let i = 2; i < dirsWithVersions.length; i++) {
+          const oldDir = path.join(layoutsDir, dirsWithVersions[i].dirname);
+          fs.rmSync(oldDir, { recursive: true, force: true });
+        }
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving layout file:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

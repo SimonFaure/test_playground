@@ -164,7 +164,7 @@ export function ConfigurationPage() {
     setMessage({ type: 'success', text: 'Refreshing billing status...' });
     try {
       const { getBillingStatus } = await import('../services/resourceSync');
-      const apiUrl = 'https://www.tag-hunter.com/backend/api/playground.php';
+      const apiUrl = 'https://admin.taghunter.fr/backend/api/playground.php';
       const billingStatus = await getBillingStatus(apiUrl, config.email);
 
       const updatedConfig = {

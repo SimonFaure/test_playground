@@ -58,7 +58,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
     }
     onProgress?.('connectivity', 'success', 'Connected to internet');
 
-    const apiUrl = 'https://www.tag-hunter.com/backend/api/playground.php';
+    const apiUrl = 'https://admin.taghunter.fr/backend/api/playground.php';
 
     onProgress?.('billing', 'loading');
     console.log('[Sync] Step 2: Fetching billing status...');

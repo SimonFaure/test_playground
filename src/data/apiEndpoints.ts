@@ -31,7 +31,7 @@ export const apiEndpoints: ApiEndpoint[] = [
         description: 'The email address of the user'
       }
     ],
-    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_billing_status&email=user@example.com',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_billing_status&email=user@example.com',
     exampleResponse: `{
   "billing_up_to_date": true,
   "license_type": "premium"
@@ -55,7 +55,7 @@ export const apiEndpoints: ApiEndpoint[] = [
         description: 'The email address of the user'
       }
     ],
-    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_cards_version&email=user@example.com',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_cards_version&email=user@example.com',
     exampleResponse: `{
   "version": 5
 }`,
@@ -84,7 +84,7 @@ export const apiEndpoints: ApiEndpoint[] = [
         description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
       }
     ],
-    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_patterns&email=user@example.com&game_type=mystery',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_patterns&email=user@example.com&game_type=mystery',
     exampleResponse: `{
   "patterns": [
     {
@@ -129,7 +129,7 @@ export const apiEndpoints: ApiEndpoint[] = [
         description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
       }
     ],
-    exampleRequest: 'GET https://www.tag-hunter.com/backend/api/playground.php?action=get_layouts&email=user@example.com&game_type=mystery',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_layouts&email=user@example.com&game_type=mystery',
     exampleResponse: `{
   "layouts": [
     {

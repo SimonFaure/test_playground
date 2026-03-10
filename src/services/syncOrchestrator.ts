@@ -14,7 +14,9 @@ export interface SyncResult {
   error?: string;
 }
 
-export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
+export type SyncProgressCallback = (stepId: string, status: 'loading' | 'success' | 'error' | 'skipped', details?: string) => void;
+
+export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCallback): Promise<SyncResult> {
   const startTime = Date.now();
   const downloadQueue = new DownloadQueueManager();
 
@@ -23,14 +25,27 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
 
     if (!config.email) {
       console.log('[Sync] No email configured, skipping resource sync');
+      onProgress?.('connectivity', 'skipped', 'No email configured');
+      onProgress?.('billing', 'skipped');
+      onProgress?.('cards', 'skipped');
+      onProgress?.('gameTypes', 'skipped');
+      onProgress?.('patterns', 'skipped');
+      onProgress?.('layouts', 'skipped');
       return { success: true, billingUpdated: false, downloadsNeeded: [] };
     }
 
+    onProgress?.('connectivity', 'loading');
     console.log('[Sync] Step 1: Checking internet connectivity...');
     const hasInternet = await checkInternetConnection();
 
     if (!hasInternet) {
       console.log('[Sync] No internet connection, skipping resource sync');
+      onProgress?.('connectivity', 'error', 'No internet connection detected');
+      onProgress?.('billing', 'skipped');
+      onProgress?.('cards', 'skipped');
+      onProgress?.('gameTypes', 'skipped');
+      onProgress?.('patterns', 'skipped');
+      onProgress?.('layouts', 'skipped');
       await logApiCall({
         endpoint: 'resource-sync',
         method: 'GET',
@@ -41,9 +56,11 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
       });
       return { success: true, billingUpdated: false, downloadsNeeded: [] };
     }
+    onProgress?.('connectivity', 'success', 'Connected to internet');
 
     const apiUrl = 'https://www.tag-hunter.com/backend/api/playground.php';
 
+    onProgress?.('billing', 'loading');
     console.log('[Sync] Step 2: Fetching billing status...');
     try {
       const billingStatus = await getBillingStatus(apiUrl, config.email);
@@ -55,10 +72,13 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
       };
       await saveConfig(updatedConfig);
       console.log('[Sync] Billing status updated:', billingStatus);
+      onProgress?.('billing', 'success', `License: ${billingStatus.license_type}`);
     } catch (error) {
       console.error('[Sync] Failed to fetch billing status:', error);
+      onProgress?.('billing', 'error', 'Failed to check billing status');
     }
 
+    onProgress?.('cards', 'loading');
     console.log('[Sync] Step 3: Checking cards version...');
     try {
       const remoteCards = await getCardsVersion(apiUrl, config.email);
@@ -77,19 +97,29 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
           downloadUrl: `${apiUrl}?action=get_cards&email=${encodeURIComponent(config.email)}`,
           targetPath: `cards_v${remoteCards.version}.csv`,
         });
+        onProgress?.('cards', 'success', `Update available: v${remoteCards.version}`);
+      } else {
+        onProgress?.('cards', 'success', `Up to date: v${localVersion}`);
       }
     } catch (error) {
       console.error('[Sync] Failed to check cards version:', error);
+      onProgress?.('cards', 'error', 'Failed to check cards version');
     }
 
+    onProgress?.('gameTypes', 'loading');
     console.log('[Sync] Step 4: Discovering game types from scenarios...');
     const gameTypes = await getGameTypesFromScenarios();
     console.log(`[Sync] Found ${gameTypes.length} game types:`, gameTypes);
+    onProgress?.('gameTypes', 'success', `Found ${gameTypes.length} game types`);
 
     if (gameTypes.length === 0) {
       console.log('[Sync] No scenarios found, skipping patterns and layouts sync');
+      onProgress?.('patterns', 'skipped', 'No game types found');
+      onProgress?.('layouts', 'skipped', 'No game types found');
     } else {
+      onProgress?.('patterns', 'loading');
       console.log('[Sync] Step 5: Checking patterns for each game type...');
+      let patternUpdates = 0;
       for (const gameType of gameTypes) {
         try {
           const patternsResponse = await getPatterns(apiUrl, config.email, gameType);
@@ -102,6 +132,7 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
 
             if (compareVersions(localVersion, pattern.version)) {
               console.log(`[Sync] Pattern ${pattern.slug} update available, adding to queue`);
+              patternUpdates++;
               downloadQueue.addItem({
                 type: 'pattern',
                 name: pattern.name || pattern.slug,
@@ -117,8 +148,11 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
           console.error(`[Sync] Failed to check patterns for ${gameType}:`, error);
         }
       }
+      onProgress?.('patterns', 'success', patternUpdates > 0 ? `${patternUpdates} updates available` : 'All patterns up to date');
 
+      onProgress?.('layouts', 'loading');
       console.log('[Sync] Step 6: Checking layouts for each game type...');
+      let layoutUpdates = 0;
       for (const gameType of gameTypes) {
         try {
           const layoutsResponse = await getLayouts(apiUrl, config.email, gameType);
@@ -131,6 +165,7 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
 
             if (compareVersions(localVersion, layout.version)) {
               console.log(`[Sync] Layout ${layout.game_type} update available, adding to queue`);
+              layoutUpdates++;
               downloadQueue.addItem({
                 type: 'layout',
                 name: `${layout.game_type} Layout`,
@@ -146,6 +181,7 @@ export async function syncResourcesBeforeScenarios(): Promise<SyncResult> {
           console.error(`[Sync] Failed to check layouts for ${gameType}:`, error);
         }
       }
+      onProgress?.('layouts', 'success', layoutUpdates > 0 ? `${layoutUpdates} updates available` : 'All layouts up to date');
     }
 
     const downloadsNeeded = downloadQueue.getQueue();

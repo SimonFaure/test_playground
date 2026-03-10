@@ -10,6 +10,7 @@ import { ApiLogsPage } from './components/ApiLogsPage';
 import { ScenarioDownloadModal } from './components/ScenarioDownloadModal';
 import { EmailSetupModal } from './components/EmailSetupModal';
 import { OnboardingModal } from './components/OnboardingModal';
+import { SyncLoadingModal, SyncStep } from './components/SyncLoadingModal';
 import { supabase } from './lib/db';
 import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
 import { loadConfig, saveConfig } from './utils/config';
@@ -23,6 +24,9 @@ function App() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showEmailSetup, setShowEmailSetup] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncSteps, setSyncSteps] = useState<SyncStep[]>([]);
+  const [currentSyncStep, setCurrentSyncStep] = useState<string>('');
   const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
@@ -57,14 +61,38 @@ function App() {
 
           setUserEmail(config.email);
 
+          const initialSteps: SyncStep[] = [
+            { id: 'connectivity', label: 'Checking Internet Connection', status: 'pending' },
+            { id: 'billing', label: 'Fetching Billing Status', status: 'pending' },
+            { id: 'cards', label: 'Checking Cards Version', status: 'pending' },
+            { id: 'gameTypes', label: 'Discovering Game Types', status: 'pending' },
+            { id: 'patterns', label: 'Checking Patterns', status: 'pending' },
+            { id: 'layouts', label: 'Checking Layouts', status: 'pending' },
+          ];
+          setSyncSteps(initialSteps);
+          setShowSyncModal(true);
+
           console.log('[App Launch] Starting resource sync...');
           const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
-          const syncResult = await syncResourcesBeforeScenarios();
+
+          const syncResult = await syncResourcesBeforeScenarios((stepId, status, details) => {
+            setCurrentSyncStep(stepId);
+            setSyncSteps(prev =>
+              prev.map(step =>
+                step.id === stepId ? { ...step, status, details } : step
+              )
+            );
+          });
+
           console.log('[App Launch] Resource sync completed:', syncResult);
 
           if (syncResult.downloadsNeeded.length > 0) {
             console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
           }
+
+          setTimeout(() => {
+            setShowSyncModal(false);
+          }, 2000);
 
           console.log('[App Launch] Fetching user scenarios for:', config.email);
 
@@ -350,6 +378,12 @@ function App() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSuccess={handleAdminSuccess}
+      />
+
+      <SyncLoadingModal
+        isOpen={showSyncModal}
+        steps={syncSteps}
+        currentStep={currentSyncStep}
       />
 
       {userEmail && (

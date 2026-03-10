@@ -71,53 +71,6 @@ function App() {
           ];
           setSyncSteps(initialSteps);
           setShowSyncModal(true);
-
-          console.log('[App Launch] Starting resource sync...');
-          const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
-
-          const syncResult = await syncResourcesBeforeScenarios((stepId, status, details) => {
-            setCurrentSyncStep(stepId);
-            setSyncSteps(prev =>
-              prev.map(step =>
-                step.id === stepId ? { ...step, status, details } : step
-              )
-            );
-          });
-
-          console.log('[App Launch] Resource sync completed:', syncResult);
-
-          if (syncResult.downloadsNeeded.length > 0) {
-            console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
-          }
-
-          console.log('[App Launch] Fetching user scenarios for:', config.email);
-
-          const remoteScenarios = await getUserScenarios(config.email);
-          console.log('[App Launch] Remote scenarios fetched:', remoteScenarios.length);
-
-          const localData = await (window as any).electron.scenarios.load();
-          console.log('[App Launch] Local scenarios:', localData.scenarios.length);
-
-          const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
-
-          const missingScenarios = remoteScenarios.filter(
-            scenario => !localUniqids.has(scenario.uniqid)
-          );
-
-          console.log('[App Launch] Missing scenarios:', missingScenarios.length);
-
-          if (missingScenarios.length > 0) {
-            setScenariosToDownload(missingScenarios);
-            setShowDownloadModal(true);
-          }
-
-          if (syncResult.success) {
-            const updatedConfig = await loadConfig();
-            await saveConfig({
-              ...updatedConfig,
-              lastSuccessfulSync: new Date().toISOString(),
-            });
-          }
         } catch (error) {
           console.error('[App Launch] Failed to check for missing scenarios:', error);
           if (error instanceof Error) {
@@ -222,6 +175,62 @@ function App() {
       }
     } catch (error) {
       console.error('[Email Setup] Failed to save email:', error);
+    }
+  };
+
+  const handleStartSync = async () => {
+    try {
+      console.log('[App] Starting resource sync...');
+      const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
+
+      const syncResult = await syncResourcesBeforeScenarios((stepId, status, details) => {
+        setCurrentSyncStep(stepId);
+        setSyncSteps(prev =>
+          prev.map(step =>
+            step.id === stepId ? { ...step, status, details } : step
+          )
+        );
+      });
+
+      console.log('[App] Resource sync completed:', syncResult);
+
+      if (syncResult.downloadsNeeded.length > 0) {
+        console.log(`[App] ${syncResult.downloadsNeeded.length} resource updates available`);
+      }
+
+      console.log('[App] Fetching user scenarios for:', userEmail);
+
+      const remoteScenarios = await getUserScenarios(userEmail);
+      console.log('[App] Remote scenarios fetched:', remoteScenarios.length);
+
+      const localData = await (window as any).electron.scenarios.load();
+      console.log('[App] Local scenarios:', localData.scenarios.length);
+
+      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
+
+      const missingScenarios = remoteScenarios.filter(
+        scenario => !localUniqids.has(scenario.uniqid)
+      );
+
+      console.log('[App] Missing scenarios:', missingScenarios.length);
+
+      if (missingScenarios.length > 0) {
+        setScenariosToDownload(missingScenarios);
+        setShowDownloadModal(true);
+      }
+
+      if (syncResult.success) {
+        const config = await loadConfig();
+        await saveConfig({
+          ...config,
+          lastSuccessfulSync: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('[App] Sync failed:', error);
+      if (error instanceof Error) {
+        console.error('[App] Error details:', error.message, error.stack);
+      }
     }
   };
 
@@ -381,6 +390,7 @@ function App() {
         steps={syncSteps}
         currentStep={currentSyncStep}
         onClose={() => setShowSyncModal(false)}
+        onStartSync={handleStartSync}
       />
 
       {userEmail && (

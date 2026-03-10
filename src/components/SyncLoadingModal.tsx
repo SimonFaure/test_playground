@@ -12,9 +12,10 @@ interface SyncLoadingModalProps {
   steps: SyncStep[];
   currentStep: string;
   onClose?: () => void;
+  onStartSync?: () => void;
 }
 
-export function SyncLoadingModal({ isOpen, steps, currentStep, onClose }: SyncLoadingModalProps) {
+export function SyncLoadingModal({ isOpen, steps, currentStep, onClose, onStartSync }: SyncLoadingModalProps) {
   if (!isOpen) return null;
 
   const getStepIcon = (step: SyncStep) => {
@@ -60,15 +61,16 @@ export function SyncLoadingModal({ isOpen, steps, currentStep, onClose }: SyncLo
   };
 
   const allCompleted = steps.every(s => s.status === 'success' || s.status === 'error' || s.status === 'skipped');
+  const syncStarted = steps.some(s => s.status !== 'pending');
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-700 max-w-2xl w-full">
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <div className="flex items-center gap-3">
-            <RefreshCw className={`text-blue-400 ${!allCompleted ? 'animate-spin' : ''}`} size={24} />
+            <RefreshCw className={`text-blue-400 ${syncStarted && !allCompleted ? 'animate-spin' : ''}`} size={24} />
             <h2 className="text-xl font-bold text-white">
-              {allCompleted ? 'Sync Complete' : 'Syncing Resources...'}
+              {allCompleted ? 'Sync Complete' : syncStarted ? 'Syncing Resources...' : 'Resource Sync'}
             </h2>
           </div>
           {allCompleted && onClose && (
@@ -85,8 +87,10 @@ export function SyncLoadingModal({ isOpen, steps, currentStep, onClose }: SyncLo
         <div className="p-6">
           <p className="text-slate-300 mb-6">
             {allCompleted
-              ? 'Resource synchronization completed. Loading your scenarios...'
-              : 'Please wait while we sync your game resources and check for updates.'}
+              ? 'Resource synchronization completed.'
+              : syncStarted
+              ? 'Please wait while we sync your game resources and check for updates.'
+              : 'Sync patterns, scenarios, cards, and layouts from the server.'}
           </p>
 
           <div className="space-y-3">
@@ -121,6 +125,18 @@ export function SyncLoadingModal({ isOpen, steps, currentStep, onClose }: SyncLo
               </div>
             ))}
           </div>
+
+          {!syncStarted && onStartSync && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={onStartSync}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+              >
+                <RefreshCw size={20} />
+                Start Sync
+              </button>
+            </div>
+          )}
 
           {allCompleted && onClose && (
             <div className="mt-6 flex justify-center">

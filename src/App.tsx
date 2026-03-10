@@ -90,10 +90,6 @@ function App() {
             console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
           }
 
-          setTimeout(() => {
-            setShowSyncModal(false);
-          }, 2000);
-
           console.log('[App Launch] Fetching user scenarios for:', config.email);
 
           const remoteScenarios = await getUserScenarios(config.email);
@@ -384,6 +380,7 @@ function App() {
         isOpen={showSyncModal}
         steps={syncSteps}
         currentStep={currentSyncStep}
+        onClose={() => setShowSyncModal(false)}
       />
 
       {userEmail && (

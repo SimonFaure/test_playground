@@ -1,4 +1,4 @@
-import { RefreshCw, Check, AlertCircle, Loader } from 'lucide-react';
+import { RefreshCw, Check, AlertCircle, Loader, X } from 'lucide-react';
 
 export interface SyncStep {
   id: string;
@@ -11,9 +11,10 @@ interface SyncLoadingModalProps {
   isOpen: boolean;
   steps: SyncStep[];
   currentStep: string;
+  onClose?: () => void;
 }
 
-export function SyncLoadingModal({ isOpen, steps, currentStep }: SyncLoadingModalProps) {
+export function SyncLoadingModal({ isOpen, steps, currentStep, onClose }: SyncLoadingModalProps) {
   if (!isOpen) return null;
 
   const getStepIcon = (step: SyncStep) => {
@@ -70,6 +71,15 @@ export function SyncLoadingModal({ isOpen, steps, currentStep }: SyncLoadingModa
               {allCompleted ? 'Sync Complete' : 'Syncing Resources...'}
             </h2>
           </div>
+          {allCompleted && onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+              title="Close"
+            >
+              <X size={20} className="text-slate-400" />
+            </button>
+          )}
         </div>
 
         <div className="p-6">
@@ -112,11 +122,14 @@ export function SyncLoadingModal({ isOpen, steps, currentStep }: SyncLoadingModa
             ))}
           </div>
 
-          {allCompleted && (
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-400">
-                This window will close automatically...
-              </p>
+          {allCompleted && onClose && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
+              >
+                Close
+              </button>
             </div>
           )}
         </div>

@@ -109,18 +109,19 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
     onProgress?.('gameTypes', 'loading');
     console.log('[Sync] Step 4: Discovering game types from scenarios...');
     const gameTypes = await getGameTypesFromScenarios();
-    console.log(`[Sync] Found ${gameTypes.length} game types:`, gameTypes);
-    onProgress?.('gameTypes', 'success', `Found ${gameTypes.length} game types`);
+    console.log(`[Sync] Found ${gameTypes.length} game types from local scenarios:`, gameTypes);
 
-    if (gameTypes.length === 0) {
-      console.log('[Sync] No scenarios found, skipping patterns and layouts sync');
-      onProgress?.('patterns', 'skipped', 'No game types found');
-      onProgress?.('layouts', 'skipped', 'No game types found');
-    } else {
+    // Always check for patterns and layouts from the server
+    // Even if we don't have local scenarios yet, we should fetch available resources
+    const allGameTypes = gameTypes.length > 0 ? gameTypes : ['mystery'];
+    console.log(`[Sync] Will check patterns and layouts for: ${allGameTypes.join(', ')}`);
+    onProgress?.('gameTypes', 'success', `Checking ${allGameTypes.length} game types`);
+
+    if (true) {
       onProgress?.('patterns', 'loading');
       console.log('[Sync] Step 5: Checking patterns for each game type...');
       let patternUpdates = 0;
-      for (const gameType of gameTypes) {
+      for (const gameType of allGameTypes) {
         console.log(`[Sync] ===== Checking patterns for game type: ${gameType} =====`);
         try {
           const patternsResponse = await getPatterns(apiUrl, config.email, gameType);
@@ -166,7 +167,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       onProgress?.('layouts', 'loading');
       console.log('[Sync] Step 6: Checking layouts for each game type...');
       let layoutUpdates = 0;
-      for (const gameType of gameTypes) {
+      for (const gameType of allGameTypes) {
         console.log(`[Sync] ===== Checking layouts for game type: ${gameType} =====`);
         try {
           const layoutsResponse = await getLayouts(apiUrl, config.email, gameType);

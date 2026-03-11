@@ -6,10 +6,10 @@ export async function getGameTypesFromScenarios(): Promise<string[]> {
   }
 
   try {
-    const scenarios = await window.electron.loadScenarios();
+    const data = await window.electron.scenarios.load();
     const gameTypesSet = new Set<string>();
 
-    for (const scenario of scenarios) {
+    for (const scenario of data.scenarios) {
       if (scenario.game_type && typeof scenario.game_type === 'string') {
         gameTypesSet.add(scenario.game_type);
       }

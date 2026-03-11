@@ -1,4 +1,5 @@
-import { RefreshCw, Check, AlertCircle, Loader, X } from 'lucide-react';
+import { RefreshCw, Check, AlertCircle, Loader, X, Download, Package, Layout, FileText } from 'lucide-react';
+import { DownloadItem } from '../types/downloadQueue';
 
 export interface SyncStep {
   id: string;
@@ -11,12 +12,27 @@ interface SyncLoadingModalProps {
   isOpen: boolean;
   steps: SyncStep[];
   currentStep: string;
+  downloadsNeeded?: DownloadItem[];
   onClose?: () => void;
   onStartSync?: () => void;
+  onDownloadAll?: () => void;
 }
 
-export function SyncLoadingModal({ isOpen, steps, currentStep, onClose, onStartSync }: SyncLoadingModalProps) {
+export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose, onStartSync, onDownloadAll }: SyncLoadingModalProps) {
   if (!isOpen) return null;
+
+  const getDownloadIcon = (type: string) => {
+    switch (type) {
+      case 'cards':
+        return <FileText className="text-blue-400" size={18} />;
+      case 'pattern':
+        return <Package className="text-purple-400" size={18} />;
+      case 'layout':
+        return <Layout className="text-green-400" size={18} />;
+      default:
+        return <Download className="text-slate-400" size={18} />;
+    }
+  };
 
   const getStepIcon = (step: SyncStep) => {
     switch (step.status) {
@@ -126,6 +142,46 @@ export function SyncLoadingModal({ isOpen, steps, currentStep, onClose, onStartS
             ))}
           </div>
 
+          {allCompleted && downloadsNeeded.length > 0 && (
+            <div className="mt-8">
+              <div className="border-t border-slate-700 pt-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Download size={20} className="text-blue-400" />
+                  Downloads Available
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {downloadsNeeded.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg border border-slate-600"
+                    >
+                      <div className="flex-shrink-0">
+                        {getDownloadIcon(item.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium">{item.name}</span>
+                          <span className="text-xs text-slate-400 bg-slate-700 px-2 py-0.5 rounded">
+                            v{item.version}
+                          </span>
+                        </div>
+                        {item.gameType && (
+                          <p className="text-xs text-slate-400 mt-0.5">Game Type: {item.gameType}</p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className="text-xs text-blue-400 font-medium capitalize">{item.type}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 text-sm text-slate-400">
+                  {downloadsNeeded.length} {downloadsNeeded.length === 1 ? 'item' : 'items'} ready to download
+                </div>
+              </div>
+            </div>
+          )}
+
           {!syncStarted && onStartSync && (
             <div className="mt-6 flex justify-center">
               <button
@@ -138,14 +194,25 @@ export function SyncLoadingModal({ isOpen, steps, currentStep, onClose, onStartS
             </div>
           )}
 
-          {allCompleted && onClose && (
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={onClose}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
-              >
-                Close
-              </button>
+          {allCompleted && (
+            <div className="mt-6 flex justify-end gap-3">
+              {downloadsNeeded.length > 0 && onDownloadAll && (
+                <button
+                  onClick={onDownloadAll}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Download All
+                </button>
+              )}
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold"
+                >
+                  Close
+                </button>
+              )}
             </div>
           )}
         </div>

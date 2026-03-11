@@ -1,4 +1,4 @@
-import { logApiCall, type ApiLogData } from './apiLogger';
+import { logApiCall } from './apiLogger';
 
 export interface BillingStatus {
   billing_up_to_date: boolean;

@@ -14,6 +14,7 @@ import { SyncLoadingModal, SyncStep } from './components/SyncLoadingModal';
 import { supabase } from './lib/db';
 import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
 import { loadConfig, saveConfig } from './utils/config';
+import { DownloadItem } from './types/downloadQueue';
 
 type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
 
@@ -27,6 +28,7 @@ function App() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncSteps, setSyncSteps] = useState<SyncStep[]>([]);
   const [currentSyncStep, setCurrentSyncStep] = useState<string>('');
+  const [downloadsNeeded, setDownloadsNeeded] = useState<DownloadItem[]>([]);
   const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
@@ -196,6 +198,7 @@ function App() {
 
       if (syncResult.downloadsNeeded.length > 0) {
         console.log(`[App] ${syncResult.downloadsNeeded.length} resource updates available`);
+        setDownloadsNeeded(syncResult.downloadsNeeded);
       }
 
       console.log('[App] Fetching user scenarios for:', userEmail);
@@ -231,6 +234,24 @@ function App() {
       if (error instanceof Error) {
         console.error('[App] Error details:', error.message, error.stack);
       }
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    try {
+      console.log('[App] Starting download of all resources...');
+      const { downloadResourceItem } = await import('./services/syncOrchestrator');
+
+      for (const item of downloadsNeeded) {
+        console.log(`[App] Downloading: ${item.name}`);
+        await downloadResourceItem(item);
+      }
+
+      console.log('[App] All downloads completed');
+      setDownloadsNeeded([]);
+      setShowSyncModal(false);
+    } catch (error) {
+      console.error('[App] Download failed:', error);
     }
   };
 
@@ -389,8 +410,10 @@ function App() {
         isOpen={showSyncModal}
         steps={syncSteps}
         currentStep={currentSyncStep}
+        downloadsNeeded={downloadsNeeded}
         onClose={() => setShowSyncModal(false)}
         onStartSync={handleStartSync}
+        onDownloadAll={handleDownloadAll}
       />
 
       {userEmail && (

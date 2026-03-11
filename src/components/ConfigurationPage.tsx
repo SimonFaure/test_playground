@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, Download, FolderOpen, Monitor, CreditCard } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, FolderOpen, Monitor, CreditCard } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
-import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
-import { ScenarioDownloadModal } from './ScenarioDownloadModal';
 import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
 
 interface SerialPortInfo {
@@ -27,9 +25,6 @@ export function ConfigurationPage() {
   const [dbTables, setDbTables] = useState<string[]>([]);
   const [dbLoading, setDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-  const [isCheckingScenarios, setIsCheckingScenarios] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
@@ -115,36 +110,6 @@ export function ConfigurationPage() {
     }
   };
 
-  const handleCheckScenarios = async () => {
-    if (!config.email) {
-      setMessage({ type: 'error', text: 'Please enter an email address first' });
-      return;
-    }
-
-    setIsCheckingScenarios(true);
-    try {
-      const remoteScenarios = await getUserScenarios(config.email);
-      const localData = await (window as any).electron.scenarios.load();
-      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
-
-      const missingScenarios = remoteScenarios.filter(
-        scenario => !localUniqids.has(scenario.uniqid)
-      );
-
-      if (missingScenarios.length > 0) {
-        setScenariosToDownload(missingScenarios);
-        setShowDownloadModal(true);
-      } else {
-        setMessage({ type: 'success', text: 'All scenarios are up to date!' });
-        setTimeout(() => setMessage(null), 3000);
-      }
-    } catch (error) {
-      console.error('Error checking scenarios:', error);
-      setMessage({ type: 'error', text: 'Failed to check scenarios' });
-    } finally {
-      setIsCheckingScenarios(false);
-    }
-  };
 
   const handleOpenDataFolder = async () => {
     try {
@@ -256,24 +221,14 @@ export function ConfigurationPage() {
               <h2 className="text-xl font-semibold">User Email & Scenarios</h2>
             </div>
             {isElectron && config.email && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRestartSync}
-                  disabled={isSyncing}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                  {isSyncing ? 'Syncing...' : 'Sync Resources'}
-                </button>
-                <button
-                  onClick={handleCheckScenarios}
-                  disabled={isCheckingScenarios}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Download size={16} className={isCheckingScenarios ? 'animate-pulse' : ''} />
-                  {isCheckingScenarios ? 'Checking...' : 'Download Scenarios'}
-                </button>
-              </div>
+              <button
+                onClick={handleRestartSync}
+                disabled={isSyncing}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? 'Syncing...' : 'Sync Resources'}
+              </button>
             )}
           </div>
 
@@ -640,20 +595,6 @@ export function ConfigurationPage() {
           </div>
         </div>
       </div>
-
-      {isElectron && config.email && (
-        <ScenarioDownloadModal
-          isOpen={showDownloadModal}
-          scenarios={scenariosToDownload}
-          email={config.email}
-          onComplete={() => {
-            setShowDownloadModal(false);
-            setMessage({ type: 'success', text: 'Scenarios downloaded successfully!' });
-            setTimeout(() => setMessage(null), 3000);
-          }}
-          onCancel={() => setShowDownloadModal(false)}
-        />
-      )}
     </div>
   );
 }

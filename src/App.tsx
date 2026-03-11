@@ -7,12 +7,10 @@ import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
-import { ScenarioDownloadModal } from './components/ScenarioDownloadModal';
 import { EmailSetupModal } from './components/EmailSetupModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SyncLoadingModal, SyncStep } from './components/SyncLoadingModal';
 import { supabase } from './lib/db';
-import { getUserScenarios, ScenarioSummary } from './services/scenarioDownload';
 import { loadConfig, saveConfig } from './utils/config';
 import { DownloadItem } from './types/downloadQueue';
 
@@ -22,14 +20,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showEmailSetup, setShowEmailSetup] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncSteps, setSyncSteps] = useState<SyncStep[]>([]);
   const [currentSyncStep, setCurrentSyncStep] = useState<string>('');
   const [downloadsNeeded, setDownloadsNeeded] = useState<DownloadItem[]>([]);
-  const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const processedRef = useRef<boolean>(false);
@@ -158,23 +154,6 @@ function App() {
       await saveConfig({ ...config, email });
       setUserEmail(email);
       setShowEmailSetup(false);
-
-      console.log('[Email Setup] Email saved, fetching scenarios for:', email);
-
-      const remoteScenarios = await getUserScenarios(email);
-      console.log('[Email Setup] Remote scenarios fetched:', remoteScenarios.length);
-
-      const localData = await (window as any).electron.scenarios.load();
-      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
-
-      const missingScenarios = remoteScenarios.filter(
-        scenario => !localUniqids.has(scenario.uniqid)
-      );
-
-      if (missingScenarios.length > 0) {
-        setScenariosToDownload(missingScenarios);
-        setShowDownloadModal(true);
-      }
     } catch (error) {
       console.error('[Email Setup] Failed to save email:', error);
     }
@@ -199,27 +178,6 @@ function App() {
       if (syncResult.downloadsNeeded.length > 0) {
         console.log(`[App] ${syncResult.downloadsNeeded.length} resource updates available`);
         setDownloadsNeeded(syncResult.downloadsNeeded);
-      }
-
-      console.log('[App] Fetching user scenarios for:', userEmail);
-
-      const remoteScenarios = await getUserScenarios(userEmail);
-      console.log('[App] Remote scenarios fetched:', remoteScenarios.length);
-
-      const localData = await (window as any).electron.scenarios.load();
-      console.log('[App] Local scenarios:', localData.scenarios.length);
-
-      const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
-
-      const missingScenarios = remoteScenarios.filter(
-        scenario => !localUniqids.has(scenario.uniqid)
-      );
-
-      console.log('[App] Missing scenarios:', missingScenarios.length);
-
-      if (missingScenarios.length > 0) {
-        setScenariosToDownload(missingScenarios);
-        setShowDownloadModal(true);
       }
 
       if (syncResult.success) {
@@ -283,23 +241,6 @@ function App() {
 
       setUserEmail(settings.email);
       setShowOnboarding(false);
-
-      if (settings.email) {
-        console.log('[Onboarding] Fetching scenarios for:', settings.email);
-
-        const remoteScenarios = await getUserScenarios(settings.email);
-        const localData = await (window as any).electron.scenarios.load();
-        const localUniqids = new Set(localData.scenarios.map((s: any) => s.uniqid));
-
-        const missingScenarios = remoteScenarios.filter(
-          scenario => !localUniqids.has(scenario.uniqid)
-        );
-
-        if (missingScenarios.length > 0) {
-          setScenariosToDownload(missingScenarios);
-          setShowDownloadModal(true);
-        }
-      }
     } catch (error) {
       console.error('[Onboarding] Failed to save settings:', error);
     }
@@ -413,21 +354,9 @@ function App() {
         downloadsNeeded={downloadsNeeded}
         onClose={() => setShowSyncModal(false)}
         onStartSync={handleStartSync}
+        onSkipSync={() => setShowSyncModal(false)}
         onDownloadAll={handleDownloadAll}
       />
-
-      {userEmail && (
-        <ScenarioDownloadModal
-          isOpen={showDownloadModal}
-          scenarios={scenariosToDownload}
-          email={userEmail}
-          onComplete={() => {
-            setShowDownloadModal(false);
-            window.location.reload();
-          }}
-          onCancel={() => setShowDownloadModal(false)}
-        />
-      )}
     </div>
   );
 }

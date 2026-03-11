@@ -15,10 +15,11 @@ interface SyncLoadingModalProps {
   downloadsNeeded?: DownloadItem[];
   onClose?: () => void;
   onStartSync?: () => void;
+  onSkipSync?: () => void;
   onDownloadAll?: () => void;
 }
 
-export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose, onStartSync, onDownloadAll }: SyncLoadingModalProps) {
+export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose, onStartSync, onSkipSync, onDownloadAll }: SyncLoadingModalProps) {
   if (!isOpen) return null;
 
   const getDownloadIcon = (type: string) => {
@@ -187,7 +188,7 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
         {(!syncStarted && onStartSync) || allCompleted ? (
           <div className="p-6 border-t border-slate-700 flex-shrink-0">
             {!syncStarted && onStartSync && (
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
                 <button
                   onClick={onStartSync}
                   className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
@@ -195,6 +196,15 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
                   <RefreshCw size={20} />
                   Start Sync
                 </button>
+                {onSkipSync && (
+                  <button
+                    onClick={onSkipSync}
+                    className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+                  >
+                    <X size={20} />
+                    Skip
+                  </button>
+                )}
               </div>
             )}
 

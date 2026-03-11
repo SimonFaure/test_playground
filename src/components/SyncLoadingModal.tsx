@@ -81,8 +81,8 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-700 max-w-2xl w-full">
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+      <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-700 max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-slate-700 flex-shrink-0">
           <div className="flex items-center gap-3">
             <RefreshCw className={`text-blue-400 ${syncStarted && !allCompleted ? 'animate-spin' : ''}`} size={24} />
             <h2 className="text-xl font-bold text-white">
@@ -100,7 +100,7 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
           )}
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           <p className="text-slate-300 mb-6">
             {allCompleted
               ? 'Resource synchronization completed.'
@@ -182,40 +182,45 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
             </div>
           )}
 
-          {!syncStarted && onStartSync && (
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={onStartSync}
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
-              >
-                <RefreshCw size={20} />
-                Start Sync
-              </button>
-            </div>
-          )}
-
-          {allCompleted && (
-            <div className="mt-6 flex justify-end gap-3">
-              {downloadsNeeded.length > 0 && onDownloadAll && (
-                <button
-                  onClick={onDownloadAll}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
-                >
-                  <Download size={18} />
-                  Download All
-                </button>
-              )}
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold"
-                >
-                  Close
-                </button>
-              )}
-            </div>
-          )}
         </div>
+
+        {(!syncStarted && onStartSync) || allCompleted ? (
+          <div className="p-6 border-t border-slate-700 flex-shrink-0">
+            {!syncStarted && onStartSync && (
+              <div className="flex justify-center">
+                <button
+                  onClick={onStartSync}
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+                >
+                  <RefreshCw size={20} />
+                  Start Sync
+                </button>
+              </div>
+            )}
+
+            {allCompleted && (
+              <div className="flex justify-end gap-3">
+                {downloadsNeeded.length > 0 && onDownloadAll && (
+                  <button
+                    onClick={onDownloadAll}
+                    className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+                  >
+                    <Download size={18} />
+                    Download All
+                  </button>
+                )}
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

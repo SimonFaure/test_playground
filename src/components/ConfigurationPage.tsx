@@ -4,6 +4,7 @@ import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { getUserScenarios, ScenarioSummary } from '../services/scenarioDownload';
 import { ScenarioDownloadModal } from './ScenarioDownloadModal';
+import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
 
 interface SerialPortInfo {
   path: string;
@@ -29,6 +30,7 @@ export function ConfigurationPage() {
   const [isCheckingScenarios, setIsCheckingScenarios] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [scenariosToDownload, setScenariosToDownload] = useState<ScenarioSummary[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
@@ -187,6 +189,41 @@ export function ConfigurationPage() {
     }
   };
 
+  const handleRestartSync = async () => {
+    if (!config.email) {
+      setMessage({ type: 'error', text: 'Please enter an email address first' });
+      return;
+    }
+
+    setIsSyncing(true);
+    setMessage({ type: 'success', text: 'Starting resource sync...' });
+
+    try {
+      const result = await syncResourcesBeforeScenarios((stepId, status, details) => {
+        console.log(`[Sync] ${stepId}: ${status}`, details);
+      });
+
+      if (result.success) {
+        if (result.downloadsNeeded.length > 0) {
+          setMessage({ type: 'success', text: `Sync completed! ${result.downloadsNeeded.length} updates available.` });
+        } else {
+          setMessage({ type: 'success', text: 'Sync completed! All resources are up to date.' });
+        }
+        await loadConfiguration();
+      } else {
+        setMessage({ type: 'error', text: `Sync failed: ${result.error || 'Unknown error'}` });
+      }
+
+      setTimeout(() => setMessage(null), 5000);
+    } catch (error) {
+      console.error('Error during sync:', error);
+      setMessage({ type: 'error', text: 'Failed to sync resources' });
+      setTimeout(() => setMessage(null), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
 
   if (!isElectron) {
     return (
@@ -219,14 +256,24 @@ export function ConfigurationPage() {
               <h2 className="text-xl font-semibold">User Email & Scenarios</h2>
             </div>
             {isElectron && config.email && (
-              <button
-                onClick={handleCheckScenarios}
-                disabled={isCheckingScenarios}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download size={16} className={isCheckingScenarios ? 'animate-pulse' : ''} />
-                {isCheckingScenarios ? 'Checking...' : 'Download Scenarios'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRestartSync}
+                  disabled={isSyncing}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                  {isSyncing ? 'Syncing...' : 'Sync Resources'}
+                </button>
+                <button
+                  onClick={handleCheckScenarios}
+                  disabled={isCheckingScenarios}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download size={16} className={isCheckingScenarios ? 'animate-pulse' : ''} />
+                  {isCheckingScenarios ? 'Checking...' : 'Download Scenarios'}
+                </button>
+              </div>
             )}
           </div>
 

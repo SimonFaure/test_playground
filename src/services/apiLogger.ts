@@ -1,4 +1,4 @@
-interface ApiLogData {
+export interface ApiLogData {
   endpoint: string;
   method: string;
   requestParams?: Record<string, unknown>;

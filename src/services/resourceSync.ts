@@ -1,4 +1,4 @@
-import { logApiCall } from './apiLogger';
+import { logApiCall, type ApiLogData } from './apiLogger';
 
 export interface BillingStatus {
   billing_up_to_date: boolean;
@@ -39,19 +39,27 @@ export async function getBillingStatus(apiUrl: string, email: string): Promise<B
     const response = await fetch(url);
     const duration = Date.now() - startTime;
 
-    await logApiCall({
-      endpoint: url,
-      method: 'GET',
-      statusCode: response.status,
-      duration,
-      success: response.ok,
-    });
-
     if (!response.ok) {
+      await logApiCall({
+        endpoint: url,
+        method: 'GET',
+        statusCode: response.status,
+        requestParams: { action: 'get_billing_status', email },
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+      });
       throw new Error(`Failed to fetch billing status: ${response.statusText}`);
     }
 
     const data = await response.json();
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_billing_status', email },
+      responseData: data,
+    });
+
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -59,8 +67,7 @@ export async function getBillingStatus(apiUrl: string, email: string): Promise<B
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      duration,
-      success: false,
+      requestParams: { action: 'get_billing_status', email },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
@@ -75,19 +82,27 @@ export async function getCardsVersion(apiUrl: string, email: string): Promise<Ca
     const response = await fetch(url);
     const duration = Date.now() - startTime;
 
-    await logApiCall({
-      endpoint: url,
-      method: 'GET',
-      statusCode: response.status,
-      duration,
-      success: response.ok,
-    });
-
     if (!response.ok) {
+      await logApiCall({
+        endpoint: url,
+        method: 'GET',
+        statusCode: response.status,
+        requestParams: { action: 'get_cards_version', email },
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+      });
       throw new Error(`Failed to fetch cards version: ${response.statusText}`);
     }
 
     const data = await response.json();
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_cards_version', email },
+      responseData: data,
+    });
+
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -95,8 +110,7 @@ export async function getCardsVersion(apiUrl: string, email: string): Promise<Ca
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      duration,
-      success: false,
+      requestParams: { action: 'get_cards_version', email },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
@@ -114,22 +128,30 @@ export async function getPatterns(apiUrl: string, email: string, gameType: strin
     const response = await fetch(url);
     const duration = Date.now() - startTime;
 
-    await logApiCall({
-      endpoint: url,
-      method: 'GET',
-      statusCode: response.status,
-      duration,
-      success: response.ok,
-    });
-
     if (!response.ok) {
       console.error(`[ResourceSync] Failed to fetch patterns for ${gameType}: ${response.status} ${response.statusText}`);
+      await logApiCall({
+        endpoint: url,
+        method: 'GET',
+        statusCode: response.status,
+        requestParams: { action: 'get_patterns', email, game_type: gameType },
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+      });
       throw new Error(`Failed to fetch patterns for ${gameType}: ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log(`[ResourceSync] Patterns response for ${gameType}:`, data);
     console.log(`[ResourceSync] Found ${data.patterns?.length || 0} patterns for ${gameType}`);
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_patterns', email, game_type: gameType },
+      responseData: data,
+    });
+
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -138,8 +160,7 @@ export async function getPatterns(apiUrl: string, email: string, gameType: strin
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      duration,
-      success: false,
+      requestParams: { action: 'get_patterns', email, game_type: gameType },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
@@ -157,22 +178,30 @@ export async function getLayouts(apiUrl: string, email: string, gameType: string
     const response = await fetch(url);
     const duration = Date.now() - startTime;
 
-    await logApiCall({
-      endpoint: url,
-      method: 'GET',
-      statusCode: response.status,
-      duration,
-      success: response.ok,
-    });
-
     if (!response.ok) {
       console.error(`[ResourceSync] Failed to fetch layouts for ${gameType}: ${response.status} ${response.statusText}`);
+      await logApiCall({
+        endpoint: url,
+        method: 'GET',
+        statusCode: response.status,
+        requestParams: { action: 'get_layouts', email, game_type: gameType },
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+      });
       throw new Error(`Failed to fetch layouts for ${gameType}: ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log(`[ResourceSync] Layouts response for ${gameType}:`, data);
     console.log(`[ResourceSync] Found ${data.layouts?.length || 0} layouts for ${gameType}`);
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_layouts', email, game_type: gameType },
+      responseData: data,
+    });
+
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -181,8 +210,7 @@ export async function getLayouts(apiUrl: string, email: string, gameType: string
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      duration,
-      success: false,
+      requestParams: { action: 'get_layouts', email, game_type: gameType },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;

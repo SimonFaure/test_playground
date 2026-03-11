@@ -121,10 +121,18 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       console.log('[Sync] Step 5: Checking patterns for each game type...');
       let patternUpdates = 0;
       for (const gameType of gameTypes) {
+        console.log(`[Sync] ===== Checking patterns for game type: ${gameType} =====`);
         try {
           const patternsResponse = await getPatterns(apiUrl, config.email, gameType);
+          console.log(`[Sync] Patterns API returned ${patternsResponse.patterns?.length || 0} patterns for ${gameType}`);
+
+          if (!patternsResponse.patterns || patternsResponse.patterns.length === 0) {
+            console.log(`[Sync] No patterns found for ${gameType}`);
+            continue;
+          }
 
           for (const pattern of patternsResponse.patterns) {
+            console.log(`[Sync] Checking pattern: ${pattern.slug} (type: ${pattern.type})`);
             const localVersionResult = await (window as any).electron.patterns.getLocalVersions(gameType, pattern.slug);
             const localVersion = localVersionResult.version || 0;
 
@@ -132,6 +140,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
 
             if (compareVersions(localVersion, pattern.version)) {
               console.log(`[Sync] Pattern ${pattern.slug} update available, adding to queue`);
+              console.log(`[Sync] Download URL: ${pattern.download_url}`);
               patternUpdates++;
               downloadQueue.addItem({
                 type: 'pattern',
@@ -142,22 +151,34 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
                 downloadUrl: pattern.download_url,
                 targetPath: `${gameType}/${pattern.type}_patterns/${pattern.slug}_${pattern.version}`,
               });
+            } else {
+              console.log(`[Sync] Pattern ${pattern.slug} is up to date`);
             }
           }
         } catch (error) {
           console.error(`[Sync] Failed to check patterns for ${gameType}:`, error);
+          console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
         }
       }
+      console.log(`[Sync] Pattern check complete. Total updates needed: ${patternUpdates}`);
       onProgress?.('patterns', 'success', patternUpdates > 0 ? `${patternUpdates} updates available` : 'All patterns up to date');
 
       onProgress?.('layouts', 'loading');
       console.log('[Sync] Step 6: Checking layouts for each game type...');
       let layoutUpdates = 0;
       for (const gameType of gameTypes) {
+        console.log(`[Sync] ===== Checking layouts for game type: ${gameType} =====`);
         try {
           const layoutsResponse = await getLayouts(apiUrl, config.email, gameType);
+          console.log(`[Sync] Layouts API returned ${layoutsResponse.layouts?.length || 0} layouts for ${gameType}`);
+
+          if (!layoutsResponse.layouts || layoutsResponse.layouts.length === 0) {
+            console.log(`[Sync] No layouts found for ${gameType}`);
+            continue;
+          }
 
           for (const layout of layoutsResponse.layouts) {
+            console.log(`[Sync] Checking layout: ${layout.game_type}`);
             const localVersionResult = await (window as any).electron.layouts.getLocalVersions(gameType);
             const localVersion = localVersionResult.version || 0;
 
@@ -165,6 +186,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
 
             if (compareVersions(localVersion, layout.version)) {
               console.log(`[Sync] Layout ${layout.game_type} update available, adding to queue`);
+              console.log(`[Sync] Download URL: ${layout.download_url}`);
               layoutUpdates++;
               downloadQueue.addItem({
                 type: 'layout',
@@ -175,12 +197,16 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
                 downloadUrl: layout.download_url,
                 targetPath: `${layout.game_type}_${layout.version}`,
               });
+            } else {
+              console.log(`[Sync] Layout ${layout.game_type} is up to date`);
             }
           }
         } catch (error) {
           console.error(`[Sync] Failed to check layouts for ${gameType}:`, error);
+          console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
         }
       }
+      console.log(`[Sync] Layout check complete. Total updates needed: ${layoutUpdates}`);
       onProgress?.('layouts', 'success', layoutUpdates > 0 ? `${layoutUpdates} updates available` : 'All layouts up to date');
     }
 

@@ -387,15 +387,17 @@ export function ScenarioDownloadModal({ isOpen, scenarios, email, onComplete, on
                 onClick={onCancel}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white"
               >
-                Cancel
+                {scenarios.length > 0 ? 'Skip' : 'Close'}
               </button>
-              <button
-                onClick={handleDownload}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white flex items-center gap-2"
-              >
-                <Download size={16} />
-                Download All
-              </button>
+              {scenarios.length > 0 && (
+                <button
+                  onClick={handleDownload}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Download All
+                </button>
+              )}
             </>
           ) : (
             <button

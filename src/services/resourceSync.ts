@@ -117,11 +117,11 @@ export async function getCardsVersion(apiUrl: string, email: string): Promise<Ca
   }
 }
 
-export async function getPatterns(apiUrl: string, email: string, gameType: string): Promise<PatternsResponse> {
-  const url = `${apiUrl}?action=get_patterns&email=${encodeURIComponent(email)}&game_type=${encodeURIComponent(gameType)}`;
+export async function getPatterns(apiUrl: string, email: string): Promise<PatternsResponse> {
+  const url = `${apiUrl}?action=get_patterns&email=${encodeURIComponent(email)}`;
   const startTime = Date.now();
 
-  console.log(`[ResourceSync] Fetching patterns for game type: ${gameType}`);
+  console.log(`[ResourceSync] Fetching patterns`);
   console.log(`[ResourceSync] URL: ${url}`);
 
   try {
@@ -129,49 +129,49 @@ export async function getPatterns(apiUrl: string, email: string, gameType: strin
     const duration = Date.now() - startTime;
 
     if (!response.ok) {
-      console.error(`[ResourceSync] Failed to fetch patterns for ${gameType}: ${response.status} ${response.statusText}`);
+      console.error(`[ResourceSync] Failed to fetch patterns: ${response.status} ${response.statusText}`);
       await logApiCall({
         endpoint: url,
         method: 'GET',
         statusCode: response.status,
-        requestParams: { action: 'get_patterns', email, game_type: gameType },
+        requestParams: { action: 'get_patterns', email },
         errorMessage: `HTTP ${response.status}: ${response.statusText}`,
       });
-      throw new Error(`Failed to fetch patterns for ${gameType}: ${response.statusText}`);
+      throw new Error(`Failed to fetch patterns: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`[ResourceSync] Patterns response for ${gameType}:`, data);
-    console.log(`[ResourceSync] Found ${data.patterns?.length || 0} patterns for ${gameType}`);
+    console.log(`[ResourceSync] Patterns response:`, data);
+    console.log(`[ResourceSync] Found ${data.patterns?.length || 0} patterns`);
 
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
-      requestParams: { action: 'get_patterns', email, game_type: gameType },
+      requestParams: { action: 'get_patterns', email },
       responseData: data,
     });
 
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[ResourceSync] Error fetching patterns for ${gameType}:`, error);
+    console.error(`[ResourceSync] Error fetching patterns:`, error);
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      requestParams: { action: 'get_patterns', email, game_type: gameType },
+      requestParams: { action: 'get_patterns', email },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;
   }
 }
 
-export async function getLayouts(apiUrl: string, email: string, gameType: string): Promise<LayoutsResponse> {
-  const url = `${apiUrl}?action=get_layouts&email=${encodeURIComponent(email)}&game_type=${encodeURIComponent(gameType)}`;
+export async function getLayouts(apiUrl: string, email: string): Promise<LayoutsResponse> {
+  const url = `${apiUrl}?action=get_layouts&email=${encodeURIComponent(email)}`;
   const startTime = Date.now();
 
-  console.log(`[ResourceSync] Fetching layouts for game type: ${gameType}`);
+  console.log(`[ResourceSync] Fetching layouts`);
   console.log(`[ResourceSync] URL: ${url}`);
 
   try {
@@ -179,38 +179,38 @@ export async function getLayouts(apiUrl: string, email: string, gameType: string
     const duration = Date.now() - startTime;
 
     if (!response.ok) {
-      console.error(`[ResourceSync] Failed to fetch layouts for ${gameType}: ${response.status} ${response.statusText}`);
+      console.error(`[ResourceSync] Failed to fetch layouts: ${response.status} ${response.statusText}`);
       await logApiCall({
         endpoint: url,
         method: 'GET',
         statusCode: response.status,
-        requestParams: { action: 'get_layouts', email, game_type: gameType },
+        requestParams: { action: 'get_layouts', email },
         errorMessage: `HTTP ${response.status}: ${response.statusText}`,
       });
-      throw new Error(`Failed to fetch layouts for ${gameType}: ${response.statusText}`);
+      throw new Error(`Failed to fetch layouts: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`[ResourceSync] Layouts response for ${gameType}:`, data);
-    console.log(`[ResourceSync] Found ${data.layouts?.length || 0} layouts for ${gameType}`);
+    console.log(`[ResourceSync] Layouts response:`, data);
+    console.log(`[ResourceSync] Found ${data.layouts?.length || 0} layouts`);
 
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
-      requestParams: { action: 'get_layouts', email, game_type: gameType },
+      requestParams: { action: 'get_layouts', email },
       responseData: data,
     });
 
     return data;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[ResourceSync] Error fetching layouts for ${gameType}:`, error);
+    console.error(`[ResourceSync] Error fetching layouts:`, error);
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: 0,
-      requestParams: { action: 'get_layouts', email, game_type: gameType },
+      requestParams: { action: 'get_layouts', email },
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;

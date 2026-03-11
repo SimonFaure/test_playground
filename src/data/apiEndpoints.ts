@@ -69,22 +69,16 @@ export const apiEndpoints: ApiEndpoint[] = [
     name: 'Get Patterns',
     method: 'GET',
     path: '/backend/api/playground.php?action=get_patterns',
-    description: 'Retrieves available pattern configurations for a specific game type.',
+    description: 'Retrieves all available pattern configurations for all game types.',
     parameters: [
       {
         name: 'email',
         type: 'string',
         required: true,
         description: 'The email address of the user'
-      },
-      {
-        name: 'game_type',
-        type: 'string',
-        required: true,
-        description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
       }
     ],
-    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_patterns&email=user@example.com&game_type=mystery',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_patterns&email=user@example.com',
     exampleResponse: `{
   "patterns": [
     {
@@ -92,21 +86,20 @@ export const apiEndpoints: ApiEndpoint[] = [
       "name": "Teen/Adult Pattern",
       "version": 3,
       "type": "default",
-      "download_url": "https://example.com/patterns/ado_adultes_v3.csv"
+      "download_url": "https://example.com/patterns/mystery/ado_adultes_v3.csv"
     },
     {
       "slug": "kids",
       "name": "Kids Pattern",
       "version": 2,
       "type": "user",
-      "download_url": "https://example.com/patterns/kids_v2.csv"
+      "download_url": "https://example.com/patterns/mystery/kids_v2.csv"
     }
   ]
 }`,
     statusCodes: [
       { code: 200, description: 'Success - Returns list of patterns' },
       { code: 400, description: 'Bad Request - Missing required parameters' },
-      { code: 404, description: 'Not Found - Game type not found' },
       { code: 500, description: 'Server Error - Internal server error' }
     ]
   },
@@ -114,35 +107,33 @@ export const apiEndpoints: ApiEndpoint[] = [
     name: 'Get Layouts',
     method: 'GET',
     path: '/backend/api/playground.php?action=get_layouts',
-    description: 'Retrieves available layout configurations for a specific game type.',
+    description: 'Retrieves all available layout configurations for all game types.',
     parameters: [
       {
         name: 'email',
         type: 'string',
         required: true,
         description: 'The email address of the user'
-      },
-      {
-        name: 'game_type',
-        type: 'string',
-        required: true,
-        description: 'The game type identifier (e.g., "mystery", "treasure_hunt")'
       }
     ],
-    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_layouts&email=user@example.com&game_type=mystery',
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_layouts&email=user@example.com',
     exampleResponse: `{
   "layouts": [
     {
       "game_type": "mystery",
       "version": 4,
       "download_url": "https://example.com/layouts/mystery_v4.json"
+    },
+    {
+      "game_type": "treasure_hunt",
+      "version": 2,
+      "download_url": "https://example.com/layouts/treasure_hunt_v2.json"
     }
   ]
 }`,
     statusCodes: [
       { code: 200, description: 'Success - Returns list of layouts' },
       { code: 400, description: 'Bad Request - Missing required parameters' },
-      { code: 404, description: 'Not Found - Game type not found' },
       { code: 500, description: 'Server Error - Internal server error' }
     ]
   },

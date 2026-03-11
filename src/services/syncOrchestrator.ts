@@ -119,21 +119,21 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
 
     if (true) {
       onProgress?.('patterns', 'loading');
-      console.log('[Sync] Step 5: Checking patterns for each game type...');
+      console.log('[Sync] Step 5: Checking patterns...');
       let patternUpdates = 0;
-      for (const gameType of allGameTypes) {
-        console.log(`[Sync] ===== Checking patterns for game type: ${gameType} =====`);
-        try {
-          const patternsResponse = await getPatterns(apiUrl, config.email, gameType);
-          console.log(`[Sync] Patterns API returned ${patternsResponse.patterns?.length || 0} patterns for ${gameType}`);
+      try {
+        const patternsResponse = await getPatterns(apiUrl, config.email);
+        console.log(`[Sync] Patterns API returned ${patternsResponse.patterns?.length || 0} patterns`);
 
-          if (!patternsResponse.patterns || patternsResponse.patterns.length === 0) {
-            console.log(`[Sync] No patterns found for ${gameType}`);
-            continue;
-          }
-
+        if (patternsResponse.patterns && patternsResponse.patterns.length > 0) {
           for (const pattern of patternsResponse.patterns) {
             console.log(`[Sync] Checking pattern: ${pattern.slug} (type: ${pattern.type})`);
+
+            // Extract game type from the pattern slug or download URL structure
+            // Patterns are typically organized by game type in their path
+            const gameTypeMatch = pattern.download_url.match(/patterns\/([^/]+)\//);
+            const gameType = gameTypeMatch ? gameTypeMatch[1] : 'mystery';
+
             const localVersionResult = await (window as any).electron.patterns.getLocalVersions(gameType, pattern.slug);
             const localVersion = localVersionResult.version || 0;
 
@@ -156,56 +156,51 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
               console.log(`[Sync] Pattern ${pattern.slug} is up to date`);
             }
           }
-        } catch (error) {
-          console.error(`[Sync] Failed to check patterns for ${gameType}:`, error);
-          console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
         }
+      } catch (error) {
+        console.error(`[Sync] Failed to check patterns:`, error);
+        console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
       }
       console.log(`[Sync] Pattern check complete. Total updates needed: ${patternUpdates}`);
       onProgress?.('patterns', 'success', patternUpdates > 0 ? `${patternUpdates} updates available` : 'All patterns up to date');
 
       onProgress?.('layouts', 'loading');
-      console.log('[Sync] Step 6: Checking layouts for each game type...');
+      console.log('[Sync] Step 6: Checking layouts...');
       let layoutUpdates = 0;
-      for (const gameType of allGameTypes) {
-        console.log(`[Sync] ===== Checking layouts for game type: ${gameType} =====`);
-        try {
-          const layoutsResponse = await getLayouts(apiUrl, config.email, gameType);
-          console.log(`[Sync] Layouts API returned ${layoutsResponse.layouts?.length || 0} layouts for ${gameType}`);
+      try {
+        const layoutsResponse = await getLayouts(apiUrl, config.email);
+        console.log(`[Sync] Layouts API returned ${layoutsResponse.layouts?.length || 0} layouts`);
 
-          if (!layoutsResponse.layouts || layoutsResponse.layouts.length === 0) {
-            console.log(`[Sync] No layouts found for ${gameType}`);
-            continue;
-          }
-
+        if (layoutsResponse.layouts && layoutsResponse.layouts.length > 0) {
           for (const layout of layoutsResponse.layouts) {
-            console.log(`[Sync] Checking layout: ${layout.game_type}`);
+            const gameType = layout.game_type;
+            console.log(`[Sync] Checking layout: ${gameType}`);
             const localVersionResult = await (window as any).electron.layouts.getLocalVersions(gameType);
             const localVersion = localVersionResult.version || 0;
 
-            console.log(`[Sync] Layout ${layout.game_type} - Local: v${localVersion}, Remote: v${layout.version}`);
+            console.log(`[Sync] Layout ${gameType} - Local: v${localVersion}, Remote: v${layout.version}`);
 
             if (compareVersions(localVersion, layout.version)) {
-              console.log(`[Sync] Layout ${layout.game_type} update available, adding to queue`);
+              console.log(`[Sync] Layout ${gameType} update available, adding to queue`);
               console.log(`[Sync] Download URL: ${layout.download_url}`);
               layoutUpdates++;
               downloadQueue.addItem({
                 type: 'layout',
-                name: `${layout.game_type} Layout`,
+                name: `${gameType} Layout`,
                 version: layout.version,
-                gameType: layout.game_type,
+                gameType: gameType,
                 priority: getPriorityForType('layout'),
                 downloadUrl: layout.download_url,
-                targetPath: `${layout.game_type}_${layout.version}`,
+                targetPath: `${gameType}_${layout.version}`,
               });
             } else {
-              console.log(`[Sync] Layout ${layout.game_type} is up to date`);
+              console.log(`[Sync] Layout ${gameType} is up to date`);
             }
           }
-        } catch (error) {
-          console.error(`[Sync] Failed to check layouts for ${gameType}:`, error);
-          console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
         }
+      } catch (error) {
+        console.error(`[Sync] Failed to check layouts:`, error);
+        console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
       }
       console.log(`[Sync] Layout check complete. Total updates needed: ${layoutUpdates}`);
       onProgress?.('layouts', 'success', layoutUpdates > 0 ? `${layoutUpdates} updates available` : 'All layouts up to date');

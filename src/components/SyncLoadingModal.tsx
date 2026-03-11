@@ -1,4 +1,4 @@
-import { RefreshCw, Check, AlertCircle, Loader, X, Download, Package, Layout, FileText } from 'lucide-react';
+import { RefreshCw, Check, AlertCircle, Loader, X, Download, Package, LayoutGrid as Layout, FileText } from 'lucide-react';
 import { DownloadItem } from '../types/downloadQueue';
 
 export interface SyncStep {

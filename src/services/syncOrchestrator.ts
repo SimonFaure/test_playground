@@ -1,5 +1,6 @@
 import { checkInternetConnection } from '../utils/connectivity';
 import { getBillingStatus, getCardsVersion, getPatterns, getLayouts, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
+import { getUserScenarios } from './scenarioDownload';
 import { getGameTypesFromScenarios } from '../utils/gameTypes';
 import { DownloadQueueManager, getPriorityForType } from './downloadQueue';
 import { DownloadItem } from '../types/downloadQueue';
@@ -27,6 +28,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       console.log('[Sync] No email configured, skipping resource sync');
       onProgress?.('connectivity', 'skipped', 'No email configured');
       onProgress?.('billing', 'skipped');
+      onProgress?.('scenarios', 'skipped');
       onProgress?.('cards', 'skipped');
       onProgress?.('gameTypes', 'skipped');
       onProgress?.('patterns', 'skipped');
@@ -42,6 +44,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       console.log('[Sync] No internet connection, skipping resource sync');
       onProgress?.('connectivity', 'error', 'No internet connection detected');
       onProgress?.('billing', 'skipped');
+      onProgress?.('scenarios', 'skipped');
       onProgress?.('cards', 'skipped');
       onProgress?.('gameTypes', 'skipped');
       onProgress?.('patterns', 'skipped');
@@ -78,8 +81,19 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       onProgress?.('billing', 'error', 'Failed to check billing status');
     }
 
+    onProgress?.('scenarios', 'loading');
+    console.log('[Sync] Step 3: Fetching user scenarios...');
+    try {
+      const scenarios = await getUserScenarios(config.email);
+      console.log(`[Sync] Found ${scenarios.length} user scenarios`);
+      onProgress?.('scenarios', 'success', `Found ${scenarios.length} scenarios`);
+    } catch (error) {
+      console.error('[Sync] Failed to fetch user scenarios:', error);
+      onProgress?.('scenarios', 'error', 'Failed to fetch scenarios');
+    }
+
     onProgress?.('cards', 'loading');
-    console.log('[Sync] Step 3: Checking cards version...');
+    console.log('[Sync] Step 4: Checking cards version...');
     try {
       const remoteCards = await getCardsVersion(apiUrl, config.email);
       const localVersionResult = await (window as any).electron.cards.getLocalVersion();
@@ -107,7 +121,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
     }
 
     onProgress?.('gameTypes', 'loading');
-    console.log('[Sync] Step 4: Discovering game types from scenarios...');
+    console.log('[Sync] Step 5: Discovering game types from scenarios...');
     const gameTypes = await getGameTypesFromScenarios();
     console.log(`[Sync] Found ${gameTypes.length} game types from local scenarios:`, gameTypes);
 
@@ -119,7 +133,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
 
     if (true) {
       onProgress?.('patterns', 'loading');
-      console.log('[Sync] Step 5: Checking patterns...');
+      console.log('[Sync] Step 6: Checking patterns...');
       let patternUpdates = 0;
       try {
         const patternsResponse = await getPatterns(apiUrl, config.email);
@@ -165,7 +179,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       onProgress?.('patterns', 'success', patternUpdates > 0 ? `${patternUpdates} updates available` : 'All patterns up to date');
 
       onProgress?.('layouts', 'loading');
-      console.log('[Sync] Step 6: Checking layouts...');
+      console.log('[Sync] Step 7: Checking layouts...');
       let layoutUpdates = 0;
       try {
         const layoutsResponse = await getLayouts(apiUrl, config.email);

@@ -138,6 +138,67 @@ export const apiEndpoints: ApiEndpoint[] = [
     ]
   },
   {
+    name: 'Get User Data Update',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=get_user_data_update',
+    description: 'Unified endpoint that retrieves all user data in a single request: scenarios, patterns, layouts, and cards version. This replaces multiple individual API calls and reduces network overhead.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      }
+    ],
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=get_user_data_update&email=user@example.com',
+    exampleResponse: `{
+  "custom_scenarios": [
+    {
+      "name": "My Scenario",
+      "slug": "my-scenario",
+      "uniqid": "scenario_abc123",
+      "version": "1.2"
+    }
+  ],
+  "product_scenarios": [
+    {
+      "name": "Product Scenario",
+      "slug": "product-scenario",
+      "uniqid": "scenario_def456",
+      "version": "2.0"
+    }
+  ],
+  "default_patterns": [
+    {
+      "name": "Default Pattern",
+      "game_type": "taghunter",
+      "version": "1.0"
+    }
+  ],
+  "custom_patterns": [
+    {
+      "name": "My Pattern",
+      "game_type": "taghunter",
+      "version": "1.0"
+    }
+  ],
+  "cards_version": 3,
+  "has_on_demand_cards": true,
+  "layouts": [
+    {
+      "id": 1,
+      "version": "1.0",
+      "game_type": "taghunter"
+    }
+  ]
+}`,
+    statusCodes: [
+      { code: 200, description: 'Success - Returns all user data' },
+      { code: 400, description: 'Bad Request - Missing or invalid email parameter' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
     name: 'Get User Scenarios',
     method: 'GET',
     path: '/backend/api/playground.php?action=get_user_scenarios',

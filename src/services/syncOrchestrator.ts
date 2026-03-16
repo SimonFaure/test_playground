@@ -1,6 +1,5 @@
 import { checkInternetConnection } from '../utils/connectivity';
-import { getBillingStatus, getCardsVersion, getPatterns, getLayouts, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
-import { getUserScenarios } from './scenarioDownload';
+import { getBillingStatus, getUserDataUpdate, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
 import { getGameTypesFromScenarios } from '../utils/gameTypes';
 import { DownloadQueueManager, getPriorityForType } from './downloadQueue';
 import { DownloadItem } from '../types/downloadQueue';
@@ -28,11 +27,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       console.log('[Sync] No email configured, skipping resource sync');
       onProgress?.('connectivity', 'skipped', 'No email configured');
       onProgress?.('billing', 'skipped');
-      onProgress?.('scenarios', 'skipped');
-      onProgress?.('cards', 'skipped');
-      onProgress?.('gameTypes', 'skipped');
-      onProgress?.('patterns', 'skipped');
-      onProgress?.('layouts', 'skipped');
+      onProgress?.('userData', 'skipped');
       return { success: true, billingUpdated: false, downloadsNeeded: [] };
     }
 
@@ -44,11 +39,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       console.log('[Sync] No internet connection, skipping resource sync');
       onProgress?.('connectivity', 'error', 'No internet connection detected');
       onProgress?.('billing', 'skipped');
-      onProgress?.('scenarios', 'skipped');
-      onProgress?.('cards', 'skipped');
-      onProgress?.('gameTypes', 'skipped');
-      onProgress?.('patterns', 'skipped');
-      onProgress?.('layouts', 'skipped');
+      onProgress?.('userData', 'skipped');
       await logApiCall({
         endpoint: 'resource-sync',
         method: 'GET',
@@ -81,143 +72,93 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
       onProgress?.('billing', 'error', 'Failed to check billing status');
     }
 
-    onProgress?.('scenarios', 'loading');
-    console.log('[Sync] Step 3: Fetching user scenarios...');
+    onProgress?.('userData', 'loading');
+    console.log('[Sync] Step 3: Fetching user data update...');
     try {
-      const scenarios = await getUserScenarios(config.email);
-      console.log(`[Sync] Found ${scenarios.length} user scenarios`);
-      onProgress?.('scenarios', 'success', `Found ${scenarios.length} scenarios`);
-    } catch (error) {
-      console.error('[Sync] Failed to fetch user scenarios:', error);
-      onProgress?.('scenarios', 'error', 'Failed to fetch scenarios');
-    }
+      const userData = await getUserDataUpdate(apiUrl, config.email);
 
-    onProgress?.('cards', 'loading');
-    console.log('[Sync] Step 4: Checking cards version...');
-    try {
-      const remoteCards = await getCardsVersion(apiUrl, config.email);
-      const localVersionResult = await (window as any).electron.cards.getLocalVersion();
-      const localVersion = localVersionResult.version || 0;
+      const totalScenarios = userData.custom_scenarios.length + userData.product_scenarios.length;
+      const totalPatterns = userData.default_patterns.length + userData.custom_patterns.length;
+      console.log(`[Sync] User data received: ${totalScenarios} scenarios, ${totalPatterns} patterns, ${userData.layouts.length} layouts`);
 
-      console.log(`[Sync] Cards - Local: v${localVersion}, Remote: v${remoteCards.version}`);
+      const localCardsVersionResult = await (window as any).electron.cards.getLocalVersion();
+      const localCardsVersion = localCardsVersionResult.version || 0;
 
-      if (compareVersions(localVersion, remoteCards.version)) {
+      console.log(`[Sync] Cards - Local: v${localCardsVersion}, Remote: v${userData.cards_version}`);
+
+      if (compareVersions(localCardsVersion, userData.cards_version)) {
         console.log('[Sync] Cards update available, adding to queue');
         downloadQueue.addItem({
           type: 'cards',
           name: 'Client Cards',
-          version: remoteCards.version,
+          version: userData.cards_version,
           priority: getPriorityForType('cards'),
           downloadUrl: `${apiUrl}?action=get_cards&email=${encodeURIComponent(config.email)}`,
-          targetPath: `cards_v${remoteCards.version}.csv`,
+          targetPath: `cards_v${userData.cards_version}.csv`,
         });
-        onProgress?.('cards', 'success', `Update available: v${remoteCards.version}`);
-      } else {
-        onProgress?.('cards', 'success', `Up to date: v${localVersion}`);
       }
-    } catch (error) {
-      console.error('[Sync] Failed to check cards version:', error);
-      onProgress?.('cards', 'error', 'Failed to check cards version');
-    }
 
-    onProgress?.('gameTypes', 'loading');
-    console.log('[Sync] Step 5: Discovering game types from scenarios...');
-    const gameTypes = await getGameTypesFromScenarios();
-    console.log(`[Sync] Found ${gameTypes.length} game types from local scenarios:`, gameTypes);
-
-    // Always check for patterns and layouts from the server
-    // Even if we don't have local scenarios yet, we should fetch available resources
-    const allGameTypes = gameTypes.length > 0 ? gameTypes : ['mystery'];
-    console.log(`[Sync] Will check patterns and layouts for: ${allGameTypes.join(', ')}`);
-    onProgress?.('gameTypes', 'success', `Checking ${allGameTypes.length} game types`);
-
-    if (true) {
-      onProgress?.('patterns', 'loading');
-      console.log('[Sync] Step 6: Checking patterns...');
       let patternUpdates = 0;
-      try {
-        const patternsResponse = await getPatterns(apiUrl, config.email);
-        console.log(`[Sync] Patterns API returned ${patternsResponse.patterns?.length || 0} patterns`);
+      const allPatterns = [
+        ...userData.default_patterns.map(p => ({ ...p, type: 'default' as const })),
+        ...userData.custom_patterns.map(p => ({ ...p, type: 'custom' as const }))
+      ];
 
-        if (patternsResponse.patterns && patternsResponse.patterns.length > 0) {
-          for (const pattern of patternsResponse.patterns) {
-            console.log(`[Sync] Checking pattern: ${pattern.slug} (type: ${pattern.type})`);
+      for (const pattern of allPatterns) {
+        const localVersionResult = await (window as any).electron.patterns.getLocalVersions(pattern.game_type, pattern.name);
+        const localVersion = localVersionResult.version || 0;
 
-            // Extract game type from the pattern slug or download URL structure
-            // Patterns are typically organized by game type in their path
-            const gameTypeMatch = pattern.download_url.match(/patterns\/([^/]+)\//);
-            const gameType = gameTypeMatch ? gameTypeMatch[1] : 'mystery';
+        console.log(`[Sync] Pattern ${pattern.name} (${pattern.game_type}) - Local: v${localVersion}, Remote: v${pattern.version}`);
 
-            const localVersionResult = await (window as any).electron.patterns.getLocalVersions(gameType, pattern.slug);
-            const localVersion = localVersionResult.version || 0;
-
-            console.log(`[Sync] Pattern ${pattern.slug} (${gameType}) - Local: v${localVersion}, Remote: v${pattern.version}`);
-
-            if (compareVersions(localVersion, pattern.version)) {
-              console.log(`[Sync] Pattern ${pattern.slug} update available, adding to queue`);
-              console.log(`[Sync] Download URL: ${pattern.download_url}`);
-              patternUpdates++;
-              downloadQueue.addItem({
-                type: 'pattern',
-                name: pattern.name || pattern.slug,
-                version: pattern.version,
-                gameType: gameType,
-                priority: getPriorityForType('pattern'),
-                downloadUrl: pattern.download_url,
-                targetPath: `${gameType}/${pattern.type}_patterns/${pattern.slug}_${pattern.version}`,
-              });
-            } else {
-              console.log(`[Sync] Pattern ${pattern.slug} is up to date`);
-            }
-          }
+        if (compareVersions(localVersion, parseFloat(pattern.version))) {
+          console.log(`[Sync] Pattern ${pattern.name} update available, adding to queue`);
+          patternUpdates++;
+          const patternType = pattern.type === 'default' ? 'default_patterns' : 'user_patterns';
+          downloadQueue.addItem({
+            type: 'pattern',
+            name: pattern.name,
+            version: parseFloat(pattern.version),
+            gameType: pattern.game_type,
+            priority: getPriorityForType('pattern'),
+            downloadUrl: `${apiUrl}?action=download_pattern&game_type=${pattern.game_type}&pattern_name=${encodeURIComponent(pattern.name)}&email=${encodeURIComponent(config.email)}`,
+            targetPath: `${pattern.game_type}/${patternType}/${pattern.name}_${pattern.version}`,
+          });
         }
-      } catch (error) {
-        console.error(`[Sync] Failed to check patterns:`, error);
-        console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
       }
-      console.log(`[Sync] Pattern check complete. Total updates needed: ${patternUpdates}`);
-      onProgress?.('patterns', 'success', patternUpdates > 0 ? `${patternUpdates} updates available` : 'All patterns up to date');
 
-      onProgress?.('layouts', 'loading');
-      console.log('[Sync] Step 7: Checking layouts...');
       let layoutUpdates = 0;
-      try {
-        const layoutsResponse = await getLayouts(apiUrl, config.email);
-        console.log(`[Sync] Layouts API returned ${layoutsResponse.layouts?.length || 0} layouts`);
+      for (const layout of userData.layouts) {
+        const localVersionResult = await (window as any).electron.layouts.getLocalVersions(layout.game_type);
+        const localVersion = localVersionResult.version || 0;
+        const remoteVersion = typeof layout.version === 'string' ? parseFloat(layout.version) : layout.version;
 
-        if (layoutsResponse.layouts && layoutsResponse.layouts.length > 0) {
-          for (const layout of layoutsResponse.layouts) {
-            const gameType = layout.game_type;
-            console.log(`[Sync] Checking layout: ${gameType}`);
-            const localVersionResult = await (window as any).electron.layouts.getLocalVersions(gameType);
-            const localVersion = localVersionResult.version || 0;
+        console.log(`[Sync] Layout ${layout.game_type} - Local: v${localVersion}, Remote: v${remoteVersion}`);
 
-            console.log(`[Sync] Layout ${gameType} - Local: v${localVersion}, Remote: v${layout.version}`);
-
-            if (compareVersions(localVersion, layout.version)) {
-              console.log(`[Sync] Layout ${gameType} update available, adding to queue`);
-              console.log(`[Sync] Download URL: ${layout.download_url}`);
-              layoutUpdates++;
-              downloadQueue.addItem({
-                type: 'layout',
-                name: `${gameType} Layout`,
-                version: layout.version,
-                gameType: gameType,
-                priority: getPriorityForType('layout'),
-                downloadUrl: layout.download_url,
-                targetPath: `${gameType}_${layout.version}`,
-              });
-            } else {
-              console.log(`[Sync] Layout ${gameType} is up to date`);
-            }
-          }
+        if (compareVersions(localVersion, remoteVersion)) {
+          console.log(`[Sync] Layout ${layout.game_type} update available, adding to queue`);
+          layoutUpdates++;
+          downloadQueue.addItem({
+            type: 'layout',
+            name: `${layout.game_type} Layout`,
+            version: remoteVersion,
+            gameType: layout.game_type,
+            priority: getPriorityForType('layout'),
+            downloadUrl: `${apiUrl}?action=download_layout&game_type=${layout.game_type}&email=${encodeURIComponent(config.email)}`,
+            targetPath: `${layout.game_type}_${remoteVersion}`,
+          });
         }
-      } catch (error) {
-        console.error(`[Sync] Failed to check layouts:`, error);
-        console.error(`[Sync] Error details:`, error instanceof Error ? error.message : 'Unknown error');
       }
-      console.log(`[Sync] Layout check complete. Total updates needed: ${layoutUpdates}`);
-      onProgress?.('layouts', 'success', layoutUpdates > 0 ? `${layoutUpdates} updates available` : 'All layouts up to date');
+
+      const updatesSummary = [
+        totalScenarios > 0 ? `${totalScenarios} scenarios` : null,
+        patternUpdates > 0 ? `${patternUpdates} pattern updates` : null,
+        layoutUpdates > 0 ? `${layoutUpdates} layout updates` : null,
+      ].filter(Boolean).join(', ') || 'All up to date';
+
+      onProgress?.('userData', 'success', updatesSummary);
+    } catch (error) {
+      console.error('[Sync] Failed to fetch user data update:', error);
+      onProgress?.('userData', 'error', 'Failed to fetch user data');
     }
 
     const downloadsNeeded = downloadQueue.getQueue();

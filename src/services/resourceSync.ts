@@ -15,12 +15,14 @@ export interface Pattern {
   type: 'default' | 'user';
   download_url: string;
   name: string;
+  game_type?: string;
 }
 
 export interface Layout {
+  id?: number;
   game_type: string;
-  version: number;
-  download_url: string;
+  version: number | string;
+  download_url?: string;
 }
 
 export interface PatternsResponse {
@@ -28,6 +30,29 @@ export interface PatternsResponse {
 }
 
 export interface LayoutsResponse {
+  layouts: Layout[];
+}
+
+export interface ScenarioInfo {
+  name: string;
+  slug: string;
+  uniqid: string;
+  version: string;
+}
+
+export interface PatternInfo {
+  name: string;
+  game_type: string;
+  version: string;
+}
+
+export interface UserDataUpdate {
+  custom_scenarios: ScenarioInfo[];
+  product_scenarios: ScenarioInfo[];
+  default_patterns: PatternInfo[];
+  custom_patterns: PatternInfo[];
+  cards_version: number;
+  has_on_demand_cards: boolean;
   layouts: Layout[];
 }
 
@@ -317,6 +342,65 @@ export async function downloadLayout(url: string): Promise<string> {
       duration,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+}
+
+export async function getUserDataUpdate(apiUrl: string, email: string): Promise<UserDataUpdate> {
+  const url = `${apiUrl}?action=get_user_data_update&email=${encodeURIComponent(email)}`;
+  const startTime = Date.now();
+
+  console.log('[ResourceSync] Fetching user data update');
+  console.log('[ResourceSync] URL:', url);
+
+  try {
+    const response = await fetch(url);
+    const duration = Date.now() - startTime;
+
+    if (!response.ok) {
+      console.error(`[ResourceSync] Failed to fetch user data update: ${response.status} ${response.statusText}`);
+      await logApiCall({
+        endpoint: url,
+        method: 'GET',
+        statusCode: response.status,
+        requestParams: { action: 'get_user_data_update', email },
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        duration,
+      });
+      throw new Error(`Failed to fetch user data update: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('[ResourceSync] User data update response:', {
+      customScenarios: data.custom_scenarios?.length || 0,
+      productScenarios: data.product_scenarios?.length || 0,
+      defaultPatterns: data.default_patterns?.length || 0,
+      customPatterns: data.custom_patterns?.length || 0,
+      cardsVersion: data.cards_version,
+      layouts: data.layouts?.length || 0,
+    });
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_user_data_update', email },
+      responseData: data,
+      duration,
+    });
+
+    return data;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error('[ResourceSync] Error fetching user data update:', error);
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: 0,
+      requestParams: { action: 'get_user_data_update', email },
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      duration,
     });
     throw error;
   }

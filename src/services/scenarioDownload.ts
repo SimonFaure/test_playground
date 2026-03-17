@@ -167,10 +167,42 @@ export async function getScenarioGameData(email: string, uniqid: string): Promis
   }
 }
 
-export async function downloadMediaFile(email: string, uniqid: string, filename: string): Promise<Blob> {
-  const url = `${API_BASE_URL}/playground.php?action=get_media&email=${encodeURIComponent(email)}&uniqid=${uniqid}&filename=${encodeURIComponent(filename)}`;
+/**
+ * Cleans a filename by extracting just the filename after the scenario uniqid
+ * Handles URLs like: /https://...supabase.co/storage/v1/object/public/game-media/{uniqid}/{filename}
+ */
+function cleanFilename(filename: string, uniqid: string): string {
+  // If it's already a simple filename, return as-is
+  if (!filename.includes('/') && !filename.includes('http')) {
+    return filename;
+  }
 
-  console.log(`[downloadMediaFile] Downloading: ${filename}`);
+  // Extract everything after the uniqid in the path
+  const uniqidIndex = filename.indexOf(uniqid);
+  if (uniqidIndex !== -1) {
+    // Get everything after "{uniqid}/"
+    const afterUniqid = filename.substring(uniqidIndex + uniqid.length);
+    // Remove leading slash if present
+    const cleanedFilename = afterUniqid.startsWith('/') ? afterUniqid.substring(1) : afterUniqid;
+    console.log(`[cleanFilename] Extracted "${cleanedFilename}" from "${filename}"`);
+    return cleanedFilename;
+  }
+
+  // Fallback: just get the last part after the final slash
+  const parts = filename.split('/');
+  const cleanedFilename = parts[parts.length - 1];
+  console.log(`[cleanFilename] Using fallback, extracted "${cleanedFilename}" from "${filename}"`);
+  return cleanedFilename;
+}
+
+export async function downloadMediaFile(email: string, uniqid: string, filename: string): Promise<Blob> {
+  // Clean the filename to remove any URL prefixes
+  const cleanedFilename = cleanFilename(filename, uniqid);
+
+  const url = `${API_BASE_URL}/playground.php?action=get_media&email=${encodeURIComponent(email)}&uniqid=${uniqid}&filename=${encodeURIComponent(cleanedFilename)}`;
+
+  console.log(`[downloadMediaFile] Original filename: ${filename}`);
+  console.log(`[downloadMediaFile] Cleaned filename: ${cleanedFilename}`);
   console.log(`[downloadMediaFile] URL: ${url}`);
 
   try {
@@ -188,7 +220,7 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
       await logApiCall({
         endpoint: new URL(url).pathname + new URL(url).search,
         method: 'GET',
-        requestParams: { email, uniqid, filename },
+        requestParams: { email, uniqid, filename: cleanedFilename, originalFilename: filename },
         requestHeaders: { credentials: 'include' },
         responseHeaders,
         statusCode: response.status,
@@ -200,9 +232,9 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
     await logApiCall({
       endpoint: new URL(url).pathname + new URL(url).search,
       method: 'GET',
-      requestParams: { email, uniqid, filename },
+      requestParams: { email, uniqid, filename: cleanedFilename, originalFilename: filename },
       requestHeaders: { credentials: 'include' },
-      responseData: `Binary file: ${filename}`,
+      responseData: `Binary file: ${cleanedFilename}`,
       responseHeaders,
       statusCode: response.status
     });
@@ -212,7 +244,7 @@ export async function downloadMediaFile(email: string, uniqid: string, filename:
     console.log(`[downloadMediaFile] Blob created, size: ${blob.size} bytes`);
     return blob;
   } catch (error) {
-    console.error(`[downloadMediaFile] Error downloading media file ${filename}:`, error);
+    console.error(`[downloadMediaFile] Error downloading media file ${cleanedFilename} (original: ${filename}):`, error);
     if (error instanceof Error) {
       console.error('[downloadMediaFile] Error name:', error.name);
       console.error('[downloadMediaFile] Error message:', error.message);

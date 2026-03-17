@@ -41,7 +41,7 @@ export class DownloadQueueManager {
       if (a.priority !== b.priority) {
         return a.priority - b.priority;
       }
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
 
     return uniqueItems;

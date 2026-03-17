@@ -14,12 +14,10 @@ interface SyncLoadingModalProps {
   currentStep: string;
   downloadsNeeded?: DownloadItem[];
   onClose?: () => void;
-  onStartSync?: () => void;
-  onSkipSync?: () => void;
   onDownloadAll?: () => void;
 }
 
-export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose, onStartSync, onSkipSync, onDownloadAll }: SyncLoadingModalProps) {
+export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose, onDownloadAll }: SyncLoadingModalProps) {
   if (!isOpen) return null;
 
   const getDownloadIcon = (type: string) => {
@@ -78,16 +76,16 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
   };
 
   const allCompleted = steps.every(s => s.status === 'success' || s.status === 'error' || s.status === 'skipped');
-  const syncStarted = steps.some(s => s.status !== 'pending');
+  const syncInProgress = steps.some(s => s.status === 'loading');
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-700 max-w-2xl w-full max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-slate-700 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <RefreshCw className={`text-blue-400 ${syncStarted && !allCompleted ? 'animate-spin' : ''}`} size={24} />
+            <RefreshCw className={`text-blue-400 ${syncInProgress ? 'animate-spin' : ''}`} size={24} />
             <h2 className="text-xl font-bold text-white">
-              {allCompleted ? 'Sync Complete' : syncStarted ? 'Syncing Resources...' : 'Resource Sync'}
+              {allCompleted ? 'Sync Complete' : 'Syncing Resources...'}
             </h2>
           </div>
           {allCompleted && onClose && (
@@ -105,9 +103,7 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
           <p className="text-slate-300 mb-6">
             {allCompleted
               ? 'Resource synchronization completed.'
-              : syncStarted
-              ? 'Please wait while we sync your game resources and check for updates.'
-              : 'Sync patterns, scenarios, cards, and layouts from the server.'}
+              : 'Please wait while we sync your game resources and check for updates.'}
           </p>
 
           <div className="space-y-3">
@@ -185,52 +181,29 @@ export function SyncLoadingModal({ isOpen, steps, downloadsNeeded = [], onClose,
 
         </div>
 
-        {(!syncStarted && onStartSync) || allCompleted ? (
+        {allCompleted && (
           <div className="p-6 border-t border-slate-700 flex-shrink-0">
-            {!syncStarted && onStartSync && (
-              <div className="flex justify-center gap-3">
+            <div className="flex justify-end gap-3">
+              {downloadsNeeded.length > 0 && onDownloadAll && (
                 <button
-                  onClick={onStartSync}
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
+                  onClick={onDownloadAll}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
                 >
-                  <RefreshCw size={20} />
-                  Start Sync
+                  <Download size={18} />
+                  Download All
                 </button>
-                {onSkipSync && (
-                  <button
-                    onClick={onSkipSync}
-                    className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
-                  >
-                    <X size={20} />
-                    Skip
-                  </button>
-                )}
-              </div>
-            )}
-
-            {allCompleted && (
-              <div className="flex justify-end gap-3">
-                {downloadsNeeded.length > 0 && onDownloadAll && (
-                  <button
-                    onClick={onDownloadAll}
-                    className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2"
-                  >
-                    <Download size={18} />
-                    Download All
-                  </button>
-                )}
-                {onClose && (
-                  <button
-                    onClick={onClose}
-                    className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    Close
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-semibold"
+                >
+                  Close
+                </button>
+              )}
+            </div>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

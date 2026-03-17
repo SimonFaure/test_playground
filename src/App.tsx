@@ -66,8 +66,41 @@ function App() {
           ];
           setSyncSteps(initialSteps);
           setShowSyncModal(true);
+
+          // Automatically start sync without waiting for user interaction
+          console.log('[App Launch] Auto-starting resource sync...');
+          const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
+
+          const syncResult = await syncResourcesBeforeScenarios((stepId, status, details) => {
+            setCurrentSyncStep(stepId);
+            setSyncSteps(prev =>
+              prev.map(step =>
+                step.id === stepId ? { ...step, status, details } : step
+              )
+            );
+          });
+
+          console.log('[App Launch] Resource sync completed:', syncResult);
+
+          if (syncResult.downloadsNeeded.length > 0) {
+            console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
+            setDownloadsNeeded(syncResult.downloadsNeeded);
+          } else {
+            // No downloads needed, close modal after a brief delay
+            setTimeout(() => {
+              setShowSyncModal(false);
+            }, 1500);
+          }
+
+          if (syncResult.success) {
+            const syncedConfig = await loadConfig();
+            await saveConfig({
+              ...syncedConfig,
+              lastSuccessfulSync: new Date().toISOString(),
+            });
+          }
         } catch (error) {
-          console.error('[App Launch] Failed to check for missing scenarios:', error);
+          console.error('[App Launch] Failed to sync resources:', error);
           if (error instanceof Error) {
             console.error('[App Launch] Error details:', error.message, error.stack);
           }
@@ -350,8 +383,6 @@ function App() {
         currentStep={currentSyncStep}
         downloadsNeeded={downloadsNeeded}
         onClose={() => setShowSyncModal(false)}
-        onStartSync={handleStartSync}
-        onSkipSync={() => setShowSyncModal(false)}
         onDownloadAll={handleDownloadAll}
       />
     </div>

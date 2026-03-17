@@ -419,11 +419,23 @@ export async function getUserDataUpdate(apiUrl: string, email: string): Promise<
       game_type: scenario.game_type,
     });
 
+    const transformPattern = (pattern: any): PatternInfo => {
+      if (!pattern.uniqid) {
+        console.warn('[ResourceSync] Pattern missing uniqid:', pattern);
+      }
+      return {
+        name: pattern.name,
+        game_type: pattern.game_type,
+        version: pattern.version,
+        uniqid: pattern.uniqid || '',
+      };
+    };
+
     const data: UserDataUpdate = {
       custom_scenarios: (rawData.custom_scenarios || []).map(transformScenario),
       product_scenarios: (rawData.product_scenarios || []).map(transformScenario),
-      default_patterns: rawData.default_patterns || [],
-      custom_patterns: rawData.custom_patterns || [],
+      default_patterns: (rawData.default_patterns || []).map(transformPattern),
+      custom_patterns: (rawData.custom_patterns || []).map(transformPattern),
       cards_version: rawData.cards_version,
       has_on_demand_cards: rawData.has_on_demand_cards,
       layouts: rawData.layouts || [],

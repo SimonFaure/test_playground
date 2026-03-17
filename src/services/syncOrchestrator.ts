@@ -111,10 +111,17 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
         const localVersionResult = await (window as any).electron.patterns.getLocalVersions(pattern.game_type, pattern.name);
         const localVersion = localVersionResult.version || 0;
 
-        console.log(`[Sync] Pattern ${pattern.name} (${pattern.game_type}) - Local: v${localVersion}, Remote: v${pattern.version}`);
+        console.log(`[Sync] Pattern ${pattern.name} (${pattern.game_type}) - Local: v${localVersion}, Remote: v${pattern.version}, uniqid: ${pattern.uniqid}`);
 
         if (compareVersions(localVersion, parseFloat(pattern.version))) {
           console.log(`[Sync] Pattern ${pattern.name} update available, adding to queue`);
+
+          if (!pattern.uniqid) {
+            console.error(`[Sync] Pattern ${pattern.name} is missing uniqid field. Pattern data:`, pattern);
+            console.warn(`[Sync] Skipping pattern ${pattern.name} - cannot download without uniqid`);
+            continue;
+          }
+
           patternUpdates++;
           const patternType = pattern.type === 'default' ? 'default_patterns' : 'user_patterns';
           downloadQueue.addItem({

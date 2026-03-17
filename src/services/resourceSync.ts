@@ -54,6 +54,8 @@ export interface UserDataUpdate {
   cards_version: number;
   has_on_demand_cards: boolean;
   layouts: Layout[];
+  billing_up_to_date: boolean;
+  license_type: string;
 }
 
 export async function getBillingStatus(apiUrl: string, email: string): Promise<BillingStatus> {
@@ -373,6 +375,8 @@ export async function getUserDataUpdate(apiUrl: string, email: string): Promise<
 
     const data = await response.json();
     console.log('[ResourceSync] User data update response:', {
+      billingUpToDate: data.billing_up_to_date,
+      licenseType: data.license_type,
       customScenarios: data.custom_scenarios?.length || 0,
       productScenarios: data.product_scenarios?.length || 0,
       defaultPatterns: data.default_patterns?.length || 0,

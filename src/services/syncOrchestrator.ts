@@ -1,5 +1,5 @@
 import { checkInternetConnection } from '../utils/connectivity';
-import { getBillingStatus, getUserDataUpdate, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
+import { getUserDataUpdate, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
 import { getGameTypesFromScenarios } from '../utils/gameTypes';
 import { DownloadQueueManager, getPriorityForType } from './downloadQueue';
 import { DownloadItem } from '../types/downloadQueue';
@@ -55,29 +55,25 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
     const apiUrl = 'https://admin.taghunter.fr/backend/api/playground.php';
 
     onProgress?.('billing', 'loading');
-    console.log('[Sync] Step 2: Fetching billing status...');
+    onProgress?.('userData', 'loading');
+    console.log('[Sync] Step 2: Fetching unified user data update (includes billing status)...');
+    console.log('[Sync] Using unified endpoint: /backend/api/playground.php?action=get_user_data_update');
+    console.log('[Sync] This replaces ALL individual API calls: billing, scenarios, cards, patterns, layouts');
     try {
-      const billingStatus = await getBillingStatus(apiUrl, config.email);
+      const userData = await getUserDataUpdate(apiUrl, config.email);
+
+      // Update billing status from unified response
       const updatedConfig = {
         ...config,
-        billingUpToDate: billingStatus.billing_up_to_date,
-        licenseType: billingStatus.license_type,
+        billingUpToDate: userData.billing_up_to_date,
+        licenseType: userData.license_type,
         lastBillingSyncDate: new Date().toISOString(),
       };
       await saveConfig(updatedConfig);
-      console.log('[Sync] Billing status updated:', billingStatus);
-      onProgress?.('billing', 'success', `License: ${billingStatus.license_type}`);
-    } catch (error) {
-      console.error('[Sync] Failed to fetch billing status:', error);
-      onProgress?.('billing', 'error', 'Failed to check billing status');
-    }
-
-    onProgress?.('userData', 'loading');
-    console.log('[Sync] Step 3: Fetching unified user data update...');
-    console.log('[Sync] Using unified endpoint: /backend/api/playground.php?action=get_user_data_update');
-    console.log('[Sync] This replaces multiple individual API calls (scenarios, cards, patterns, layouts)');
-    try {
-      const userData = await getUserDataUpdate(apiUrl, config.email);
+      console.log('[Sync] ✓ Billing status updated from unified response');
+      console.log(`[Sync]   - License: ${userData.license_type}`);
+      console.log(`[Sync]   - Billing up to date: ${userData.billing_up_to_date}`);
+      onProgress?.('billing', 'success', `License: ${userData.license_type}`);
 
       const totalScenarios = userData.custom_scenarios.length + userData.product_scenarios.length;
       const totalPatterns = userData.default_patterns.length + userData.custom_patterns.length;

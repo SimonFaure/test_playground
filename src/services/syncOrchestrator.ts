@@ -96,7 +96,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
           name: 'Client Cards',
           version: userData.cards_version,
           priority: getPriorityForType('cards'),
-          downloadUrl: `${apiUrl}?action=get_cards&email=${encodeURIComponent(config.email)}`,
+          downloadUrl: `${apiUrl}?action=download_cards&email=${encodeURIComponent(config.email)}&version=${userData.cards_version}`,
           targetPath: `cards_v${userData.cards_version}.csv`,
         });
       }
@@ -122,8 +122,9 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
             name: pattern.name,
             version: parseFloat(pattern.version),
             gameType: pattern.game_type,
+            patternUniqid: pattern.uniqid,
             priority: getPriorityForType('pattern'),
-            downloadUrl: `${apiUrl}?action=download_pattern&game_type=${pattern.game_type}&pattern_name=${encodeURIComponent(pattern.name)}&email=${encodeURIComponent(config.email)}`,
+            downloadUrl: `${apiUrl}?action=download_pattern&email=${encodeURIComponent(config.email)}&pattern_uniqid=${pattern.uniqid}`,
             targetPath: `${pattern.game_type}/${patternType}/${pattern.name}_${pattern.version}`,
           });
         }
@@ -145,8 +146,9 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
             name: `${layout.game_type} Layout`,
             version: remoteVersion,
             gameType: layout.game_type,
+            layoutId: layout.id,
             priority: getPriorityForType('layout'),
-            downloadUrl: `${apiUrl}?action=download_layout&game_type=${layout.game_type}&email=${encodeURIComponent(config.email)}`,
+            downloadUrl: `${apiUrl}?action=download_layout&email=${encodeURIComponent(config.email)}&layout_id=${layout.id}`,
             targetPath: `${layout.game_type}_${remoteVersion}`,
           });
         }
@@ -240,15 +242,26 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
 export async function downloadResourceItem(item: DownloadItem): Promise<void> {
   console.log(`[Download] Starting download for ${item.type}: ${item.name}`);
 
+  const config = await loadConfig();
+  if (!config?.email) {
+    throw new Error('No email configured');
+  }
+
+  const apiUrl = 'https://admin.taghunter.fr/backend/api/playground.php';
+
   switch (item.type) {
     case 'cards':
-      const cardsContent = await downloadCardsFile(item.downloadUrl);
+      const cardsContent = await downloadCardsFile(apiUrl, config.email, item.version);
       await (window as any).electron.cards.saveFile(item.version, cardsContent);
       console.log(`[Download] Cards saved: v${item.version}`);
       break;
 
     case 'pattern':
-      const patternContent = await downloadPattern(item.downloadUrl);
+      if (!item.patternUniqid) {
+        console.error('[Download] Cannot download pattern without patternUniqid');
+        throw new Error('Pattern download requires patternUniqid');
+      }
+      const patternContent = await downloadPattern(apiUrl, config.email, item.patternUniqid);
       const isUserPattern = item.targetPath.includes('user_patterns');
       const patternSlug = item.name.toLowerCase().replace(/\s+/g, '_');
       await (window as any).electron.patterns.saveFile(
@@ -262,7 +275,11 @@ export async function downloadResourceItem(item: DownloadItem): Promise<void> {
       break;
 
     case 'layout':
-      const layoutContent = await downloadLayout(item.downloadUrl);
+      if (!item.layoutId) {
+        console.error('[Download] Cannot download layout without layoutId');
+        throw new Error('Layout download requires layoutId');
+      }
+      const layoutContent = await downloadLayout(apiUrl, config.email, item.layoutId);
       await (window as any).electron.layouts.saveFile(item.gameType!, item.version, layoutContent);
       console.log(`[Download] Layout saved: ${item.gameType} v${item.version}`);
       break;

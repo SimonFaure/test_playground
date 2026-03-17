@@ -6,6 +6,8 @@ export interface DownloadItem {
   version: number;
   gameType?: string;
   uniqid?: string;
+  patternUniqid?: string;
+  layoutId?: number;
   priority: number;
   downloadUrl: string;
   targetPath: string;

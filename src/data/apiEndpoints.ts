@@ -172,14 +172,16 @@ export const apiEndpoints: ApiEndpoint[] = [
     {
       "name": "Default Pattern",
       "game_type": "taghunter",
-      "version": "1.0"
+      "version": "1.0",
+      "uniqid": "pattern_xyz789"
     }
   ],
   "custom_patterns": [
     {
       "name": "My Pattern",
       "game_type": "taghunter",
-      "version": "1.0"
+      "version": "1.0",
+      "uniqid": "pattern_abc456"
     }
   ],
   "cards_version": 3,
@@ -190,11 +192,97 @@ export const apiEndpoints: ApiEndpoint[] = [
       "version": "1.0",
       "game_type": "taghunter"
     }
-  ]
+  ],
+  "billing_up_to_date": true,
+  "license_type": "premium"
 }`,
     statusCodes: [
       { code: 200, description: 'Success - Returns all user data' },
       { code: 400, description: 'Bad Request - Missing or invalid email parameter' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Download Pattern',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=download_pattern',
+    description: 'Downloads a specific pattern file by its unique ID.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      },
+      {
+        name: 'pattern_uniqid',
+        type: 'string',
+        required: true,
+        description: 'The unique identifier of the pattern'
+      }
+    ],
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=download_pattern&email=user@example.com&pattern_uniqid=pattern_xyz789',
+    exampleResponse: 'CSV file content containing pattern data',
+    statusCodes: [
+      { code: 200, description: 'Success - Returns pattern file' },
+      { code: 400, description: 'Bad Request - Missing required parameters' },
+      { code: 404, description: 'Not Found - Pattern does not exist' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Download Cards',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=download_cards',
+    description: 'Downloads the cards database file for a specific version.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      },
+      {
+        name: 'version',
+        type: 'number',
+        required: true,
+        description: 'The version number of the cards to download'
+      }
+    ],
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=download_cards&email=user@example.com&version=3',
+    exampleResponse: 'CSV file content containing cards data',
+    statusCodes: [
+      { code: 200, description: 'Success - Returns cards file' },
+      { code: 400, description: 'Bad Request - Missing required parameters' },
+      { code: 404, description: 'Not Found - Cards version does not exist' },
+      { code: 500, description: 'Server Error - Internal server error' }
+    ]
+  },
+  {
+    name: 'Download Layout',
+    method: 'GET',
+    path: '/backend/api/playground.php?action=download_layout',
+    description: 'Downloads a specific layout file by its ID.',
+    parameters: [
+      {
+        name: 'email',
+        type: 'string',
+        required: true,
+        description: 'The email address of the user'
+      },
+      {
+        name: 'layout_id',
+        type: 'number',
+        required: true,
+        description: 'The unique identifier of the layout'
+      }
+    ],
+    exampleRequest: 'GET https://admin.taghunter.fr/backend/api/playground.php?action=download_layout&email=user@example.com&layout_id=1',
+    exampleResponse: 'JSON file content containing layout configuration',
+    statusCodes: [
+      { code: 200, description: 'Success - Returns layout file' },
+      { code: 400, description: 'Bad Request - Missing required parameters' },
+      { code: 404, description: 'Not Found - Layout does not exist' },
       { code: 500, description: 'Server Error - Internal server error' }
     ]
   },

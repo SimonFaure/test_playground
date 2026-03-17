@@ -45,6 +45,7 @@ export interface PatternInfo {
   name: string;
   game_type: string;
   version: string;
+  uniqid: string;
 }
 
 export interface UserDataUpdate {
@@ -245,8 +246,12 @@ export async function getLayouts(apiUrl: string, email: string): Promise<Layouts
   }
 }
 
-export async function downloadCardsFile(url: string): Promise<string> {
+export async function downloadCardsFile(apiUrl: string, email: string, version: number): Promise<string> {
+  const url = `${apiUrl}?action=download_cards&email=${encodeURIComponent(email)}&version=${version}`;
   const startTime = Date.now();
+
+  console.log(`[ResourceSync] Downloading cards file v${version}`);
+  console.log(`[ResourceSync] URL: ${url}`);
 
   try {
     const response = await fetch(url);
@@ -256,6 +261,7 @@ export async function downloadCardsFile(url: string): Promise<string> {
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
+      requestParams: { action: 'download_cards', email, version },
       duration,
       success: response.ok,
     });
@@ -265,13 +271,16 @@ export async function downloadCardsFile(url: string): Promise<string> {
     }
 
     const content = await response.text();
+    console.log(`[ResourceSync] Cards file downloaded successfully, size: ${content.length} bytes`);
     return content;
   } catch (error) {
     const duration = Date.now() - startTime;
+    console.error(`[ResourceSync] Error downloading cards file:`, error);
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: 0,
+      requestParams: { action: 'download_cards', email, version },
       duration,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -280,8 +289,12 @@ export async function downloadCardsFile(url: string): Promise<string> {
   }
 }
 
-export async function downloadPattern(url: string): Promise<string> {
+export async function downloadPattern(apiUrl: string, email: string, patternUniqid: string): Promise<string> {
+  const url = `${apiUrl}?action=download_pattern&email=${encodeURIComponent(email)}&pattern_uniqid=${patternUniqid}`;
   const startTime = Date.now();
+
+  console.log(`[ResourceSync] Downloading pattern: ${patternUniqid}`);
+  console.log(`[ResourceSync] URL: ${url}`);
 
   try {
     const response = await fetch(url);
@@ -291,6 +304,7 @@ export async function downloadPattern(url: string): Promise<string> {
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
+      requestParams: { action: 'download_pattern', email, pattern_uniqid: patternUniqid },
       duration,
       success: response.ok,
     });
@@ -300,13 +314,16 @@ export async function downloadPattern(url: string): Promise<string> {
     }
 
     const content = await response.text();
+    console.log(`[ResourceSync] Pattern downloaded successfully, size: ${content.length} bytes`);
     return content;
   } catch (error) {
     const duration = Date.now() - startTime;
+    console.error(`[ResourceSync] Error downloading pattern:`, error);
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: 0,
+      requestParams: { action: 'download_pattern', email, pattern_uniqid: patternUniqid },
       duration,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -315,8 +332,12 @@ export async function downloadPattern(url: string): Promise<string> {
   }
 }
 
-export async function downloadLayout(url: string): Promise<string> {
+export async function downloadLayout(apiUrl: string, email: string, layoutId: number): Promise<string> {
+  const url = `${apiUrl}?action=download_layout&email=${encodeURIComponent(email)}&layout_id=${layoutId}`;
   const startTime = Date.now();
+
+  console.log(`[ResourceSync] Downloading layout ID: ${layoutId}`);
+  console.log(`[ResourceSync] URL: ${url}`);
 
   try {
     const response = await fetch(url);
@@ -326,6 +347,7 @@ export async function downloadLayout(url: string): Promise<string> {
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
+      requestParams: { action: 'download_layout', email, layout_id: layoutId },
       duration,
       success: response.ok,
     });
@@ -335,13 +357,16 @@ export async function downloadLayout(url: string): Promise<string> {
     }
 
     const content = await response.text();
+    console.log(`[ResourceSync] Layout downloaded successfully, size: ${content.length} bytes`);
     return content;
   } catch (error) {
     const duration = Date.now() - startTime;
+    console.error(`[ResourceSync] Error downloading layout:`, error);
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: 0,
+      requestParams: { action: 'download_layout', email, layout_id: layoutId },
       duration,
       success: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',

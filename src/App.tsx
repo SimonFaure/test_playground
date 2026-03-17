@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, ShieldCheck, List, BookOpen, Activity } from 'lucide-react';
+import { Settings, ShieldCheck, List, BookOpen, Activity, CreditCard } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
@@ -7,6 +7,7 @@ import { AdminConfigPage } from './components/AdminConfigPage';
 import { LaunchedGamesList } from './components/LaunchedGamesList';
 import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
+import ClientCardsPage from './components/ClientCardsPage';
 import { EmailSetupModal } from './components/EmailSetupModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SyncLoadingModal, SyncStep } from './components/SyncLoadingModal';
@@ -14,7 +15,7 @@ import { supabase } from './lib/db';
 import { loadConfig, saveConfig } from './utils/config';
 import { DownloadItem } from './types/downloadQueue';
 
-type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs';
+type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs' | 'client-cards';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
@@ -335,6 +336,17 @@ function App() {
                 <Activity size={16} />
                 API Logs
               </button>
+              <button
+                onClick={() => setCurrentPage('client-cards')}
+                className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                  currentPage === 'client-cards'
+                    ? isAdminMode ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <CreditCard size={16} />
+                Cards
+              </button>
               {isAdminMode && (
                 <button
                   onClick={() => setCurrentPage('admin-config')}
@@ -357,6 +369,7 @@ function App() {
       {currentPage === 'launched-games' && <LaunchedGamesList />}
       {currentPage === 'config' && <ConfigurationPage />}
       {currentPage === 'api-docs' && <ApiDocsPage />}
+      {currentPage === 'client-cards' && <ClientCardsPage />}
       {currentPage === 'api-logs' && <ApiLogsPage />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
 

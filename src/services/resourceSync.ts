@@ -420,14 +420,16 @@ export async function getUserDataUpdate(apiUrl: string, email: string): Promise<
     });
 
     const transformPattern = (pattern: any): PatternInfo => {
-      if (!pattern.uniqid) {
-        console.warn('[ResourceSync] Pattern missing uniqid:', pattern);
+      // API returns pattern_uniqid field, not uniqid
+      const patternUniqid = pattern.pattern_uniqid || pattern.uniqid || '';
+      if (!patternUniqid) {
+        console.warn('[ResourceSync] Pattern missing pattern_uniqid:', pattern);
       }
       return {
         name: pattern.name,
         game_type: pattern.game_type,
         version: pattern.version,
-        uniqid: pattern.uniqid || '',
+        uniqid: patternUniqid,
       };
     };
 

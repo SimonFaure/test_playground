@@ -62,10 +62,7 @@ function App() {
           const initialSteps: SyncStep[] = [
             { id: 'connectivity', label: 'Checking Internet Connection', status: 'pending' },
             { id: 'billing', label: 'Fetching Billing Status', status: 'pending' },
-            { id: 'cards', label: 'Checking Cards Version', status: 'pending' },
-            { id: 'gameTypes', label: 'Discovering Game Types', status: 'pending' },
-            { id: 'patterns', label: 'Checking Patterns', status: 'pending' },
-            { id: 'layouts', label: 'Checking Layouts', status: 'pending' },
+            { id: 'userData', label: 'Fetching User Data (Scenarios, Patterns, Layouts, Cards)', status: 'pending' },
           ];
           setSyncSteps(initialSteps);
           setShowSyncModal(true);

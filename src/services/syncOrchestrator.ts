@@ -73,13 +73,20 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
     }
 
     onProgress?.('userData', 'loading');
-    console.log('[Sync] Step 3: Fetching user data update...');
+    console.log('[Sync] Step 3: Fetching unified user data update...');
+    console.log('[Sync] Using unified endpoint: /backend/api/playground.php?action=get_user_data_update');
+    console.log('[Sync] This replaces multiple individual API calls (scenarios, cards, patterns, layouts)');
     try {
       const userData = await getUserDataUpdate(apiUrl, config.email);
 
       const totalScenarios = userData.custom_scenarios.length + userData.product_scenarios.length;
       const totalPatterns = userData.default_patterns.length + userData.custom_patterns.length;
-      console.log(`[Sync] User data received: ${totalScenarios} scenarios, ${totalPatterns} patterns, ${userData.layouts.length} layouts`);
+      console.log('[Sync] ✓ Unified user data received successfully!');
+      console.log(`[Sync]   - Scenarios: ${totalScenarios} (${userData.custom_scenarios.length} custom, ${userData.product_scenarios.length} product)`);
+      console.log(`[Sync]   - Patterns: ${totalPatterns} (${userData.default_patterns.length} default, ${userData.custom_patterns.length} custom)`);
+      console.log(`[Sync]   - Layouts: ${userData.layouts.length}`);
+      console.log(`[Sync]   - Cards version: ${userData.cards_version}`);
+      console.log(`[Sync]   - Has on-demand cards: ${userData.has_on_demand_cards}`);
 
       const localCardsVersionResult = await (window as any).electron.cards.getLocalVersion();
       const localCardsVersion = localCardsVersionResult.version || 0;
@@ -155,9 +162,14 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
         layoutUpdates > 0 ? `${layoutUpdates} layout updates` : null,
       ].filter(Boolean).join(', ') || 'All up to date';
 
+      console.log('[Sync] ✓ User data processing complete!');
+      console.log(`[Sync] Summary: ${updatesSummary}`);
       onProgress?.('userData', 'success', updatesSummary);
     } catch (error) {
-      console.error('[Sync] Failed to fetch user data update:', error);
+      console.error('[Sync] ✗ Failed to fetch user data update:', error);
+      if (error instanceof Error) {
+        console.error('[Sync] Error message:', error.message);
+      }
       onProgress?.('userData', 'error', 'Failed to fetch user data');
     }
 

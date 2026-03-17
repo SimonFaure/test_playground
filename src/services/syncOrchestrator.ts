@@ -403,5 +403,32 @@ function extractMediaFiles(gameData: any): Array<{ filename: string; folder: str
     processObject(gameData.medias.levels, 'levels');
   }
 
+  // For tagquest game type, also process quests media
+  const gameType = gameData?.game?.type || gameData?.scenario?.game_type;
+  if (gameType === 'tagquest' && gameData.medias.quests) {
+    console.log('[extractMediaFiles] Processing tagquest quests media');
+
+    const questsArray = Array.isArray(gameData.medias.quests)
+      ? gameData.medias.quests
+      : Object.values(gameData.medias.quests);
+
+    questsArray.forEach((quest: any, index: number) => {
+      if (quest && typeof quest === 'object') {
+        // Extract image_1, image_2, image_4, and main_image
+        ['image_1', 'image_2', 'image_4', 'main_image'].forEach(imageField => {
+          if (quest[imageField] && typeof quest[imageField] === 'string' && quest[imageField].trim()) {
+            console.log(`[extractMediaFiles] Found quest ${index} ${imageField}: ${quest[imageField]}`);
+            mediaFiles.push({ filename: quest[imageField], folder: 'images' });
+          }
+        });
+
+        // Extract quest sounds
+        if (quest.sounds) {
+          processObject(quest.sounds, 'sounds');
+        }
+      }
+    });
+  }
+
   return mediaFiles;
 }

@@ -362,6 +362,38 @@ export function extractMediaFiles(gameData: GameData): MediaFile[] {
     });
   }
 
+  // For tagquest game type, also process quests media
+  const gameType = gameData?.scenario?.game_type;
+  if (gameType === 'tagquest' && gameData.medias.quests) {
+    console.log('[extractMediaFiles] 📂 Processing tagquest quests media...');
+
+    const questsArray = Array.isArray(gameData.medias.quests)
+      ? gameData.medias.quests
+      : Object.values(gameData.medias.quests);
+
+    questsArray.forEach((quest: any, index: number) => {
+      if (quest && typeof quest === 'object') {
+        console.log(`[extractMediaFiles] Processing quest ${index}:`, Object.keys(quest));
+
+        // Extract image_1, image_2, image_4, and main_image
+        ['image_1', 'image_2', 'image_4', 'main_image'].forEach(imageField => {
+          if (quest[imageField] && typeof quest[imageField] === 'string' && quest[imageField].trim()) {
+            console.log(`[extractMediaFiles] ✅ Found quest ${index} ${imageField}: ${quest[imageField]}`);
+            mediaFiles.push({ filename: quest[imageField], folder: 'images' });
+          }
+        });
+
+        // Extract quest sounds
+        if (quest.sounds && typeof quest.sounds === 'object') {
+          const beforeCount = mediaFiles.length;
+          extractFilenamesFromObject(quest.sounds, 'sounds', mediaFiles, `quests[${index}].sounds`);
+          const addedCount = mediaFiles.length - beforeCount;
+          console.log(`[extractMediaFiles] ✅ Added ${addedCount} sound files from quest ${index}`);
+        }
+      }
+    });
+  }
+
   const uniqueFiles = Array.from(
     new Map(mediaFiles.map(file => [`${file.folder}/${file.filename}`, file])).values()
   );

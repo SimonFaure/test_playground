@@ -711,7 +711,8 @@ app.whenReady().then(() => {
             difficulty: gameMeta.game_public === 'kids' ? 'Easy' : gameMeta.game_public === 'ado_adultes' ? 'Hard' : 'Medium',
             duration_minutes: parseInt(gameMeta.default_time || '60', 10),
             image_url: imageUrl,
-            uniqid: folder
+            uniqid: folder,
+            version: scenario.version || '1.0'
           });
 
           gameTypesSet.add(scenario.scenario_type || 'unknown');
@@ -730,6 +731,40 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error refreshing scenarios:', error);
       return { game_types: [], scenarios: [] };
+    }
+  });
+
+  ipcMain.handle('scenarios:get-local-versions', async () => {
+    const fs = require('fs');
+    try {
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios');
+
+      if (!fs.existsSync(scenariosDir)) {
+        return {};
+      }
+
+      const folders = fs.readdirSync(scenariosDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+      const versions = {};
+
+      for (const folder of folders) {
+        const gameDataPath = path.join(scenariosDir, folder, 'game-data.json');
+        if (fs.existsSync(gameDataPath)) {
+          const gameDataContent = fs.readFileSync(gameDataPath, 'utf8');
+          const gameData = JSON.parse(gameDataContent);
+          const scenario = gameData.scenario || {};
+
+          versions[folder] = scenario.version || '1.0';
+        }
+      }
+
+      console.log('[Electron] Local scenario versions:', versions);
+      return versions;
+    } catch (error) {
+      console.error('[Electron] Error getting local scenario versions:', error);
+      return {};
     }
   });
 

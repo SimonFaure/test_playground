@@ -38,6 +38,7 @@ export interface ScenarioInfo {
   slug: string;
   uniqid: string;
   version: string;
+  game_type?: string;
 }
 
 export interface PatternInfo {

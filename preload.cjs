@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('electron', {
     refresh: () => ipcRenderer.invoke('scenarios:refresh'),
     delete: (uniqid) => ipcRenderer.invoke('scenarios:delete', uniqid),
     getImage: (uniqid) => ipcRenderer.invoke('scenarios:get-image', uniqid),
+    getLocalVersions: () => ipcRenderer.invoke('scenarios:get-local-versions'),
   },
   apiLogs: {
     write: (logData) => ipcRenderer.invoke('api-logs:write', logData),

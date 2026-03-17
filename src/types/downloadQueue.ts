@@ -5,6 +5,7 @@ export interface DownloadItem {
   name: string;
   version: number;
   gameType?: string;
+  uniqid?: string;
   priority: number;
   downloadUrl: string;
   targetPath: string;

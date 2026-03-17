@@ -58,7 +58,7 @@ export class DownloadQueueManager {
       return `layout_${item.gameType}`;
     }
     if (item.type === 'scenario') {
-      return `scenario_${item.name}`;
+      return `scenario_${item.uniqid || item.name}`;
     }
     return `${item.type}_${item.name}`;
   }

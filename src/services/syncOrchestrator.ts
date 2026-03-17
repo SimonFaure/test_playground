@@ -152,8 +152,40 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
         }
       }
 
+      let scenarioUpdates = 0;
+      const allScenarios = [
+        ...userData.custom_scenarios,
+        ...userData.product_scenarios
+      ];
+
+      const localScenarioVersions = await (window as any).electron.scenarios.getLocalVersions();
+      console.log('[Sync] Local scenario versions:', localScenarioVersions);
+
+      for (const scenario of allScenarios) {
+        const localVersion = localScenarioVersions[scenario.uniqid] || '0';
+        const remoteVersion = scenario.version || '1.0';
+
+        console.log(`[Sync] Scenario ${scenario.name} (${scenario.uniqid}) - Local: v${localVersion}, Remote: v${remoteVersion}`);
+
+        if (compareVersions(parseFloat(localVersion), parseFloat(remoteVersion))) {
+          console.log(`[Sync] Scenario ${scenario.name} update available, adding to queue`);
+          scenarioUpdates++;
+          downloadQueue.addItem({
+            type: 'scenario',
+            name: scenario.name,
+            version: parseFloat(remoteVersion),
+            uniqid: scenario.uniqid,
+            gameType: scenario.game_type || 'unknown',
+            priority: getPriorityForType('scenario'),
+            downloadUrl: `${apiUrl}?action=get_scenario_game_data&email=${encodeURIComponent(config.email)}&uniqid=${scenario.uniqid}`,
+            targetPath: scenario.uniqid,
+          });
+        }
+      }
+
       const updatesSummary = [
-        totalScenarios > 0 ? `${totalScenarios} scenarios` : null,
+        totalScenarios > 0 ? `${totalScenarios} scenarios available` : null,
+        scenarioUpdates > 0 ? `${scenarioUpdates} scenario updates` : null,
         patternUpdates > 0 ? `${patternUpdates} pattern updates` : null,
         layoutUpdates > 0 ? `${layoutUpdates} layout updates` : null,
       ].filter(Boolean).join(', ') || 'All up to date';
@@ -235,7 +267,117 @@ export async function downloadResourceItem(item: DownloadItem): Promise<void> {
       console.log(`[Download] Layout saved: ${item.gameType} v${item.version}`);
       break;
 
+    case 'scenario':
+      if (!item.uniqid) {
+        console.error('[Download] Cannot download scenario without uniqid');
+        throw new Error('Scenario download requires uniqid');
+      }
+      await downloadScenario(item.uniqid, item.downloadUrl);
+      console.log(`[Download] Scenario saved: ${item.name} v${item.version}`);
+      await (window as any).electron.scenarios.refresh();
+      break;
+
     default:
       console.warn(`[Download] Unknown item type: ${item.type}`);
   }
+}
+
+async function downloadScenario(uniqid: string, downloadUrl: string): Promise<void> {
+  console.log(`[downloadScenario] Downloading scenario: ${uniqid}`);
+  console.log(`[downloadScenario] URL: ${downloadUrl}`);
+
+  try {
+    const response = await fetch(downloadUrl, { credentials: 'include' });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download scenario: ${response.statusText}`);
+    }
+
+    const gameData = await response.json();
+    console.log(`[downloadScenario] Game data received for: ${uniqid}`);
+
+    await (window as any).electron.scenarios.saveGameData(uniqid, gameData);
+    console.log(`[downloadScenario] Game data saved`);
+
+    const mediaFiles = extractMediaFiles(gameData);
+    console.log(`[downloadScenario] Found ${mediaFiles.length} media files to download`);
+
+    const config = await loadConfig();
+    if (!config?.email) {
+      throw new Error('No email configured');
+    }
+
+    for (const mediaFile of mediaFiles) {
+      try {
+        console.log(`[downloadScenario] Downloading media: ${mediaFile.folder}/${mediaFile.filename}`);
+        const mediaUrl = `https://admin.taghunter.fr/backend/api/playground.php?action=get_media&email=${encodeURIComponent(config.email)}&uniqid=${uniqid}&filename=${encodeURIComponent(mediaFile.filename)}`;
+
+        const mediaResponse = await fetch(mediaUrl, { credentials: 'include' });
+
+        if (!mediaResponse.ok) {
+          console.error(`[downloadScenario] Failed to download media: ${mediaFile.filename}`);
+          continue;
+        }
+
+        const blob = await mediaResponse.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+
+        await (window as any).electron.scenarios.saveMedia(uniqid, mediaFile.folder, mediaFile.filename, base64Data);
+        console.log(`[downloadScenario] Media saved: ${mediaFile.filename}`);
+      } catch (error) {
+        console.error(`[downloadScenario] Error downloading media file ${mediaFile.filename}:`, error);
+      }
+    }
+
+    console.log(`[downloadScenario] Scenario download complete: ${uniqid}`);
+  } catch (error) {
+    console.error(`[downloadScenario] Error downloading scenario:`, error);
+    throw error;
+  }
+}
+
+function extractMediaFiles(gameData: any): Array<{ filename: string; folder: string }> {
+  const mediaFiles: Array<{ filename: string; folder: string }> = [];
+
+  if (!gameData.medias) {
+    return mediaFiles;
+  }
+
+  const processObject = (obj: any, folder: string) => {
+    if (!obj || typeof obj !== 'object') return;
+
+    if (Array.isArray(obj)) {
+      obj.forEach(item => {
+        if (typeof item === 'string' && item.trim()) {
+          mediaFiles.push({ filename: item, folder });
+        } else if (typeof item === 'object') {
+          processObject(item, folder);
+        }
+      });
+    } else {
+      Object.values(obj).forEach(value => {
+        if (typeof value === 'string' && value.trim()) {
+          mediaFiles.push({ filename: value, folder });
+        } else if (typeof value === 'object' && value !== null) {
+          processObject(value, folder);
+        }
+      });
+    }
+  };
+
+  if (gameData.medias.images) {
+    processObject(gameData.medias.images, 'images');
+  }
+  if (gameData.medias.sounds) {
+    processObject(gameData.medias.sounds, 'sounds');
+  }
+  if (gameData.medias.videos) {
+    processObject(gameData.medias.videos, 'videos');
+  }
+  if (gameData.medias.levels) {
+    processObject(gameData.medias.levels, 'levels');
+  }
+
+  return mediaFiles;
 }

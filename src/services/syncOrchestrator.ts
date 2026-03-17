@@ -177,7 +177,7 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
             name: scenario.name,
             version: parseFloat(remoteVersion),
             uniqid: scenario.uniqid,
-            gameType: scenario.game_type || 'unknown',
+            gameType: scenario.game_type,
             priority: getPriorityForType('scenario'),
             downloadUrl: `${apiUrl}?action=get_scenario_game_data&email=${encodeURIComponent(config.email)}&uniqid=${scenario.uniqid}`,
             targetPath: scenario.uniqid,

@@ -38,7 +38,7 @@ export interface ScenarioInfo {
   slug: string;
   uniqid: string;
   version: string;
-  game_type?: string;
+  game_type: string;
 }
 
 export interface PatternInfo {
@@ -399,24 +399,44 @@ export async function getUserDataUpdate(apiUrl: string, email: string): Promise<
       throw new Error(`Failed to fetch user data update: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const rawData = await response.json();
     console.log('[ResourceSync] User data update response:', {
-      billingUpToDate: data.billing_up_to_date,
-      licenseType: data.license_type,
-      customScenarios: data.custom_scenarios?.length || 0,
-      productScenarios: data.product_scenarios?.length || 0,
-      defaultPatterns: data.default_patterns?.length || 0,
-      customPatterns: data.custom_patterns?.length || 0,
-      cardsVersion: data.cards_version,
-      layouts: data.layouts?.length || 0,
+      billingUpToDate: rawData.billing_up_to_date,
+      licenseType: rawData.license_type,
+      customScenarios: rawData.custom_scenarios?.length || 0,
+      productScenarios: rawData.product_scenarios?.length || 0,
+      defaultPatterns: rawData.default_patterns?.length || 0,
+      customPatterns: rawData.custom_patterns?.length || 0,
+      cardsVersion: rawData.cards_version,
+      layouts: rawData.layouts?.length || 0,
     });
+
+    const transformScenario = (scenario: any): ScenarioInfo => ({
+      name: scenario.title || scenario.name,
+      slug: scenario.slug,
+      uniqid: scenario.uniqid,
+      version: scenario.version,
+      game_type: scenario.game_type,
+    });
+
+    const data: UserDataUpdate = {
+      custom_scenarios: (rawData.custom_scenarios || []).map(transformScenario),
+      product_scenarios: (rawData.product_scenarios || []).map(transformScenario),
+      default_patterns: rawData.default_patterns || [],
+      custom_patterns: rawData.custom_patterns || [],
+      cards_version: rawData.cards_version,
+      has_on_demand_cards: rawData.has_on_demand_cards,
+      layouts: rawData.layouts || [],
+      billing_up_to_date: rawData.billing_up_to_date,
+      license_type: rawData.license_type,
+    };
 
     await logApiCall({
       endpoint: url,
       method: 'GET',
       statusCode: response.status,
       requestParams: { action: 'get_user_data_update', email },
-      responseData: data,
+      responseData: rawData,
       duration,
     });
 

@@ -154,18 +154,20 @@ export const apiEndpoints: ApiEndpoint[] = [
     exampleResponse: `{
   "custom_scenarios": [
     {
-      "name": "My Scenario",
+      "title": "My Scenario",
       "slug": "my-scenario",
       "uniqid": "scenario_abc123",
-      "version": "1.2"
+      "version": "1.2",
+      "game_type": "mystery"
     }
   ],
   "product_scenarios": [
     {
-      "name": "Product Scenario",
+      "title": "Product Scenario",
       "slug": "product-scenario",
       "uniqid": "scenario_def456",
-      "version": "2.0"
+      "version": "2.0",
+      "game_type": "treasure_hunt"
     }
   ],
   "default_patterns": [

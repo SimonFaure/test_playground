@@ -59,17 +59,16 @@ function App() {
 
           setUserEmail(config.email);
 
+          // Automatically start sync in background without showing modal
+          console.log('[App Launch] Auto-starting resource sync in background...');
+          const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
+
           const initialSteps: SyncStep[] = [
             { id: 'connectivity', label: 'Checking Internet Connection', status: 'pending' },
             { id: 'billing', label: 'Fetching Billing Status', status: 'pending' },
             { id: 'userData', label: 'Fetching User Data', status: 'pending' },
           ];
           setSyncSteps(initialSteps);
-          setShowSyncModal(true);
-
-          // Automatically start sync without waiting for user interaction
-          console.log('[App Launch] Auto-starting resource sync...');
-          const { syncResourcesBeforeScenarios } = await import('./services/syncOrchestrator');
 
           const syncResult = await syncResourcesBeforeScenarios((stepId, status, details) => {
             setCurrentSyncStep(stepId);
@@ -82,14 +81,13 @@ function App() {
 
           console.log('[App Launch] Resource sync completed:', syncResult);
 
+          // Only show modal if there are downloads needed
           if (syncResult.downloadsNeeded.length > 0) {
-            console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available`);
+            console.log(`[App Launch] ${syncResult.downloadsNeeded.length} resource updates available - showing modal`);
             setDownloadsNeeded(syncResult.downloadsNeeded);
+            setShowSyncModal(true);
           } else {
-            // No downloads needed, close modal after a brief delay
-            setTimeout(() => {
-              setShowSyncModal(false);
-            }, 1500);
+            console.log('[App Launch] No downloads needed - sync complete');
           }
 
           if (syncResult.success) {

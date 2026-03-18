@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GameConfig } from './LaunchGameModal';
 import { MysteryGamePage } from './MysteryGamePage';
+import { TagQuestGamePage } from './TagQuestGamePage';
 import { supabase } from '../lib/db';
 
 interface GamePageProps {
@@ -98,6 +99,10 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
 
   if (gameMetadata?.type === 'mystery') {
     return <MysteryGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} />;
+  }
+
+  if (gameMetadata?.type === 'tagquest') {
+    return <TagQuestGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} />;
   }
 
   return (

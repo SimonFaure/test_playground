@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, FolderOpen, Monitor, CreditCard } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Settings, Usb, RefreshCw, Check, Globe, FolderOpen, Monitor, CreditCard, Upload } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
+import { detectFileType, saveUploadedFile, UploadResult } from '../utils/fileUpload';
 
 interface SerialPortInfo {
   path: string;
@@ -26,6 +27,9 @@ export function ConfigurationPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
@@ -187,6 +191,43 @@ export function ConfigurationPage() {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadResult(null);
+    setMessage({ type: 'success', text: 'Processing file...' });
+
+    try {
+      const result = await detectFileType(file);
+      setUploadResult(result);
+
+      if (result.isValid) {
+        setMessage({ type: 'success', text: `Detected ${result.type} file: ${result.name}. Saving...` });
+        await saveUploadedFile(result);
+        setMessage({ type: 'success', text: `Successfully uploaded ${result.type}: ${result.name}` });
+        setTimeout(() => setMessage(null), 5000);
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Invalid file' });
+        setTimeout(() => setMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setMessage({ type: 'error', text: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
 
@@ -580,6 +621,42 @@ export function ConfigurationPage() {
           </div>
           <div className="text-xs font-mono text-slate-500 bg-slate-900/50 p-3 rounded border border-slate-700">
             %APPDATA%\TagHunterPlayground\
+          </div>
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Upload Files</h3>
+              <p className="text-sm text-slate-400">
+                Upload game scenarios, patterns, cards, or layouts. Supports ZIP, JSON, and CSV files.
+              </p>
+            </div>
+            <button
+              onClick={handleUploadClick}
+              disabled={isUploading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload size={16} className={isUploading ? 'animate-pulse' : ''} />
+              {isUploading ? 'Uploading...' : 'Upload File'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip,.json,.csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
+
+          <div className="text-sm text-slate-400 space-y-2">
+            <p className="font-semibold text-slate-300">Supported file types:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li><span className="font-mono text-blue-400">.zip</span> - Game scenarios with game-data.json and media files</li>
+              <li><span className="font-mono text-blue-400">.csv</span> - Pattern files (filename contains "pattern")</li>
+              <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
+              <li><span className="font-mono text-blue-400">.csv</span> - Layout files (filename contains "layout")</li>
+            </ul>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
 import { detectFileType, saveUploadedFile, UploadResult } from '../utils/fileUpload';
+import { FolderBrowser } from './FolderBrowser';
 
 interface SerialPortInfo {
   path: string;
@@ -782,6 +783,8 @@ export function ConfigurationPage() {
             </ul>
           </div>
         </div>
+
+        <FolderBrowser isElectron={isElectron} />
 
         <div className="bg-slate-800/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Information</h3>

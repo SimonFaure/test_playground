@@ -1040,6 +1040,102 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:get-folder-structure', async () => {
+    const fs = require('fs');
+    try {
+      const dataDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+
+      const buildTree = (dirPath, name) => {
+        const stats = fs.statSync(dirPath);
+
+        if (stats.isFile()) {
+          return {
+            name,
+            path: dirPath,
+            type: 'file',
+            size: stats.size
+          };
+        }
+
+        if (stats.isDirectory()) {
+          const children = [];
+          try {
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+              const filePath = path.join(dirPath, file);
+              try {
+                children.push(buildTree(filePath, file));
+              } catch (err) {
+                console.error(`Error reading ${filePath}:`, err);
+              }
+            }
+          } catch (err) {
+            console.error(`Error reading directory ${dirPath}:`, err);
+          }
+
+          return {
+            name,
+            path: dirPath,
+            type: 'folder',
+            children,
+            expanded: name === 'TagHunterPlayground'
+          };
+        }
+      };
+
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      const tree = buildTree(dataDir, 'TagHunterPlayground');
+      return tree;
+    } catch (error) {
+      console.error('Error getting folder structure:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('scenarios:get-storage-info', async () => {
+    const fs = require('fs');
+    try {
+      const dataDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+
+      const getDirectorySize = (dirPath) => {
+        let totalSize = 0;
+
+        try {
+          const files = fs.readdirSync(dirPath);
+          for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stats = fs.statSync(filePath);
+
+            if (stats.isFile()) {
+              totalSize += stats.size;
+            } else if (stats.isDirectory()) {
+              totalSize += getDirectorySize(filePath);
+            }
+          }
+        } catch (err) {
+          console.error(`Error calculating size for ${dirPath}:`, err);
+        }
+
+        return totalSize;
+      };
+
+      if (!fs.existsSync(dataDir)) {
+        return { used: 0, total: 1024 * 1024 * 1024 };
+      }
+
+      const used = getDirectorySize(dataDir);
+      const total = 1024 * 1024 * 1024;
+
+      return { used, total };
+    } catch (error) {
+      console.error('Error getting storage info:', error);
+      return { used: 0, total: 1024 * 1024 * 1024 };
+    }
+  });
+
   ipcMain.handle('cards:get-local-version', async () => {
     const fs = require('fs');
     try {

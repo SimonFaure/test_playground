@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('electron', {
   cards: {
     getLocalVersion: () => ipcRenderer.invoke('cards:get-local-version'),
     saveFile: (version, content) => ipcRenderer.invoke('cards:save-file', version, content),
+    saveOnDemandFile: (content) => ipcRenderer.invoke('cards:save-on-demand-file', content),
   },
   patterns: {
     listFolders: (gameTypeName) => ipcRenderer.invoke('patterns:list-folders', gameTypeName),

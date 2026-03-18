@@ -1255,6 +1255,25 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('cards:save-on-demand-file', async (event, content) => {
+    const fs = require('fs');
+    try {
+      const cardsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'cards', 'clients_cards');
+
+      if (!fs.existsSync(cardsDir)) {
+        fs.mkdirSync(cardsDir, { recursive: true });
+      }
+
+      const filePath = path.join(cardsDir, 'on_demand_cards.csv');
+      fs.writeFileSync(filePath, content);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving on-demand cards file:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('patterns:get-local-versions', async (event, gameType, patternSlug) => {
     const fs = require('fs');
     try {

@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { supabase } from '../lib/db';
 
 export interface ValidationResult {
   success: boolean;
@@ -123,14 +124,8 @@ async function saveZipToDataFolder(zip: JSZip, uniqid: string): Promise<void> {
 }
 
 async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void> {
-  const gameStorage: Record<string, any> = {
-    csv: {},
-    media: {
-      images: {},
-      sounds: {},
-      videos: {}
-    }
-  };
+  const csvFiles: Record<string, string> = {};
+  const mediaFiles: Array<{ filename: string; media_type: string; data: string }> = [];
 
   for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
     if (zipEntry.dir) continue;
@@ -138,44 +133,84 @@ async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void
     if (relativePath.includes('csv/')) {
       const content = await zipEntry.async('text');
       const fileName = relativePath.split('/').pop() || '';
-      gameStorage.csv[fileName] = content;
+      csvFiles[fileName] = content;
     } else if (relativePath.includes('media/')) {
       const base64Content = await zipEntry.async('base64');
-
       const pathAfterMedia = relativePath.substring(relativePath.indexOf('media/') + 6);
 
       if (relativePath.includes('images/')) {
         const pathAfterImages = pathAfterMedia.substring(pathAfterMedia.indexOf('images/') + 7);
-        gameStorage.media.images[pathAfterImages] = base64Content;
-        console.log(`[zipHandler] Saved image: ${pathAfterImages}`);
+        mediaFiles.push({
+          filename: pathAfterImages,
+          media_type: 'image',
+          data: base64Content
+        });
+        console.log(`[zipHandler] Queued image: ${pathAfterImages}`);
       } else if (relativePath.includes('sounds/')) {
         const pathAfterSounds = pathAfterMedia.substring(pathAfterMedia.indexOf('sounds/') + 7);
-        gameStorage.media.sounds[pathAfterSounds] = base64Content;
-        console.log(`[zipHandler] Saved sound: ${pathAfterSounds}`);
+        mediaFiles.push({
+          filename: pathAfterSounds,
+          media_type: 'sound',
+          data: base64Content
+        });
+        console.log(`[zipHandler] Queued sound: ${pathAfterSounds}`);
       } else if (relativePath.includes('videos/')) {
         const pathAfterVideos = pathAfterMedia.substring(pathAfterMedia.indexOf('videos/') + 7);
-        gameStorage.media.videos[pathAfterVideos] = base64Content;
-        console.log(`[zipHandler] Saved video: ${pathAfterVideos}`);
+        mediaFiles.push({
+          filename: pathAfterVideos,
+          media_type: 'video',
+          data: base64Content
+        });
+        console.log(`[zipHandler] Queued video: ${pathAfterVideos}`);
       }
     }
   }
 
-  console.log('[zipHandler] Media files saved:', {
-    images: Object.keys(gameStorage.media.images).length,
-    sounds: Object.keys(gameStorage.media.sounds).length,
-    videos: Object.keys(gameStorage.media.videos).length
-  });
+  const { error: scenarioError } = await supabase
+    .from('scenarios')
+    .upsert({
+      uniqid,
+      title: uniqid,
+      game_type: 'mystery',
+      csv_game: csvFiles['game.csv'] || '',
+      csv_enigmas: csvFiles['game_enigmas.csv'] || '',
+      csv_media_images: csvFiles['game_media_images.csv'] || '',
+      csv_meta: csvFiles['game_meta.csv'] || '',
+      csv_sounds: csvFiles['game_sounds.csv'] || '',
+      csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'uniqid'
+    });
 
-  const gameStorageKey = `game_${uniqid}`;
-  localStorage.setItem(gameStorageKey, JSON.stringify(gameStorage));
-
-  const gamesListKey = 'uploaded_games_list';
-  const gamesList = JSON.parse(localStorage.getItem(gamesListKey) || '[]');
-
-  if (!gamesList.includes(uniqid)) {
-    gamesList.push(uniqid);
-    localStorage.setItem(gamesListKey, JSON.stringify(gamesList));
+  if (scenarioError) {
+    console.error('Error saving scenario:', scenarioError);
+    throw new Error(`Failed to save scenario: ${scenarioError.message}`);
   }
 
-  console.log(`Successfully saved scenario ${uniqid} to browser storage`);
+  await supabase
+    .from('scenario_media')
+    .delete()
+    .eq('scenario_uniqid', uniqid);
+
+  if (mediaFiles.length > 0) {
+    const batchSize = 10;
+    for (let i = 0; i < mediaFiles.length; i += batchSize) {
+      const batch = mediaFiles.slice(i, i + batchSize).map(m => ({
+        ...m,
+        scenario_uniqid: uniqid
+      }));
+
+      const { error: mediaError } = await supabase
+        .from('scenario_media')
+        .insert(batch);
+
+      if (mediaError) {
+        console.error('Error saving media batch:', mediaError);
+        throw new Error(`Failed to save media: ${mediaError.message}`);
+      }
+    }
+  }
+
+  console.log(`Successfully saved scenario ${uniqid} to Supabase with ${mediaFiles.length} media files`);
 }

@@ -1,3 +1,5 @@
+import { supabase } from '../lib/db';
+
 interface StorageNode {
   name: string;
   path: string;
@@ -55,7 +57,7 @@ function buildMediaTree(mediaFiles: Record<string, string>, parentFolder: Storag
   }
 }
 
-export function getWebStorageStructure(): StorageNode {
+export async function getWebStorageStructure(): Promise<StorageNode> {
   const root: StorageNode = {
     name: 'Browser Storage',
     path: '/',
@@ -64,7 +66,7 @@ export function getWebStorageStructure(): StorageNode {
     children: []
   };
 
-  const scenariosFolder = buildScenariosFolder();
+  const scenariosFolder = await buildScenariosFolder();
   const layoutsFolder = buildLayoutsFolder();
   const patternsFolder = buildPatternsFolder();
   const configFolder = buildConfigFolder();
@@ -74,7 +76,7 @@ export function getWebStorageStructure(): StorageNode {
   return root;
 }
 
-function buildScenariosFolder(): StorageNode {
+async function buildScenariosFolder(): Promise<StorageNode> {
   const scenariosFolder: StorageNode = {
     name: 'Scenarios',
     path: '/scenarios',
@@ -83,127 +85,141 @@ function buildScenariosFolder(): StorageNode {
     children: []
   };
 
-  const gamesListStr = localStorage.getItem('uploaded_games_list');
-  if (gamesListStr) {
-    try {
-      const gamesList = JSON.parse(gamesListStr);
-      for (const uniqid of gamesList) {
-        const gameKey = `game_${uniqid}`;
-        const gameDataStr = localStorage.getItem(gameKey);
-        if (gameDataStr) {
-          try {
-            const gameStorage = JSON.parse(gameDataStr);
-            const gameFolder: StorageNode = {
-              name: uniqid,
-              path: `/scenarios/${uniqid}`,
-              type: 'folder',
-              expanded: false,
-              children: []
-            };
+  try {
+    const { data: scenarios, error } = await supabase
+      .from('scenarios')
+      .select('uniqid, title, csv_game, csv_enigmas, csv_media_images, csv_meta, csv_sounds, csv_user_meta');
 
-            if (gameStorage.gameData) {
-              const gameDataSize = new Blob([JSON.stringify(gameStorage.gameData)]).size;
-              gameFolder.children?.push({
-                name: 'game-data.json',
-                path: `/scenarios/${uniqid}/game-data.json`,
-                type: 'file',
-                size: gameDataSize
-              });
-            }
+    if (error) {
+      console.error('Error fetching scenarios:', error);
+      return scenariosFolder;
+    }
 
-            if (gameStorage.csv) {
-              const csvFolder: StorageNode = {
-                name: 'csv',
-                path: `/scenarios/${uniqid}/csv`,
-                type: 'folder',
-                expanded: false,
-                children: []
-              };
+    if (!scenarios || scenarios.length === 0) {
+      return scenariosFolder;
+    }
 
-              for (const [filename, content] of Object.entries(gameStorage.csv)) {
-                const size = new Blob([content as string]).size;
-                csvFolder.children?.push({
-                  name: filename,
-                  path: `/scenarios/${uniqid}/csv/${filename}`,
-                  type: 'file',
-                  size
-                });
-              }
+    for (const scenario of scenarios) {
+      const { uniqid } = scenario;
+      const gameFolder: StorageNode = {
+        name: uniqid,
+        path: `/scenarios/${uniqid}`,
+        type: 'folder',
+        expanded: false,
+        children: []
+      };
 
-              if (csvFolder.children && csvFolder.children.length > 0) {
-                gameFolder.children?.push(csvFolder);
-              }
-            }
+      const csvFolder: StorageNode = {
+        name: 'csv',
+        path: `/scenarios/${uniqid}/csv`,
+        type: 'folder',
+        expanded: false,
+        children: []
+      };
 
-            if (gameStorage.media) {
-              const mediaFolder: StorageNode = {
-                name: 'media',
-                path: `/scenarios/${uniqid}/media`,
-                type: 'folder',
-                expanded: false,
-                children: []
-              };
+      const csvFiles = {
+        'game.csv': scenario.csv_game,
+        'game_enigmas.csv': scenario.csv_enigmas,
+        'game_media_images.csv': scenario.csv_media_images,
+        'game_meta.csv': scenario.csv_meta,
+        'game_sounds.csv': scenario.csv_sounds,
+        'game_user_meta.csv': scenario.csv_user_meta
+      };
 
-              const imagesFolder: StorageNode = {
-                name: 'images',
-                path: `/scenarios/${uniqid}/media/images`,
-                type: 'folder',
-                expanded: false,
-                children: []
-              };
-
-              if (gameStorage.media.images) {
-                buildMediaTree(gameStorage.media.images, imagesFolder, `/scenarios/${uniqid}/media/images`);
-              }
-
-              if ((imagesFolder.children?.length ?? 0) > 0) {
-                mediaFolder.children?.push(imagesFolder);
-              }
-
-              const soundsFolder: StorageNode = {
-                name: 'sounds',
-                path: `/scenarios/${uniqid}/media/sounds`,
-                type: 'folder',
-                expanded: false,
-                children: []
-              };
-
-              if (gameStorage.media.sounds) {
-                buildMediaTree(gameStorage.media.sounds, soundsFolder, `/scenarios/${uniqid}/media/sounds`);
-              }
-
-              if ((soundsFolder.children?.length ?? 0) > 0) {
-                mediaFolder.children?.push(soundsFolder);
-              }
-
-              const videosFolder: StorageNode = {
-                name: 'videos',
-                path: `/scenarios/${uniqid}/media/videos`,
-                type: 'folder',
-                expanded: false,
-                children: []
-              };
-
-              if (gameStorage.media.videos) {
-                buildMediaTree(gameStorage.media.videos, videosFolder, `/scenarios/${uniqid}/media/videos`);
-              }
-
-              if ((videosFolder.children?.length ?? 0) > 0) {
-                mediaFolder.children?.push(videosFolder);
-              }
-
-              gameFolder.children?.push(mediaFolder);
-            }
-
-            scenariosFolder.children?.push(gameFolder);
-          } catch (parseError) {
-            console.error(`Error parsing game data for ${uniqid}:`, parseError);
-          }
+      for (const [filename, content] of Object.entries(csvFiles)) {
+        if (content) {
+          const size = new Blob([content]).size;
+          csvFolder.children?.push({
+            name: filename,
+            path: `/scenarios/${uniqid}/csv/${filename}`,
+            type: 'file',
+            size
+          });
         }
       }
-    } catch (error) {
-      console.error('Error parsing games list:', error);
+
+      if (csvFolder.children && csvFolder.children.length > 0) {
+        gameFolder.children?.push(csvFolder);
+      }
+
+      const { data: mediaFiles, error: mediaError } = await supabase
+        .from('scenario_media')
+        .select('filename, media_type, data')
+        .eq('scenario_uniqid', uniqid);
+
+      if (!mediaError && mediaFiles && mediaFiles.length > 0) {
+        const mediaFolder: StorageNode = {
+          name: 'media',
+          path: `/scenarios/${uniqid}/media`,
+          type: 'folder',
+          expanded: false,
+          children: []
+        };
+
+        const imagesFolder: StorageNode = {
+          name: 'images',
+          path: `/scenarios/${uniqid}/media/images`,
+          type: 'folder',
+          expanded: false,
+          children: []
+        };
+
+        const soundsFolder: StorageNode = {
+          name: 'sounds',
+          path: `/scenarios/${uniqid}/media/sounds`,
+          type: 'folder',
+          expanded: false,
+          children: []
+        };
+
+        const videosFolder: StorageNode = {
+          name: 'videos',
+          path: `/scenarios/${uniqid}/media/videos`,
+          type: 'folder',
+          expanded: false,
+          children: []
+        };
+
+        const mediaByType: Record<string, Record<string, string>> = {
+          images: {},
+          sounds: {},
+          videos: {}
+        };
+
+        for (const media of mediaFiles) {
+          if (media.media_type === 'image') {
+            mediaByType.images[media.filename] = media.data;
+          } else if (media.media_type === 'sound') {
+            mediaByType.sounds[media.filename] = media.data;
+          } else if (media.media_type === 'video') {
+            mediaByType.videos[media.filename] = media.data;
+          }
+        }
+
+        if (Object.keys(mediaByType.images).length > 0) {
+          buildMediaTree(mediaByType.images, imagesFolder, `/scenarios/${uniqid}/media/images`);
+          mediaFolder.children?.push(imagesFolder);
+        }
+
+        if (Object.keys(mediaByType.sounds).length > 0) {
+          buildMediaTree(mediaByType.sounds, soundsFolder, `/scenarios/${uniqid}/media/sounds`);
+          mediaFolder.children?.push(soundsFolder);
+        }
+
+        if (Object.keys(mediaByType.videos).length > 0) {
+          buildMediaTree(mediaByType.videos, videosFolder, `/scenarios/${uniqid}/media/videos`);
+          mediaFolder.children?.push(videosFolder);
+        }
+
+        if (mediaFolder.children && mediaFolder.children.length > 0) {
+          gameFolder.children?.push(mediaFolder);
+        }
+      }
+
+      scenariosFolder.children?.push(gameFolder);
     }
+  } catch (error) {
+    console.error('Error building scenarios folder:', error);
   }
 
   return scenariosFolder;
@@ -341,7 +357,7 @@ export function clearLocalStorageByPrefix(prefix: string): number {
   return deletedCount;
 }
 
-export function deleteWebStorageItem(path: string): boolean {
+export async function deleteWebStorageItem(path: string): Promise<boolean> {
   try {
     const pathParts = path.split('/').filter(p => p);
 
@@ -357,52 +373,89 @@ export function deleteWebStorageItem(path: string): boolean {
       const uniqid = pathParts[1];
 
       if (pathParts.length === 2) {
-        const gameKey = `game_${uniqid}`;
-        localStorage.removeItem(gameKey);
+        const { error } = await supabase
+          .from('scenarios')
+          .delete()
+          .eq('uniqid', uniqid);
 
-        const gamesListStr = localStorage.getItem('uploaded_games_list');
-        if (gamesListStr) {
-          const gamesList = JSON.parse(gamesListStr);
-          const updatedList = gamesList.filter((id: string) => id !== uniqid);
-          localStorage.setItem('uploaded_games_list', JSON.stringify(updatedList));
+        if (error) {
+          console.error('Error deleting scenario:', error);
+          return false;
         }
+
         return true;
       }
 
       if (pathParts.length >= 3) {
-        const gameKey = `game_${uniqid}`;
-        const gameDataStr = localStorage.getItem(gameKey);
-        if (!gameDataStr) return false;
-
-        const gameStorage = JSON.parse(gameDataStr);
-
         if (pathParts[2] === 'csv') {
-          if (pathParts.length === 3) {
-            delete gameStorage.csv;
-          } else if (pathParts.length === 4) {
+          if (pathParts.length === 4) {
             const filename = pathParts[3];
-            if (gameStorage.csv && gameStorage.csv[filename]) {
-              delete gameStorage.csv[filename];
+            const csvColumnMap: Record<string, string> = {
+              'game.csv': 'csv_game',
+              'game_enigmas.csv': 'csv_enigmas',
+              'game_media_images.csv': 'csv_media_images',
+              'game_meta.csv': 'csv_meta',
+              'game_sounds.csv': 'csv_sounds',
+              'game_user_meta.csv': 'csv_user_meta'
+            };
+
+            const columnName = csvColumnMap[filename];
+            if (columnName) {
+              const { error } = await supabase
+                .from('scenarios')
+                .update({ [columnName]: '' })
+                .eq('uniqid', uniqid);
+
+              if (error) {
+                console.error('Error deleting CSV file:', error);
+                return false;
+              }
+              return true;
             }
           }
         } else if (pathParts[2] === 'media') {
           if (pathParts.length === 3) {
-            delete gameStorage.media;
+            const { error } = await supabase
+              .from('scenario_media')
+              .delete()
+              .eq('scenario_uniqid', uniqid);
+
+            if (error) {
+              console.error('Error deleting all media:', error);
+              return false;
+            }
+            return true;
           } else if (pathParts.length === 4) {
             const mediaType = pathParts[3];
-            if (gameStorage.media && gameStorage.media[mediaType]) {
-              delete gameStorage.media[mediaType];
+            const { error } = await supabase
+              .from('scenario_media')
+              .delete()
+              .eq('scenario_uniqid', uniqid)
+              .eq('media_type', mediaType.slice(0, -1));
+
+            if (error) {
+              console.error('Error deleting media type:', error);
+              return false;
             }
+            return true;
           } else if (pathParts.length === 5) {
             const mediaType = pathParts[3];
             const filename = pathParts[4];
-            if (gameStorage.media && gameStorage.media[mediaType] && gameStorage.media[mediaType][filename]) {
-              delete gameStorage.media[mediaType][filename];
+            const { error } = await supabase
+              .from('scenario_media')
+              .delete()
+              .eq('scenario_uniqid', uniqid)
+              .eq('media_type', mediaType.slice(0, -1))
+              .eq('filename', filename);
+
+            if (error) {
+              console.error('Error deleting media file:', error);
+              return false;
             }
+            return true;
           }
         }
 
-        localStorage.setItem(gameKey, JSON.stringify(gameStorage));
         return true;
       }
     }

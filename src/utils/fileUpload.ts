@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { supabase } from '../lib/db';
 
 export type FileType = 'game' | 'pattern' | 'cards' | 'layout' | 'unknown';
 
@@ -436,20 +437,6 @@ async function saveLayoutWeb(data: any): Promise<void> {
 async function saveGameWeb(data: any): Promise<void> {
   const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
 
-  const gameStorage: Record<string, any> = {
-    gameData,
-    csv: {},
-    media: {
-      images: {},
-      sounds: {},
-      videos: {}
-    }
-  };
-
-  for (const [filename, content] of Object.entries(csvFiles)) {
-    gameStorage.csv[filename] = content;
-  }
-
   const uint8ArrayToBase64 = (uint8Array: Uint8Array): string => {
     let binary = '';
     const chunkSize = 8192;
@@ -460,31 +447,84 @@ async function saveGameWeb(data: any): Promise<void> {
     return btoa(binary);
   };
 
+  const { error: scenarioError } = await supabase
+    .from('scenarios')
+    .upsert({
+      uniqid,
+      title: gameData.title || 'Untitled Scenario',
+      description: gameData.description || '',
+      game_type: gameData.game_type || 'mystery',
+      version: gameData.version || '1.0',
+      duration_minutes: gameData.duration_minutes || 60,
+      difficulty: gameData.difficulty || 'medium',
+      csv_game: csvFiles['game.csv'] || '',
+      csv_enigmas: csvFiles['game_enigmas.csv'] || '',
+      csv_media_images: csvFiles['game_media_images.csv'] || '',
+      csv_meta: csvFiles['game_meta.csv'] || '',
+      csv_sounds: csvFiles['game_sounds.csv'] || '',
+      csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'uniqid'
+    });
+
+  if (scenarioError) {
+    console.error('Error saving scenario:', scenarioError);
+    throw new Error(`Failed to save scenario: ${scenarioError.message}`);
+  }
+
+  const { error: deleteError } = await supabase
+    .from('scenario_media')
+    .delete()
+    .eq('scenario_uniqid', uniqid);
+
+  if (deleteError) {
+    console.warn('Error deleting old media:', deleteError);
+  }
+
+  const mediaRecords = [];
+
   for (const [filename, data] of Object.entries(images)) {
-    const base64 = uint8ArrayToBase64(data as Uint8Array);
-    gameStorage.media.images[filename] = base64;
+    mediaRecords.push({
+      scenario_uniqid: uniqid,
+      filename,
+      media_type: 'image',
+      data: uint8ArrayToBase64(data as Uint8Array)
+    });
   }
 
   for (const [filename, data] of Object.entries(sounds)) {
-    const base64 = uint8ArrayToBase64(data as Uint8Array);
-    gameStorage.media.sounds[filename] = base64;
+    mediaRecords.push({
+      scenario_uniqid: uniqid,
+      filename,
+      media_type: 'sound',
+      data: uint8ArrayToBase64(data as Uint8Array)
+    });
   }
 
   for (const [filename, data] of Object.entries(videos)) {
-    const base64 = uint8ArrayToBase64(data as Uint8Array);
-    gameStorage.media.videos[filename] = base64;
+    mediaRecords.push({
+      scenario_uniqid: uniqid,
+      filename,
+      media_type: 'video',
+      data: uint8ArrayToBase64(data as Uint8Array)
+    });
   }
 
-  const gameStorageKey = `game_${uniqid}`;
-  localStorage.setItem(gameStorageKey, JSON.stringify(gameStorage));
+  if (mediaRecords.length > 0) {
+    const batchSize = 10;
+    for (let i = 0; i < mediaRecords.length; i += batchSize) {
+      const batch = mediaRecords.slice(i, i + batchSize);
+      const { error: mediaError } = await supabase
+        .from('scenario_media')
+        .insert(batch);
 
-  const gamesListKey = 'uploaded_games_list';
-  const gamesList = JSON.parse(localStorage.getItem(gamesListKey) || '[]');
-
-  if (!gamesList.includes(uniqid)) {
-    gamesList.push(uniqid);
-    localStorage.setItem(gamesListKey, JSON.stringify(gamesList));
+      if (mediaError) {
+        console.error('Error saving media batch:', mediaError);
+        throw new Error(`Failed to save media: ${mediaError.message}`);
+      }
+    }
   }
 
-  console.log(`Successfully saved scenario ${uniqid} to browser storage`);
+  console.log(`Successfully saved scenario ${uniqid} to Supabase`);
 }

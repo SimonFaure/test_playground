@@ -60,7 +60,7 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
   };
 
   const loadWebStorageStructure = async () => {
-    const structure = getWebStorageStructure();
+    const structure = await getWebStorageStructure();
     setFileTree(structure);
 
     const info = getWebStorageInfo();
@@ -123,7 +123,7 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
           alert(`Failed to delete: ${result.error}`);
         }
       } else {
-        const success = deleteWebStorageItem(deleteConfirm.path);
+        const success = await deleteWebStorageItem(deleteConfirm.path);
         if (!success) {
           alert('Failed to delete item');
         }

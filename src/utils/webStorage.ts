@@ -10,16 +10,22 @@ interface StorageNode {
 function buildMediaTree(mediaFiles: Record<string, string>, parentFolder: StorageNode, basePath: string): void {
   const folderMap = new Map<string, StorageNode>();
 
+  console.log(`[webStorage] Building media tree for ${basePath}, files:`, Object.keys(mediaFiles));
+
   for (const [filePath, base64Content] of Object.entries(mediaFiles)) {
-    const parts = filePath.split('/');
+    const parts = filePath.split('/').filter(p => p);
     const fileName = parts[parts.length - 1];
     const folderParts = parts.slice(0, -1);
+
+    console.log(`[webStorage] Processing file: ${filePath}, parts:`, parts, 'folderParts:', folderParts);
 
     let currentFolder = parentFolder;
     let currentPath = basePath;
 
     for (let i = 0; i < folderParts.length; i++) {
       const folderName = folderParts[i];
+      if (!folderName) continue;
+
       currentPath = `${currentPath}/${folderName}`;
 
       if (!folderMap.has(currentPath)) {
@@ -32,6 +38,7 @@ function buildMediaTree(mediaFiles: Record<string, string>, parentFolder: Storag
         };
         currentFolder.children?.push(newFolder);
         folderMap.set(currentPath, newFolder);
+        console.log(`[webStorage] Created folder node: ${currentPath}`);
       }
 
       currentFolder = folderMap.get(currentPath)!;
@@ -44,6 +51,7 @@ function buildMediaTree(mediaFiles: Record<string, string>, parentFolder: Storag
       type: 'file',
       size
     });
+    console.log(`[webStorage] Added file: ${fileName} to folder: ${currentPath}`);
   }
 }
 

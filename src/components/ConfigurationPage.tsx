@@ -30,6 +30,7 @@ export function ConfigurationPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     setIsElectron(usbReaderService.isElectron());
@@ -230,17 +231,139 @@ export function ConfigurationPage() {
     fileInputRef.current?.click();
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadResult(null);
+    setMessage({ type: 'success', text: 'Processing file...' });
+
+    try {
+      const result = await detectFileType(file);
+      setUploadResult(result);
+
+      if (result.isValid) {
+        setMessage({ type: 'success', text: `Detected ${result.type} file: ${result.name}. Saving...` });
+        await saveUploadedFile(result);
+        setMessage({ type: 'success', text: `Successfully uploaded ${result.type}: ${result.name}` });
+        setTimeout(() => setMessage(null), 5000);
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Invalid file' });
+        setTimeout(() => setMessage(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setMessage({ type: 'error', text: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
 
   if (!isElectron) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-8">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6 max-w-4xl">
           <div className="flex items-center gap-3 mb-8">
             <Settings className="text-blue-400" size={32} />
             <h1 className="text-3xl font-bold">Configuration</h1>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-8 text-center">
-            <p className="text-slate-400">Configuration is only available in the Electron app.</p>
+
+          {message && (
+            <div
+              className={`mb-6 p-4 rounded-lg ${
+                message.type === 'success'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Upload className="text-blue-400" size={24} />
+                <h2 className="text-xl font-semibold">Upload Scenarios</h2>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <button
+                onClick={handleUploadClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                disabled={isUploading}
+                className={`w-full flex flex-col items-center justify-center gap-4 p-8 rounded-lg border-2 border-dashed transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDragging
+                    ? 'bg-blue-900/30 border-blue-400'
+                    : 'bg-slate-700/30 hover:bg-slate-700/50 border-slate-600 hover:border-blue-500'
+                }`}
+              >
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  isUploading ? 'bg-blue-600/40 animate-pulse' : isDragging ? 'bg-blue-600/30' : 'bg-blue-600/20'
+                }`}>
+                  <Upload className={`${isDragging ? 'text-blue-300' : 'text-blue-400'}`} size={32} />
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-white mb-2">
+                    {isUploading ? 'Uploading...' : isDragging ? 'Drop file here' : 'Upload Scenario Files'}
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    {isDragging ? 'Release to upload' : 'Click to select files or drag and drop'}
+                  </div>
+                </div>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,.json,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            <div className="text-sm text-slate-400 space-y-2">
+              <p className="font-semibold text-slate-300">Supported file types:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li><span className="font-mono text-blue-400">.zip</span> - Game scenarios with CSV and media files</li>
+                <li><span className="font-mono text-blue-400">.csv</span> - Pattern files (filename contains "pattern")</li>
+                <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
+                <li><span className="font-mono text-blue-400">.csv</span> - Layout files (filename contains "layout")</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-3">Note</h3>
+            <div className="text-sm text-slate-400 space-y-2">
+              <p>
+                Advanced configuration options (USB port selection, display settings) are only available in the Electron desktop app.
+              </p>
+              <p>
+                Upload your game scenario ZIP files here to make them available in your scenario library.
+              </p>
+            </div>
           </div>
         </div>
       </div>

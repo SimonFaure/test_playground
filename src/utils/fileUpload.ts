@@ -216,8 +216,15 @@ export async function saveUploadedFile(result: UploadResult): Promise<void> {
   }
 
   const electron = (window as any).electron;
-  if (!electron) {
-    throw new Error('Electron API not available');
+  const isElectron = electron && electron.isElectron;
+
+  if (!isElectron) {
+    if (result.type === 'game') {
+      await saveGameWeb(result.data);
+    } else {
+      throw new Error('Only game scenario uploads are supported in web version. Use the Electron app for pattern, card, and layout uploads.');
+    }
+    return;
   }
 
   switch (result.type) {
@@ -279,4 +286,89 @@ async function saveCards(data: any): Promise<void> {
 async function saveLayout(data: any): Promise<void> {
   console.log('Layout save not yet implemented:', data);
   throw new Error('Layout upload is not yet implemented');
+}
+
+async function saveGameWeb(data: any): Promise<void> {
+  const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
+  const { supabase } = await import('../lib/db');
+
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Cannot upload files.');
+  }
+
+  for (const [filename, data] of Object.entries(images)) {
+    const blob = new Blob([data as Uint8Array], { type: 'image/jpeg' });
+    const storagePath = `${uniqid}/images/${filename}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('game_media')
+      .upload(storagePath, blob, {
+        contentType: blob.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error(`Failed to upload ${storagePath}:`, uploadError);
+    }
+  }
+
+  for (const [filename, data] of Object.entries(sounds)) {
+    const blob = new Blob([data as Uint8Array], { type: 'audio/mpeg' });
+    const storagePath = `${uniqid}/sounds/${filename}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('game_media')
+      .upload(storagePath, blob, {
+        contentType: blob.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error(`Failed to upload ${storagePath}:`, uploadError);
+    }
+  }
+
+  for (const [filename, data] of Object.entries(videos)) {
+    const blob = new Blob([data as Uint8Array], { type: 'video/mp4' });
+    const storagePath = `${uniqid}/videos/${filename}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('game_media')
+      .upload(storagePath, blob, {
+        contentType: blob.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error(`Failed to upload ${storagePath}:`, uploadError);
+    }
+  }
+
+  const game = gameData.game || gameData.scenario || {};
+
+  const scenarioRecord = {
+    uniqid: uniqid,
+    title: game.title || game.name || 'Untitled',
+    description: game.description || '',
+    game_type: game.type || 'unknown',
+    version: game.version || '1.0',
+    duration_minutes: parseInt(game.duration) || 60,
+    difficulty: game.difficulty || 'medium',
+    csv_game: csvFiles['game.csv'] || '',
+    csv_enigmas: csvFiles['game_enigmas.csv'] || '',
+    csv_media_images: csvFiles['game_media_images.csv'] || '',
+    csv_meta: csvFiles['game_meta.csv'] || '',
+    csv_sounds: csvFiles['game_sounds.csv'] || '',
+    csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+  };
+
+  const { error: dbError } = await supabase
+    .from('scenarios')
+    .upsert(scenarioRecord, { onConflict: 'uniqid' });
+
+  if (dbError) {
+    throw new Error(`Failed to save scenario to database: ${dbError.message}`);
+  }
+
+  console.log(`Successfully uploaded scenario ${uniqid} to Supabase`);
 }

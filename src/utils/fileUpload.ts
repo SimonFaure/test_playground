@@ -450,18 +450,28 @@ async function saveGameWeb(data: any): Promise<void> {
     gameStorage.csv[filename] = content;
   }
 
+  const uint8ArrayToBase64 = (uint8Array: Uint8Array): string => {
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    return btoa(binary);
+  };
+
   for (const [filename, data] of Object.entries(images)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    const base64 = uint8ArrayToBase64(data as Uint8Array);
     gameStorage.media.images[filename] = base64;
   }
 
   for (const [filename, data] of Object.entries(sounds)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    const base64 = uint8ArrayToBase64(data as Uint8Array);
     gameStorage.media.sounds[filename] = base64;
   }
 
   for (const [filename, data] of Object.entries(videos)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    const base64 = uint8ArrayToBase64(data as Uint8Array);
     gameStorage.media.videos[filename] = base64;
   }
 

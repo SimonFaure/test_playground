@@ -101,14 +101,26 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             });
           }
 
-          const layoutKey = `layout_tagquest`;
-          const layoutStr = localStorage.getItem(layoutKey);
-          if (layoutStr) {
-            const layoutData = JSON.parse(layoutStr);
-            setLayout(layoutData);
-            console.log('Layout loaded from localStorage:', layoutData);
+          const { data: layoutData, error: layoutError } = await supabase
+            .from('layouts')
+            .select('*')
+            .eq('game_type', 'tagquest')
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (!layoutError && layoutData) {
+            setLayout(layoutData.config);
+            console.log('Layout loaded from Supabase:', layoutData);
           } else {
-            console.warn('No layout found in localStorage for tagquest');
+            const layoutKey = `layout_tagquest`;
+            const layoutStr = localStorage.getItem(layoutKey);
+            if (layoutStr) {
+              const layoutData = JSON.parse(layoutStr);
+              setLayout(layoutData);
+              console.log('Layout loaded from localStorage:', layoutData);
+            } else {
+              console.warn('No layout found for tagquest');
+            }
           }
         }
       } catch (error) {

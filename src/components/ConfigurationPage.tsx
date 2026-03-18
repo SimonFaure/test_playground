@@ -348,9 +348,10 @@ export function ConfigurationPage() {
               <p className="font-semibold text-slate-300">Supported file types:</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li><span className="font-mono text-blue-400">.zip</span> - Game scenarios with CSV and media files</li>
-                <li><span className="font-mono text-blue-400">.csv</span> - Pattern files (filename contains "pattern")</li>
+                <li><span className="font-mono text-blue-400">.json</span> - Layout files (format: {'{game_type}_layout_{version}.json'})</li>
+                <li><span className="font-mono text-blue-400">.json</span> - Pattern files (format: {'pattern_{pattern_slug}.json'})</li>
+                <li><span className="font-mono text-blue-400">.csv</span> - Pattern CSV files (filename contains "pattern")</li>
                 <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
-                <li><span className="font-mono text-blue-400">.csv</span> - Layout files (filename contains "layout")</li>
               </ul>
             </div>
           </div>
@@ -779,9 +780,10 @@ export function ConfigurationPage() {
             <p className="font-semibold text-slate-300">Supported file types:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li><span className="font-mono text-blue-400">.zip</span> - Game scenarios with game-data.json and media files</li>
-              <li><span className="font-mono text-blue-400">.csv</span> - Pattern files (filename contains "pattern")</li>
+              <li><span className="font-mono text-blue-400">.json</span> - Layout files (format: {'{game_type}_layout_{version}.json'})</li>
+              <li><span className="font-mono text-blue-400">.json</span> - Pattern files (format: {'pattern_{pattern_slug}.json'})</li>
+              <li><span className="font-mono text-blue-400">.csv</span> - Pattern CSV files (filename contains "pattern")</li>
               <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
-              <li><span className="font-mono text-blue-400">.csv</span> - Layout files (filename contains "layout")</li>
             </ul>
           </div>
         </div>

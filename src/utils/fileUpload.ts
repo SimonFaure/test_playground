@@ -147,11 +147,42 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
 
     const fileName = file.name.toLowerCase();
 
+    const layoutPattern = /^[^_]+_layout_[^.]+\.json$/;
+    if (layoutPattern.test(fileName)) {
+      const [gameType, , version] = file.name.replace('.json', '').split('_');
+      return {
+        type: 'layout',
+        name: file.name,
+        data: {
+          layoutData: data,
+          gameType,
+          version,
+          fileName: file.name
+        },
+        isValid: true
+      };
+    }
+
     if (fileName.includes('layout')) {
       return {
         type: 'layout',
         name: file.name,
-        data: { layoutData: data },
+        data: { layoutData: data, fileName: file.name },
+        isValid: true
+      };
+    }
+
+    const patternPattern = /^pattern_[^.]+\.json$/;
+    if (patternPattern.test(fileName)) {
+      const patternSlug = file.name.replace('pattern_', '').replace('.json', '');
+      return {
+        type: 'pattern',
+        name: file.name,
+        data: {
+          patternData: data,
+          patternSlug,
+          fileName: file.name
+        },
         isValid: true
       };
     }
@@ -161,7 +192,7 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
       name: file.name,
       data,
       isValid: false,
-      error: 'Cannot determine JSON file type. Filename should contain "layout".'
+      error: 'Cannot determine JSON file type. Expected format: "{game_type}_layout_{version}.json" or "pattern_{pattern_slug}.json".'
     };
   } catch (error) {
     console.error('Error processing JSON file:', error);
@@ -232,8 +263,14 @@ export async function saveUploadedFile(result: UploadResult): Promise<void> {
   if (!isElectron) {
     if (result.type === 'game') {
       await saveGameWeb(result.data);
+    } else if (result.type === 'pattern') {
+      await savePatternWeb(result.data);
+    } else if (result.type === 'layout') {
+      await saveLayoutWeb(result.data);
+    } else if (result.type === 'cards') {
+      throw new Error('Card uploads are not yet supported in web version. Use the Electron app for card uploads.');
     } else {
-      throw new Error('Only game scenario uploads are supported in web version. Use the Electron app for pattern, card, and layout uploads.');
+      throw new Error(`Cannot save file of type: ${result.type}`);
     }
     return;
   }
@@ -285,8 +322,52 @@ async function saveGame(data: any): Promise<void> {
 }
 
 async function savePattern(data: any): Promise<void> {
-  console.log('Pattern save not yet implemented:', data);
-  throw new Error('Pattern upload is not yet implemented');
+  const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+  if (isElectron) {
+    await savePatternElectron(data);
+  } else {
+    await savePatternWeb(data);
+  }
+}
+
+async function savePatternElectron(data: any): Promise<void> {
+  const electron = (window as any).electron;
+  const { patternData, patternSlug, fileName, csvContent } = data;
+
+  if (csvContent) {
+    await electron.patterns?.saveCsv(patternSlug, csvContent);
+  } else if (patternData) {
+    await electron.patterns?.save(patternSlug, patternData);
+  } else {
+    throw new Error('No pattern data or CSV content found');
+  }
+
+  console.log(`Pattern ${patternSlug} saved to Electron storage`);
+}
+
+async function savePatternWeb(data: any): Promise<void> {
+  const { patternData, patternSlug, fileName, csvContent } = data;
+
+  const patternStorageKey = `pattern_${patternSlug}`;
+
+  if (csvContent) {
+    localStorage.setItem(patternStorageKey, csvContent);
+  } else if (patternData) {
+    localStorage.setItem(patternStorageKey, JSON.stringify(patternData));
+  } else {
+    throw new Error('No pattern data or CSV content found');
+  }
+
+  const patternsListKey = 'uploaded_patterns_list';
+  const patternsList = JSON.parse(localStorage.getItem(patternsListKey) || '[]');
+
+  if (!patternsList.includes(patternSlug)) {
+    patternsList.push(patternSlug);
+    localStorage.setItem(patternsListKey, JSON.stringify(patternsList));
+  }
+
+  console.log(`Pattern ${patternSlug} saved to browser storage`);
 }
 
 async function saveCards(data: any): Promise<void> {
@@ -306,31 +387,47 @@ async function saveLayout(data: any): Promise<void> {
 
 async function saveLayoutElectron(data: any): Promise<void> {
   const electron = (window as any).electron;
-  const { layoutData } = data;
+  const { layoutData, gameType, version, fileName } = data;
 
-  const layoutName = layoutData.name || layoutData.id || 'layout';
-  await electron.layouts?.save(layoutName, layoutData);
+  const layoutIdentifier = fileName
+    ? fileName.replace('.json', '')
+    : (layoutData.name || layoutData.id || 'layout');
 
-  console.log(`Layout ${layoutName} saved to Electron storage`);
+  await electron.layouts?.save(layoutIdentifier, layoutData);
+
+  console.log(`Layout ${layoutIdentifier} saved to Electron storage`);
 }
 
 async function saveLayoutWeb(data: any): Promise<void> {
-  const { layoutData } = data;
+  const { layoutData, gameType, version, fileName } = data;
 
-  const layoutName = layoutData.name || layoutData.id || `layout_${Date.now()}`;
-  const layoutStorageKey = `layout_${layoutName}`;
+  const layoutIdentifier = fileName
+    ? fileName.replace('.json', '')
+    : (layoutData.name || layoutData.id || `layout_${Date.now()}`);
 
-  localStorage.setItem(layoutStorageKey, JSON.stringify(layoutData));
+  const layoutStorageKey = `layout_${layoutIdentifier}`;
+
+  const layoutWithMetadata = {
+    ...layoutData,
+    _metadata: {
+      gameType,
+      version,
+      fileName,
+      uploadedAt: new Date().toISOString()
+    }
+  };
+
+  localStorage.setItem(layoutStorageKey, JSON.stringify(layoutWithMetadata));
 
   const layoutsListKey = 'uploaded_layouts_list';
   const layoutsList = JSON.parse(localStorage.getItem(layoutsListKey) || '[]');
 
-  if (!layoutsList.includes(layoutName)) {
-    layoutsList.push(layoutName);
+  if (!layoutsList.includes(layoutIdentifier)) {
+    layoutsList.push(layoutIdentifier);
     localStorage.setItem(layoutsListKey, JSON.stringify(layoutsList));
   }
 
-  console.log(`Layout ${layoutName} saved to browser storage`);
+  console.log(`Layout ${layoutIdentifier} saved to browser storage`);
 }
 
 async function saveGameWeb(data: any): Promise<void> {

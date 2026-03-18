@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, FolderOpen, File, ChevronRight, ChevronDown, HardDrive, Database, RefreshCw, ExternalLink } from 'lucide-react';
-import { getWebStorageStructure, getWebStorageInfo } from '../utils/webStorage';
+import { Folder, FolderOpen, File, ChevronRight, ChevronDown, HardDrive, Database, RefreshCw, ExternalLink, Trash2 } from 'lucide-react';
+import { getWebStorageStructure, getWebStorageInfo, deleteWebStorageItem } from '../utils/webStorage';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface FileNode {
   name: string;
@@ -19,6 +20,13 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
   const [fileTree, setFileTree] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [storageInfo, setStorageInfo] = useState<{ used: number; total: number } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; path: string; name: string; isFolder: boolean }>({
+    show: false,
+    path: '',
+    name: '',
+    isFolder: false
+  });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadFileStructure();
@@ -96,14 +104,50 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, node: FileNode) => {
+    e.stopPropagation();
+    setDeleteConfirm({
+      show: true,
+      path: node.path,
+      name: node.name,
+      isFolder: node.type === 'folder'
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    try {
+      if (isElectron) {
+        const result = await (window as any).electron.scenarios.deletePath(deleteConfirm.path);
+        if (!result.success) {
+          alert(`Failed to delete: ${result.error}`);
+        }
+      } else {
+        const success = deleteWebStorageItem(deleteConfirm.path);
+        if (!success) {
+          alert('Failed to delete item');
+        }
+      }
+
+      await loadFileStructure();
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('An error occurred while deleting');
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm({ show: false, path: '', name: '', isFolder: false });
+    }
+  };
+
   const renderNode = (node: FileNode, depth: number = 0): React.ReactNode => {
     const isFolder = node.type === 'folder';
     const hasChildren = node.children && node.children.length > 0;
+    const isRootFolder = depth === 0;
 
     return (
       <div key={node.path}>
         <div
-          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-slate-700/30 cursor-pointer transition-colors`}
+          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-slate-700/30 cursor-pointer transition-colors group`}
           style={{ paddingLeft: `${depth * 20 + 12}px` }}
           onClick={() => isFolder && toggleFolder(node.path)}
         >
@@ -130,6 +174,16 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
 
           {node.size !== undefined && (
             <span className="text-xs text-slate-500">{formatBytes(node.size)}</span>
+          )}
+
+          {!isRootFolder && (
+            <button
+              onClick={(e) => handleDeleteClick(e, node)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-600/20 rounded"
+              title={`Delete ${isFolder ? 'folder' : 'file'}`}
+            >
+              <Trash2 size={16} className="text-red-400" />
+            </button>
           )}
         </div>
 
@@ -203,6 +257,17 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
       ) : (
         <div className="text-center py-8 text-slate-400">No files found</div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.show}
+        title={`Delete ${deleteConfirm.isFolder ? 'Folder' : 'File'}`}
+        message={`Are you sure you want to delete "${deleteConfirm.name}"?${deleteConfirm.isFolder ? ' This will delete all files inside this folder.' : ''}`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm({ show: false, path: '', name: '', isFolder: false })}
+        isLoading={deleting}
+      />
     </div>
   );
 }

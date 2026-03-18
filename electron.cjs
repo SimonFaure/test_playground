@@ -1162,6 +1162,36 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:delete-path', async (event, itemPath) => {
+    const fs = require('fs');
+    try {
+      const dataDir = path.join(app.getPath('appData'), 'TagHunterPlayground');
+
+      const fullPath = itemPath.startsWith(dataDir) ? itemPath : path.join(dataDir, itemPath);
+
+      if (!fullPath.startsWith(dataDir)) {
+        throw new Error('Invalid path: must be within data directory');
+      }
+
+      if (!fs.existsSync(fullPath)) {
+        return { success: false, error: 'Path does not exist' };
+      }
+
+      const stats = fs.statSync(fullPath);
+
+      if (stats.isDirectory()) {
+        fs.rmSync(fullPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(fullPath);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting path:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('cards:get-local-version', async () => {
     const fs = require('fs');
     try {

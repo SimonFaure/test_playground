@@ -299,3 +299,116 @@ export function clearLocalStorageByPrefix(prefix: string): number {
 
   return deletedCount;
 }
+
+export function deleteWebStorageItem(path: string): boolean {
+  try {
+    const pathParts = path.split('/').filter(p => p);
+
+    if (pathParts.length === 0) {
+      return false;
+    }
+
+    if (pathParts[0] === 'scenarios') {
+      if (pathParts.length === 1) {
+        return false;
+      }
+
+      const uniqid = pathParts[1];
+
+      if (pathParts.length === 2) {
+        const gameKey = `game_${uniqid}`;
+        localStorage.removeItem(gameKey);
+
+        const gamesListStr = localStorage.getItem('uploaded_games_list');
+        if (gamesListStr) {
+          const gamesList = JSON.parse(gamesListStr);
+          const updatedList = gamesList.filter((id: string) => id !== uniqid);
+          localStorage.setItem('uploaded_games_list', JSON.stringify(updatedList));
+        }
+        return true;
+      }
+
+      if (pathParts.length >= 3) {
+        const gameKey = `game_${uniqid}`;
+        const gameDataStr = localStorage.getItem(gameKey);
+        if (!gameDataStr) return false;
+
+        const gameStorage = JSON.parse(gameDataStr);
+
+        if (pathParts[2] === 'csv') {
+          if (pathParts.length === 3) {
+            delete gameStorage.csv;
+          } else if (pathParts.length === 4) {
+            const filename = pathParts[3];
+            if (gameStorage.csv && gameStorage.csv[filename]) {
+              delete gameStorage.csv[filename];
+            }
+          }
+        } else if (pathParts[2] === 'media') {
+          if (pathParts.length === 3) {
+            delete gameStorage.media;
+          } else if (pathParts.length === 4) {
+            const mediaType = pathParts[3];
+            if (gameStorage.media && gameStorage.media[mediaType]) {
+              delete gameStorage.media[mediaType];
+            }
+          } else if (pathParts.length === 5) {
+            const mediaType = pathParts[3];
+            const filename = pathParts[4];
+            if (gameStorage.media && gameStorage.media[mediaType] && gameStorage.media[mediaType][filename]) {
+              delete gameStorage.media[mediaType][filename];
+            }
+          }
+        }
+
+        localStorage.setItem(gameKey, JSON.stringify(gameStorage));
+        return true;
+      }
+    }
+
+    if (pathParts[0] === 'layouts') {
+      if (pathParts.length === 2) {
+        const layoutKey = pathParts[1];
+        localStorage.removeItem(layoutKey);
+
+        const layoutsListStr = localStorage.getItem('uploaded_layouts_list');
+        if (layoutsListStr) {
+          const layoutsList = JSON.parse(layoutsListStr);
+          const layoutId = layoutKey.replace('layout_', '');
+          const updatedList = layoutsList.filter((id: string) => id !== layoutId);
+          localStorage.setItem('uploaded_layouts_list', JSON.stringify(updatedList));
+        }
+        return true;
+      }
+    }
+
+    if (pathParts[0] === 'patterns') {
+      if (pathParts.length === 2) {
+        const patternKey = pathParts[1];
+        localStorage.removeItem(patternKey);
+
+        const patternsListStr = localStorage.getItem('uploaded_patterns_list');
+        if (patternsListStr) {
+          const patternsList = JSON.parse(patternsListStr);
+          const patternId = patternKey.replace('pattern_', '');
+          const updatedList = patternsList.filter((id: string) => id !== patternId);
+          localStorage.setItem('uploaded_patterns_list', JSON.stringify(updatedList));
+        }
+        return true;
+      }
+    }
+
+    if (pathParts[0] === 'config') {
+      if (pathParts.length === 2) {
+        const configKey = pathParts[1];
+        localStorage.removeItem(configKey);
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error deleting web storage item:', error);
+    return false;
+  }
+}

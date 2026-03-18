@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('electron', {
     getLocalVersions: () => ipcRenderer.invoke('scenarios:get-local-versions'),
     getFolderStructure: () => ipcRenderer.invoke('scenarios:get-folder-structure'),
     getStorageInfo: () => ipcRenderer.invoke('scenarios:get-storage-info'),
+    deletePath: (itemPath) => ipcRenderer.invoke('scenarios:delete-path', itemPath),
   },
   apiLogs: {
     write: (logData) => ipcRenderer.invoke('api-logs:write', logData),

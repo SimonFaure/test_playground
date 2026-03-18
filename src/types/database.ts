@@ -148,6 +148,41 @@ export interface Database {
           color?: string | null
         }
       }
+      teams: {
+        Row: {
+          id: number
+          launched_game_id: number
+          team_number: number
+          team_name: string
+          pattern: number
+          score: number
+          key_id: number
+          start_time: number | null
+          end_time: number | null
+        }
+        Insert: {
+          id?: number
+          launched_game_id: number
+          team_number: number
+          team_name: string
+          pattern: number
+          score: number
+          key_id: number
+          start_time?: number | null
+          end_time?: number | null
+        }
+        Update: {
+          id?: number
+          launched_game_id?: number
+          team_number?: number
+          team_name?: string
+          pattern?: number
+          score?: number
+          key_id?: number
+          start_time?: number | null
+          end_time?: number | null
+        }
+      }
     }
   }
 }
@@ -157,3 +192,4 @@ export type Scenario = Database['public']['Tables']['scenarios']['Row'];
 export type LaunchedGame = Database['public']['Tables']['launched_games']['Row'];
 export type LaunchedGameMeta = Database['public']['Tables']['launched_game_meta']['Row'];
 export type SiPuce = Database['public']['Tables']['si_puces']['Row'];
+export type Team = Database['public']['Tables']['teams']['Row'];

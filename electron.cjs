@@ -1389,7 +1389,33 @@ app.whenReady().then(() => {
         return { success: false, error: 'Layouts directory not found' };
       }
 
-      const layoutDirs = fs.readdirSync(layoutsDir).filter(d => {
+      const allEntries = fs.readdirSync(layoutsDir);
+
+      const layoutFiles = allEntries.filter(f => {
+        const fullPath = path.join(layoutsDir, f);
+        return (f.startsWith(gameType + '_') || f.startsWith(gameType + '_layout')) &&
+               f.endsWith('.json') &&
+               fs.statSync(fullPath).isFile();
+      });
+
+      if (layoutFiles.length > 0) {
+        const filesWithVersions = layoutFiles.map(f => {
+          const versionMatch = f.match(/_v?(\d+)\.json$/);
+          const version = versionMatch ? parseInt(versionMatch[1], 10) : 0;
+          const mtime = fs.statSync(path.join(layoutsDir, f)).mtime.getTime();
+          return { filename: f, version, mtime };
+        }).sort((a, b) => {
+          if (a.version !== b.version) return b.version - a.version;
+          return b.mtime - a.mtime;
+        });
+
+        const layoutFilePath = path.join(layoutsDir, filesWithVersions[0].filename);
+        const content = fs.readFileSync(layoutFilePath, 'utf8');
+        const versionStr = filesWithVersions[0].version > 0 ? filesWithVersions[0].version.toString() : '1.0';
+        return { success: true, content, version: versionStr };
+      }
+
+      const layoutDirs = allEntries.filter(d => {
         return d.startsWith(gameType + '_') && fs.statSync(path.join(layoutsDir, d)).isDirectory();
       });
 
@@ -1410,7 +1436,7 @@ app.whenReady().then(() => {
       }
 
       const content = fs.readFileSync(layoutFilePath, 'utf8');
-      return { success: true, content };
+      return { success: true, content, version: dirsWithVersions[0].version.toString() };
     } catch (error) {
       console.error('Error reading layout file:', error);
       return { success: false, error: error.message };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GameConfig } from './LaunchGameModal';
 import { MysteryGamePage } from './MysteryGamePage';
+import { supabase } from '../lib/db';
 
 interface GamePageProps {
   config: GameConfig;
@@ -41,22 +42,41 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
 
           setGameMetadata({ type, title });
         } else {
-          const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
-          const data = await response.json();
+          const { data: scenario, error } = await supabase
+            .from('scenarios')
+            .select('title, game_type')
+            .eq('uniqid', gameUniqid)
+            .maybeSingle();
 
-          let type, title;
-          if (data.game && data.game.type) {
-            type = data.game.type;
-            title = data.game.title || 'Unknown Game';
-          } else if (data.scenario) {
-            type = data.scenario.scenario_type;
-            title = data.scenario.title || data.scenario.name;
+          if (error || !scenario) {
+            console.error('Error loading scenario from database:', error);
+            try {
+              const response = await fetch(`/data/games/${gameUniqid}/game-data.json`);
+              const data = await response.json();
+
+              let type, title;
+              if (data.game && data.game.type) {
+                type = data.game.type;
+                title = data.game.title || 'Unknown Game';
+              } else if (data.scenario) {
+                type = data.scenario.scenario_type;
+                title = data.scenario.title || data.scenario.name;
+              } else {
+                type = 'unknown';
+                title = 'Unknown Game';
+              }
+
+              setGameMetadata({ type, title });
+            } catch (fetchError) {
+              console.error('Error loading game metadata from file:', fetchError);
+              setGameMetadata({ type: 'unknown', title: 'Unknown Game' });
+            }
           } else {
-            type = 'unknown';
-            title = 'Unknown Game';
+            setGameMetadata({
+              type: scenario.game_type,
+              title: scenario.title
+            });
           }
-
-          setGameMetadata({ type, title });
         }
       } catch (error) {
         console.error('Error loading game metadata:', error);

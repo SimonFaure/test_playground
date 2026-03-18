@@ -39,17 +39,125 @@ function buildScenariosFolder(): StorageNode {
   if (gamesListStr) {
     try {
       const gamesList = JSON.parse(gamesListStr);
-      for (const game of gamesList) {
-        const gameKey = `game_${game.uniqid}`;
+      for (const uniqid of gamesList) {
+        const gameKey = `game_${uniqid}`;
         const gameDataStr = localStorage.getItem(gameKey);
         if (gameDataStr) {
-          const size = new Blob([gameDataStr]).size;
-          scenariosFolder.children?.push({
-            name: `${game.name || game.uniqid}`,
-            path: `/scenarios/${game.uniqid}`,
-            type: 'file',
-            size
-          });
+          try {
+            const gameStorage = JSON.parse(gameDataStr);
+            const gameFolder: StorageNode = {
+              name: uniqid,
+              path: `/scenarios/${uniqid}`,
+              type: 'folder',
+              expanded: false,
+              children: []
+            };
+
+            if (gameStorage.csv) {
+              const csvFolder: StorageNode = {
+                name: 'csv',
+                path: `/scenarios/${uniqid}/csv`,
+                type: 'folder',
+                expanded: false,
+                children: []
+              };
+
+              for (const [filename, content] of Object.entries(gameStorage.csv)) {
+                const size = new Blob([content as string]).size;
+                csvFolder.children?.push({
+                  name: filename,
+                  path: `/scenarios/${uniqid}/csv/${filename}`,
+                  type: 'file',
+                  size
+                });
+              }
+
+              if (csvFolder.children && csvFolder.children.length > 0) {
+                gameFolder.children?.push(csvFolder);
+              }
+            }
+
+            if (gameStorage.media) {
+              const mediaFolder: StorageNode = {
+                name: 'media',
+                path: `/scenarios/${uniqid}/media`,
+                type: 'folder',
+                expanded: false,
+                children: []
+              };
+
+              if (gameStorage.media.images && Object.keys(gameStorage.media.images).length > 0) {
+                const imagesFolder: StorageNode = {
+                  name: 'images',
+                  path: `/scenarios/${uniqid}/media/images`,
+                  type: 'folder',
+                  expanded: false,
+                  children: []
+                };
+
+                for (const filename of Object.keys(gameStorage.media.images)) {
+                  imagesFolder.children?.push({
+                    name: filename,
+                    path: `/scenarios/${uniqid}/media/images/${filename}`,
+                    type: 'file',
+                    size: 0
+                  });
+                }
+
+                mediaFolder.children?.push(imagesFolder);
+              }
+
+              if (gameStorage.media.sounds && Object.keys(gameStorage.media.sounds).length > 0) {
+                const soundsFolder: StorageNode = {
+                  name: 'sounds',
+                  path: `/scenarios/${uniqid}/media/sounds`,
+                  type: 'folder',
+                  expanded: false,
+                  children: []
+                };
+
+                for (const filename of Object.keys(gameStorage.media.sounds)) {
+                  soundsFolder.children?.push({
+                    name: filename,
+                    path: `/scenarios/${uniqid}/media/sounds/${filename}`,
+                    type: 'file',
+                    size: 0
+                  });
+                }
+
+                mediaFolder.children?.push(soundsFolder);
+              }
+
+              if (gameStorage.media.videos && Object.keys(gameStorage.media.videos).length > 0) {
+                const videosFolder: StorageNode = {
+                  name: 'videos',
+                  path: `/scenarios/${uniqid}/media/videos`,
+                  type: 'folder',
+                  expanded: false,
+                  children: []
+                };
+
+                for (const filename of Object.keys(gameStorage.media.videos)) {
+                  videosFolder.children?.push({
+                    name: filename,
+                    path: `/scenarios/${uniqid}/media/videos/${filename}`,
+                    type: 'file',
+                    size: 0
+                  });
+                }
+
+                mediaFolder.children?.push(videosFolder);
+              }
+
+              if (mediaFolder.children && mediaFolder.children.length > 0) {
+                gameFolder.children?.push(mediaFolder);
+              }
+            }
+
+            scenariosFolder.children?.push(gameFolder);
+          } catch (parseError) {
+            console.error(`Error parsing game data for ${uniqid}:`, parseError);
+          }
         }
       }
     } catch (error) {

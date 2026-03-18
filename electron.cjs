@@ -1380,6 +1380,43 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('layouts:read-file', async (event, gameType) => {
+    const fs = require('fs');
+    try {
+      const layoutsDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'layouts', 'default_layouts');
+
+      if (!fs.existsSync(layoutsDir)) {
+        return { success: false, error: 'Layouts directory not found' };
+      }
+
+      const layoutDirs = fs.readdirSync(layoutsDir).filter(d => {
+        return d.startsWith(gameType + '_') && fs.statSync(path.join(layoutsDir, d)).isDirectory();
+      });
+
+      if (layoutDirs.length === 0) {
+        return { success: false, error: `No layout found for game type: ${gameType}` };
+      }
+
+      const dirsWithVersions = layoutDirs.map(d => {
+        const match = d.match(/_v?(\d+)$/);
+        return { dirname: d, version: match ? parseInt(match[1], 10) : 0 };
+      }).sort((a, b) => b.version - a.version);
+
+      const latestLayoutDir = path.join(layoutsDir, dirsWithVersions[0].dirname);
+      const layoutFilePath = path.join(latestLayoutDir, 'layout.json');
+
+      if (!fs.existsSync(layoutFilePath)) {
+        return { success: false, error: 'Layout file not found' };
+      }
+
+      const content = fs.readFileSync(layoutFilePath, 'utf8');
+      return { success: true, content };
+    } catch (error) {
+      console.error('Error reading layout file:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('layouts:save-file', async (event, gameType, version, content) => {
     const fs = require('fs');
     try {

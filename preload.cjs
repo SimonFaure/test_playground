@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   layouts: {
     getLocalVersions: (gameType) => ipcRenderer.invoke('layouts:get-local-versions', gameType),
+    readFile: (gameType) => ipcRenderer.invoke('layouts:read-file', gameType),
     saveFile: (gameType, version, content) => ipcRenderer.invoke('layouts:save-file', gameType, version, content),
   },
   scenarios: {

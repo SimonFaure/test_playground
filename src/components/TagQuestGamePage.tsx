@@ -29,13 +29,36 @@ interface TeamScore {
   end_time: number | null;
 }
 
+interface LayoutElement {
+  id: string;
+  type: 'image' | 'text' | 'container';
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  src?: string;
+  text?: string;
+  style?: Record<string, any>;
+  children?: LayoutElement[];
+}
+
+interface GameLayout {
+  version: string;
+  elements: LayoutElement[];
+  background?: string;
+  width?: number;
+  height?: number;
+}
+
 export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }: TagQuestGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
+  const [layout, setLayout] = useState<GameLayout | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [lastCardData, setLastCardData] = useState<CardData | null>(null);
   const [showCardAlert, setShowCardAlert] = useState(false);
   const [teams, setTeams] = useState<TeamScore[]>([]);
   const [gameMessage, setGameMessage] = useState('');
+  const [mediaFiles, setMediaFiles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -46,6 +69,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
           setGameData(data);
+
+          const layoutResult = await (window as any).electron.layouts.readFile('tagquest');
+          if (layoutResult.success) {
+            const layoutData = JSON.parse(layoutResult.content);
+            setLayout(layoutData);
+            console.log('Layout loaded:', layoutData);
+          } else {
+            console.warn('No layout found for tagquest:', layoutResult.error);
+          }
         } else {
           const { data: scenarioData, error } = await supabase
             .from('scenarios')
@@ -67,6 +99,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 title: scenarioData.title
               }
             });
+          }
+
+          const layoutKey = `layout_tagquest`;
+          const layoutStr = localStorage.getItem(layoutKey);
+          if (layoutStr) {
+            const layoutData = JSON.parse(layoutStr);
+            setLayout(layoutData);
+            console.log('Layout loaded from localStorage:', layoutData);
+          } else {
+            console.warn('No layout found in localStorage for tagquest');
           }
         }
       } catch (error) {
@@ -279,6 +321,49 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     };
   }, [gameStarted, config.usbPort]);
 
+  const renderLayoutElement = (element: LayoutElement, index: number): JSX.Element => {
+    const style: React.CSSProperties = {
+      position: 'absolute',
+      left: element.x ? `${element.x}px` : undefined,
+      top: element.y ? `${element.y}px` : undefined,
+      width: element.width ? `${element.width}px` : undefined,
+      height: element.height ? `${element.height}px` : undefined,
+      ...element.style
+    };
+
+    switch (element.type) {
+      case 'image':
+        return (
+          <img
+            key={`${element.id}-${index}`}
+            src={element.src || ''}
+            alt={element.id}
+            style={style}
+          />
+        );
+      case 'text':
+        return (
+          <div
+            key={`${element.id}-${index}`}
+            style={style}
+          >
+            {element.text}
+          </div>
+        );
+      case 'container':
+        return (
+          <div
+            key={`${element.id}-${index}`}
+            style={style}
+          >
+            {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
+          </div>
+        );
+      default:
+        return <div key={`${element.id}-${index}`}>Unknown element type</div>;
+    }
+  };
+
   if (!gameData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -318,6 +403,47 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           </button>
           <p className="text-white/40 mt-4">Press Enter to start</p>
         </div>
+      </div>
+    );
+  }
+
+  if (layout) {
+    const layoutStyle: React.CSSProperties = {
+      position: 'relative',
+      width: layout.width ? `${layout.width}px` : '100vw',
+      height: layout.height ? `${layout.height}px` : '100vh',
+      background: layout.background || '#000',
+      overflow: 'hidden'
+    };
+
+    return (
+      <div style={layoutStyle}>
+        {layout.elements?.map((element, index) => renderLayoutElement(element, index))}
+
+        {gameMessage && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '20px 40px',
+            borderRadius: '10px',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            zIndex: 1000
+          }}>
+            {gameMessage}
+          </div>
+        )}
+
+        {showCardAlert && lastCardData && (
+          <CardDetectionAlert
+            cardData={lastCardData}
+            onClose={() => setShowCardAlert(false)}
+          />
+        )}
       </div>
     );
   }
@@ -385,6 +511,14 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
               ))
             )}
           </div>
+        </div>
+
+        <div className="bg-yellow-600/20 border border-yellow-600 text-yellow-100 p-4 rounded-lg">
+          <p className="font-semibold mb-2">No Layout Found</p>
+          <p className="text-sm">
+            To display the custom game layout, please upload a TagQuest layout file or sync with the server.
+            Currently showing the default leaderboard view.
+          </p>
         </div>
       </div>
 

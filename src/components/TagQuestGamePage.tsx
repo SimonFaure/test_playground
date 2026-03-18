@@ -132,37 +132,29 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
               }
             });
 
-            const { data: mediaData } = await supabase
-              .from('scenario_files')
-              .select('*')
-              .eq('scenario_id', scenarioData.id)
-              .eq('file_type', 'game_media_images');
-
-            if (mediaData && mediaData.length > 0) {
+            if (scenarioData.csv_media_images) {
               const mediaMap: Record<string, string> = {};
+              const lines = scenarioData.csv_media_images.split('\n').filter(Boolean);
+              const headers = lines[0]?.split(',').map((h: string) => h.trim()) ?? [];
 
-              for (const mediaFile of mediaData) {
-                const parsedData = typeof mediaFile.file_data === 'string'
-                  ? JSON.parse(mediaFile.file_data)
-                  : mediaFile.file_data;
+              for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map((v: string) => v.trim());
+                const row: Record<string, string> = {};
+                headers.forEach((h: string, idx: number) => { row[h] = values[idx] ?? ''; });
 
-                if (Array.isArray(parsedData)) {
-                  for (const item of parsedData) {
-                    if (item.id && item.uuid && item.file_name) {
-                      const { data: urlData } = await supabase.storage
-                        .from('game-media')
-                        .createSignedUrl(`${gameUniqid}/media/${item.uuid}/${item.file_name}`, 3600);
+                if (row.id && row.uuid && row.file_name) {
+                  const { data: urlData } = await supabase.storage
+                    .from('game-media')
+                    .createSignedUrl(`${gameUniqid}/media/${row.uuid}/${row.file_name}`, 3600);
 
-                      if (urlData?.signedUrl) {
-                        mediaMap[item.id] = urlData.signedUrl;
-                      }
-                    }
+                  if (urlData?.signedUrl) {
+                    mediaMap[row.id] = urlData.signedUrl;
                   }
                 }
               }
 
               setMediaFiles(mediaMap);
-              console.log('Loaded media files from Supabase:', mediaMap);
+              console.log('Loaded media files from CSV:', mediaMap);
             }
           }
 

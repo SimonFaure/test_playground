@@ -432,22 +432,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       return <div key={`${element.id}-${index}`} />;
     }
 
-    const style: React.CSSProperties = {
+    const wrapperStyle: React.CSSProperties = {
       position: 'absolute',
       left: element.x !== undefined ? `${(element.x / 100) * bgDimensions.width}px` : undefined,
       top: element.y !== undefined ? `${(element.y / 100) * bgDimensions.height}px` : undefined,
       width: element.width !== undefined ? `${(element.width / 100) * bgDimensions.width}px` : undefined,
       height: element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : undefined,
-      ...(element.type === 'text' ? {
-        fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
-        color: element.color,
-        fontFamily: element.fontFamily,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-      } : {}),
       ...element.style
     };
 
@@ -459,28 +449,38 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     switch (element.type) {
       case 'image':
         return (
-          <img
-            key={`${element.id}-${index}`}
-            src={imageSrc || ''}
-            alt={element.id}
-            style={style}
-          />
+          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+            <img
+              src={imageSrc || ''}
+              alt={element.id}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
         );
       case 'text':
         return (
-          <div
-            key={`${element.id}-${index}`}
-            style={style}
-          >
-            {element.text ?? element.previewText}
+          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
+                color: element.color,
+                fontFamily: element.fontFamily,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {element.text ?? element.previewText}
+            </div>
           </div>
         );
       case 'container':
         return (
-          <div
-            key={`${element.id}-${index}`}
-            style={style}
-          >
+          <div key={`${element.id}-${index}`} style={wrapperStyle}>
             {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
           </div>
         );

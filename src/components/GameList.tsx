@@ -174,19 +174,28 @@ export function GameList() {
   };
 
   const getScenarioImageUrl = async (uniqid: string): Promise<string | null> => {
-    const { data } = await supabase.storage
-      .from('game_media')
-      .list(`${uniqid}/images`, {
-        limit: 1,
-        sortBy: { column: 'name', order: 'asc' }
-      });
+    const { data: scenarioMedia, error: mediaError } = await supabase
+      .from('scenario_media')
+      .select('filename, data')
+      .eq('scenario_uniqid', uniqid)
+      .eq('media_type', 'image')
+      .like('filename', '%game_instructions_image%')
+      .maybeSingle();
 
-    if (data && data.length > 0) {
-      const { data: urlData } = supabase.storage
-        .from('game_media')
-        .getPublicUrl(`${uniqid}/images/${data[0].name}`);
+    if (scenarioMedia && scenarioMedia.data) {
+      return `data:image/png;base64,${scenarioMedia.data}`;
+    }
 
-      return urlData.publicUrl;
+    const { data: anyImage } = await supabase
+      .from('scenario_media')
+      .select('filename, data')
+      .eq('scenario_uniqid', uniqid)
+      .eq('media_type', 'image')
+      .limit(1)
+      .maybeSingle();
+
+    if (anyImage && anyImage.data) {
+      return `data:image/png;base64,${anyImage.data}`;
     }
 
     return null;

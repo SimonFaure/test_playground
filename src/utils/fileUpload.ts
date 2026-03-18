@@ -447,14 +447,42 @@ async function saveGameWeb(data: any): Promise<void> {
     return btoa(binary);
   };
 
+  let title = 'Untitled Scenario';
+  let description = '';
+  let game_type = 'mystery';
+
+  if (gameData.game && gameData.game.title) {
+    title = gameData.game.title;
+  } else if (gameData.scenario && gameData.scenario.title) {
+    title = gameData.scenario.title;
+  } else if (gameData.title) {
+    title = gameData.title;
+  }
+
+  if (gameData.game_meta && gameData.game_meta.scenario) {
+    description = gameData.game_meta.scenario;
+  } else if (gameData.scenario && gameData.scenario.description) {
+    description = gameData.scenario.description;
+  } else if (gameData.description) {
+    description = gameData.description;
+  }
+
+  if (gameData.game && gameData.game.type) {
+    game_type = gameData.game.type;
+  } else if (gameData.scenario && gameData.scenario.scenario_type) {
+    game_type = gameData.scenario.scenario_type;
+  } else if (gameData.game_type) {
+    game_type = gameData.game_type;
+  }
+
   const { error: scenarioError } = await supabase
     .from('scenarios')
     .upsert({
       uniqid,
-      title: gameData.title || 'Untitled Scenario',
-      description: gameData.description || '',
-      game_type: gameData.game_type || 'mystery',
-      version: gameData.version || '1.0',
+      title,
+      description,
+      game_type,
+      version: gameData.version || gameData.game_meta?.game_version || '1.0',
       duration_minutes: gameData.duration_minutes || 60,
       difficulty: gameData.difficulty || 'medium',
       csv_game: csvFiles['game.csv'] || '',

@@ -28,12 +28,12 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
           const data = JSON.parse(gameDataContent);
 
           let type, title;
-          if (data.scenario) {
-            type = data.scenario.scenario_type;
-            title = data.game_data?.game_meta?.title || data.scenario.name;
-          } else if (data.game) {
+          if (data.game && data.game.type) {
             type = data.game.type;
-            title = data.game.title;
+            title = data.game.title || 'Unknown Game';
+          } else if (data.scenario) {
+            type = data.scenario.scenario_type;
+            title = data.scenario.title || data.scenario.name;
           } else {
             type = 'unknown';
             title = 'Unknown Game';
@@ -45,12 +45,12 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
           const data = await response.json();
 
           let type, title;
-          if (data.scenario) {
-            type = data.scenario.scenario_type;
-            title = data.game_data?.game_meta?.title || data.scenario.name;
-          } else if (data.game) {
+          if (data.game && data.game.type) {
             type = data.game.type;
-            title = data.game.title;
+            title = data.game.title || 'Unknown Game';
+          } else if (data.scenario) {
+            type = data.scenario.scenario_type;
+            title = data.scenario.title || data.scenario.name;
           } else {
             type = 'unknown';
             title = 'Unknown Game';

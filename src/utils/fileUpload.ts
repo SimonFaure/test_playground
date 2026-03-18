@@ -145,12 +145,23 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
     const text = await file.text();
     const data = JSON.parse(text);
 
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.includes('layout')) {
+      return {
+        type: 'layout',
+        name: file.name,
+        data: { layoutData: data },
+        isValid: true
+      };
+    }
+
     return {
       type: 'unknown',
       name: file.name,
       data,
       isValid: false,
-      error: 'JSON file type detection not fully implemented. Please use ZIP format for games.'
+      error: 'Cannot determine JSON file type. Filename should contain "layout".'
     };
   } catch (error) {
     console.error('Error processing JSON file:', error);
@@ -284,8 +295,42 @@ async function saveCards(data: any): Promise<void> {
 }
 
 async function saveLayout(data: any): Promise<void> {
-  console.log('Layout save not yet implemented:', data);
-  throw new Error('Layout upload is not yet implemented');
+  const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+
+  if (isElectron) {
+    await saveLayoutElectron(data);
+  } else {
+    await saveLayoutWeb(data);
+  }
+}
+
+async function saveLayoutElectron(data: any): Promise<void> {
+  const electron = (window as any).electron;
+  const { layoutData } = data;
+
+  const layoutName = layoutData.name || layoutData.id || 'layout';
+  await electron.layouts?.save(layoutName, layoutData);
+
+  console.log(`Layout ${layoutName} saved to Electron storage`);
+}
+
+async function saveLayoutWeb(data: any): Promise<void> {
+  const { layoutData } = data;
+
+  const layoutName = layoutData.name || layoutData.id || `layout_${Date.now()}`;
+  const layoutStorageKey = `layout_${layoutName}`;
+
+  localStorage.setItem(layoutStorageKey, JSON.stringify(layoutData));
+
+  const layoutsListKey = 'uploaded_layouts_list';
+  const layoutsList = JSON.parse(localStorage.getItem(layoutsListKey) || '[]');
+
+  if (!layoutsList.includes(layoutName)) {
+    layoutsList.push(layoutName);
+    localStorage.setItem(layoutsListKey, JSON.stringify(layoutsList));
+  }
+
+  console.log(`Layout ${layoutName} saved to browser storage`);
 }
 
 async function saveGameWeb(data: any): Promise<void> {

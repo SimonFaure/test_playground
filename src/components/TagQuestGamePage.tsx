@@ -453,7 +453,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             <img
               src={imageSrc || ''}
               alt={element.id}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </div>
         );

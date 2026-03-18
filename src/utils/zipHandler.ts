@@ -166,12 +166,34 @@ async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void
     }
   }
 
+  let gameTitle = 'Untitled Scenario';
+  let gameType = 'mystery';
+
+  if (csvFiles['game.csv']) {
+    const lines = csvFiles['game.csv'].trim().split('\n');
+    if (lines.length >= 2) {
+      const headers = lines[0].split(',').map(h => h.trim());
+      const values = lines[1].split(',').map(v => v.trim());
+
+      const titleIndex = headers.indexOf('title');
+      const typeIndex = headers.indexOf('type');
+
+      if (titleIndex !== -1 && values[titleIndex]) {
+        gameTitle = values[titleIndex];
+      }
+
+      if (typeIndex !== -1 && values[typeIndex]) {
+        gameType = values[typeIndex];
+      }
+    }
+  }
+
   const { error: scenarioError } = await supabase
     .from('scenarios')
     .upsert({
       uniqid,
-      title: uniqid,
-      game_type: 'mystery',
+      title: gameTitle,
+      game_type: gameType,
       csv_game: csvFiles['game.csv'] || '',
       csv_enigmas: csvFiles['game_enigmas.csv'] || '',
       csv_media_images: csvFiles['game_media_images.csv'] || '',

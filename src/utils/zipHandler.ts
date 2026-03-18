@@ -118,6 +118,88 @@ async function saveZipToDataFolder(zip: JSZip, uniqid: string): Promise<void> {
       await (window as any).electron.games.writeFile(uniqid, relativePath, content, isBinary);
     }
   } else {
-    throw new Error('File system access not available. This feature requires the Electron app.');
+    await saveZipToSupabase(zip, uniqid);
   }
+}
+
+async function saveZipToSupabase(zip: JSZip, uniqid: string): Promise<void> {
+  const { supabase } = await import('../lib/db');
+
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Cannot upload files.');
+  }
+
+  let gameData: Record<string, any> = {};
+  const csvFiles: Record<string, string> = {};
+  const mediaFiles: Array<{ path: string; blob: Blob }> = [];
+
+  for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+    if (zipEntry.dir) continue;
+
+    if (relativePath.includes('csv/')) {
+      const content = await zipEntry.async('text');
+      const fileName = relativePath.split('/').pop() || '';
+      csvFiles[fileName] = content;
+
+      if (fileName === 'game.csv') {
+        const lines = content.trim().split('\n');
+        if (lines.length >= 2) {
+          const headers = lines[0].split(',');
+          const values = lines[1].split(',');
+          headers.forEach((header, index) => {
+            gameData[header.trim()] = values[index]?.trim() || '';
+          });
+        }
+      }
+    } else if (relativePath.includes('media/')) {
+      const blob = await zipEntry.async('blob');
+      mediaFiles.push({ path: relativePath, blob });
+    }
+  }
+
+  for (const mediaFile of mediaFiles) {
+    const fileName = mediaFile.path.split('/').pop() || '';
+    const folderPath = mediaFile.path.includes('images/') ? 'images' :
+                       mediaFile.path.includes('sounds/') ? 'sounds' :
+                       mediaFile.path.includes('videos/') ? 'videos' : 'other';
+
+    const storagePath = `${uniqid}/${folderPath}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('game_media')
+      .upload(storagePath, mediaFile.blob, {
+        contentType: mediaFile.blob.type,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error(`Failed to upload ${storagePath}:`, uploadError);
+    }
+  }
+
+  const scenarioRecord = {
+    uniqid: uniqid,
+    title: gameData.title || gameData.name || 'Untitled',
+    description: gameData.description || '',
+    game_type: gameData.type || 'unknown',
+    version: gameData.version || '1.0',
+    duration_minutes: parseInt(gameData.duration) || 60,
+    difficulty: gameData.difficulty || 'medium',
+    csv_game: csvFiles['game.csv'] || '',
+    csv_enigmas: csvFiles['game_enigmas.csv'] || '',
+    csv_media_images: csvFiles['game_media_images.csv'] || '',
+    csv_meta: csvFiles['game_meta.csv'] || '',
+    csv_sounds: csvFiles['game_sounds.csv'] || '',
+    csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+  };
+
+  const { error: dbError } = await supabase
+    .from('scenarios')
+    .upsert(scenarioRecord, { onConflict: 'uniqid' });
+
+  if (dbError) {
+    throw new Error(`Failed to save scenario to database: ${dbError.message}`);
+  }
+
+  console.log(`Successfully uploaded scenario ${uniqid} to Supabase`);
 }

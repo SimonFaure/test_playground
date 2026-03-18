@@ -98,8 +98,8 @@ export function GameList() {
         scenariosData = await (window as any).electron.scenarios.load();
         console.log('Loaded scenarios from local folder:', scenariosData);
       } else {
-        scenariosData = gamesData;
-        console.log('Loaded scenarios from bundled JSON:', scenariosData);
+        scenariosData = await loadScenariosFromSupabase();
+        console.log('Loaded scenarios from Supabase:', scenariosData);
       }
 
       const gameTypesMap = new Map(scenariosData.game_types.map(gt => [gt.id, gt]));
@@ -115,6 +115,81 @@ export function GameList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadScenariosFromSupabase = async () => {
+    const { data: scenariosFromDb, error } = await supabase
+      .from('scenarios')
+      .select('*');
+
+    if (error) {
+      console.error('Error loading scenarios from Supabase:', error);
+      return gamesData;
+    }
+
+    if (!scenariosFromDb || scenariosFromDb.length === 0) {
+      return gamesData;
+    }
+
+    const gameTypeMap = new Map();
+    const scenariosList = [];
+
+    for (const scenario of scenariosFromDb) {
+      const gameTypeId = scenario.game_type;
+
+      if (!gameTypeMap.has(gameTypeId)) {
+        gameTypeMap.set(gameTypeId, {
+          id: gameTypeId,
+          name: gameTypeId.charAt(0).toUpperCase() + gameTypeId.slice(1),
+          description: `${gameTypeId} game type`
+        });
+      }
+
+      const imageUrl = await getScenarioImageUrl(scenario.uniqid);
+
+      scenariosList.push({
+        id: scenario.id,
+        game_type_id: gameTypeId,
+        title: scenario.title,
+        description: scenario.description,
+        difficulty: scenario.difficulty,
+        duration_minutes: scenario.duration_minutes,
+        image_url: imageUrl || '/placeholder-image.jpg',
+        uniqid: scenario.uniqid,
+        available_for_purchase: false
+      });
+    }
+
+    const combinedScenarios = [...scenariosList, ...gamesData.scenarios];
+    const gameTypes = Array.from(gameTypeMap.values());
+    const combinedGameTypes = [...gameTypes, ...gamesData.game_types];
+    const uniqueGameTypes = Array.from(
+      new Map(combinedGameTypes.map(gt => [gt.id, gt])).values()
+    );
+
+    return {
+      game_types: uniqueGameTypes,
+      scenarios: combinedScenarios
+    };
+  };
+
+  const getScenarioImageUrl = async (uniqid: string): Promise<string | null> => {
+    const { data } = await supabase.storage
+      .from('game_media')
+      .list(`${uniqid}/images`, {
+        limit: 1,
+        sortBy: { column: 'name', order: 'asc' }
+      });
+
+    if (data && data.length > 0) {
+      const { data: urlData } = supabase.storage
+        .from('game_media')
+        .getPublicUrl(`${uniqid}/images/${data[0].name}`);
+
+      return urlData.publicUrl;
+    }
+
+    return null;
   };
 
   const filteredScenarios = scenarios

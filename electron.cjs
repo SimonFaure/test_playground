@@ -637,6 +637,32 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('scenarios:save-csv', async (event, uniqid, filename, content) => {
+    const fs = require('fs');
+    try {
+      console.log(`[Electron] Saving CSV file: ${filename} for scenario: ${uniqid}`);
+      const scenariosDir = path.join(app.getPath('appData'), 'TagHunterPlayground', 'scenarios', uniqid);
+      const csvDir = path.join(scenariosDir, 'csv');
+      console.log(`[Electron] CSV directory: ${csvDir}`);
+
+      if (!fs.existsSync(csvDir)) {
+        console.log(`[Electron] Creating CSV directory: ${csvDir}`);
+        fs.mkdirSync(csvDir, { recursive: true });
+      }
+
+      const filePath = path.join(csvDir, filename);
+      console.log(`[Electron] Writing CSV file: ${filePath}`);
+      fs.writeFileSync(filePath, content);
+      console.log(`[Electron] CSV file saved successfully: ${filename}`);
+
+      return { success: true };
+    } catch (error) {
+      console.error(`[Electron] Error saving CSV file ${filename}:`, error);
+      console.error('[Electron] Error stack:', error.stack);
+      throw error;
+    }
+  });
+
   ipcMain.handle('scenarios:save-media', async (event, uniqid, folder, filename, base64Data) => {
     const fs = require('fs');
     try {

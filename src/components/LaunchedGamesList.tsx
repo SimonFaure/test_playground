@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -142,9 +142,27 @@ export function LaunchedGamesList() {
             const gameDataContent = await (window as any).electron.games.readFile(uniqid, 'game-data.json');
             gameData = JSON.parse(gameDataContent);
           } else {
-            const response = await fetch(`/data/games/${uniqid}/game-data.json`);
-            if (response.ok) {
-              gameData = await response.json();
+            const { data: scenarioData, error: scenarioError } = await supabase
+              .from('scenarios')
+              .select('*')
+              .eq('uniqid', uniqid)
+              .maybeSingle();
+
+            if (!scenarioError && scenarioData) {
+              gameData = {
+                game: {
+                  id: scenarioData.id.toString(),
+                  uniqid: scenarioData.uniqid,
+                  type: scenarioData.game_type,
+                  title: scenarioData.title,
+                  slug: scenarioData.uniqid
+                }
+              };
+            } else {
+              const response = await fetch(`/data/games/${uniqid}/game-data.json`);
+              if (response.ok) {
+                gameData = await response.json();
+              }
             }
           }
 

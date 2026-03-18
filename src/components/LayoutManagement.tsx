@@ -315,6 +315,14 @@ export function LayoutManagement() {
             ? 'Upload layouts from your local layouts folder'
             : 'Select a layout JSON file to upload'}
         </p>
+        <div className="mt-4 p-3 bg-slate-800/50 rounded border border-slate-600">
+          <p className="text-sm text-slate-300 font-medium mb-2">Layout Format:</p>
+          <ul className="text-xs text-slate-400 space-y-1">
+            <li>• Element positions use percentages (0-100) relative to background image</li>
+            <li>• Element IDs map to game media image IDs for automatic image loading</li>
+            <li>• Background image scales to fit viewport while maintaining aspect ratio</li>
+          </ul>
+        </div>
       </div>
 
       <div className="space-y-6">

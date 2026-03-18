@@ -19,6 +19,11 @@ interface GameData {
     type: string;
     title: string;
   };
+  game_media_images?: Array<{
+    id: string;
+    uuid: string;
+    file_name: string;
+  }>;
 }
 
 interface TeamScore {
@@ -59,6 +64,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
   const [teams, setTeams] = useState<TeamScore[]>([]);
   const [gameMessage, setGameMessage] = useState('');
   const [mediaFiles, setMediaFiles] = useState<Record<string, string>>({});
+  const [bgDimensions, setBgDimensions] = useState<{ width: number; height: number } | null>(null);
+  const bgImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -69,6 +76,31 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
           setGameData(data);
+
+          const csvContent = await (window as any).electron.games.readFile(gameUniqid, 'csv/game_media_images.csv');
+          if (csvContent) {
+            const lines = csvContent.split('\n');
+            const headers = lines[0].split(',');
+            const mediaMap: Record<string, string> = {};
+
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+
+              const values = line.split(',');
+              const id = values[0];
+              const uuid = values[3];
+              const fileName = values[6];
+
+              if (id && uuid && fileName) {
+                const mediaPath = `data/games/${gameUniqid}/media/${uuid}/${fileName}`;
+                mediaMap[id] = mediaPath;
+              }
+            }
+
+            setMediaFiles(mediaMap);
+            console.log('Loaded media files:', mediaMap);
+          }
 
           const layoutResult = await (window as any).electron.layouts.readFile('tagquest');
           if (layoutResult.success) {
@@ -99,6 +131,39 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 title: scenarioData.title
               }
             });
+
+            const { data: mediaData } = await supabase
+              .from('scenario_files')
+              .select('*')
+              .eq('scenario_id', scenarioData.id)
+              .eq('file_type', 'game_media_images');
+
+            if (mediaData && mediaData.length > 0) {
+              const mediaMap: Record<string, string> = {};
+
+              for (const mediaFile of mediaData) {
+                const parsedData = typeof mediaFile.file_data === 'string'
+                  ? JSON.parse(mediaFile.file_data)
+                  : mediaFile.file_data;
+
+                if (Array.isArray(parsedData)) {
+                  for (const item of parsedData) {
+                    if (item.id && item.uuid && item.file_name) {
+                      const { data: urlData } = await supabase.storage
+                        .from('game-media')
+                        .createSignedUrl(`${gameUniqid}/media/${item.uuid}/${item.file_name}`, 3600);
+
+                      if (urlData?.signedUrl) {
+                        mediaMap[item.id] = urlData.signedUrl;
+                      }
+                    }
+                  }
+                }
+              }
+
+              setMediaFiles(mediaMap);
+              console.log('Loaded media files from Supabase:', mediaMap);
+            }
           }
 
           const { data: layoutData, error: layoutError } = await supabase
@@ -334,21 +399,30 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
   }, [gameStarted, config.usbPort]);
 
   const renderLayoutElement = (element: LayoutElement, index: number): JSX.Element => {
+    if (!bgDimensions) {
+      return <div key={`${element.id}-${index}`} />;
+    }
+
     const style: React.CSSProperties = {
       position: 'absolute',
-      left: element.x ? `${element.x}px` : undefined,
-      top: element.y ? `${element.y}px` : undefined,
-      width: element.width ? `${element.width}px` : undefined,
-      height: element.height ? `${element.height}px` : undefined,
+      left: element.x !== undefined ? `${(element.x / 100) * bgDimensions.width}px` : undefined,
+      top: element.y !== undefined ? `${(element.y / 100) * bgDimensions.height}px` : undefined,
+      width: element.width !== undefined ? `${(element.width / 100) * bgDimensions.width}px` : undefined,
+      height: element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : undefined,
       ...element.style
     };
+
+    let imageSrc = element.src;
+    if (element.type === 'image' && element.id && !element.src) {
+      imageSrc = mediaFiles[element.id] || '';
+    }
 
     switch (element.type) {
       case 'image':
         return (
           <img
             key={`${element.id}-${index}`}
-            src={element.src || ''}
+            src={imageSrc || ''}
             alt={element.id}
             style={style}
           />
@@ -420,17 +494,45 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
   }
 
   if (layout) {
-    const layoutStyle: React.CSSProperties = {
-      position: 'relative',
-      width: layout.width ? `${layout.width}px` : '100vw',
-      height: layout.height ? `${layout.height}px` : '100vh',
-      background: layout.background || '#000',
-      overflow: 'hidden'
+    const handleBgImageLoad = () => {
+      if (bgImageRef.current) {
+        setBgDimensions({
+          width: bgImageRef.current.offsetWidth,
+          height: bgImageRef.current.offsetHeight
+        });
+      }
     };
 
     return (
-      <div style={layoutStyle}>
-        {layout.elements?.map((element, index) => renderLayoutElement(element, index))}
+      <div style={{
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: '#000',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {layout.background && (
+          <img
+            ref={bgImageRef}
+            src={layout.background}
+            alt="Background"
+            onLoad={handleBgImageLoad}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              objectPosition: 'center'
+            }}
+          />
+        )}
+
+        {bgDimensions && layout.elements?.map((element, index) => renderLayoutElement(element, index))}
 
         {gameMessage && (
           <div style={{

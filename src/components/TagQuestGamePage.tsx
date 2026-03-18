@@ -37,6 +37,7 @@ interface TeamScore {
 interface LayoutElement {
   id: string;
   type: 'image' | 'text' | 'container';
+  name?: string;
   x?: number;
   y?: number;
   width?: number;
@@ -45,6 +46,9 @@ interface LayoutElement {
   filename?: string;
   text?: string;
   previewText?: string;
+  fontSize?: number;
+  color?: string;
+  fontFamily?: string;
   style?: Record<string, any>;
   children?: LayoutElement[];
 }
@@ -434,6 +438,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       top: element.y !== undefined ? `${(element.y / 100) * bgDimensions.height}px` : undefined,
       width: element.width !== undefined ? `${(element.width / 100) * bgDimensions.width}px` : undefined,
       height: element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : undefined,
+      ...(element.type === 'text' ? {
+        fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
+        color: element.color,
+        fontFamily: element.fontFamily,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+      } : {}),
       ...element.style
     };
 
@@ -458,7 +472,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             key={`${element.id}-${index}`}
             style={style}
           >
-            {element.text}
+            {element.text ?? element.previewText}
           </div>
         );
       case 'container':

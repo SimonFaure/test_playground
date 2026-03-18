@@ -358,6 +358,14 @@ export function ConfigurationPage() {
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Layout Management</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              Manage game layout configurations for TagQuest and Mystery games.
+            </p>
+            <LayoutManagement />
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-3">Note</h3>
             <div className="text-sm text-slate-400 space-y-2">
               <p>

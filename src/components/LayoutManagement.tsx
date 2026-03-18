@@ -145,6 +145,14 @@ export function LayoutManagement() {
       const file = e.target.files[0];
       if (!file) return;
 
+      const fileName = file.name.toLowerCase();
+      const expectedPrefix = `${gameType}_layout`;
+
+      if (!fileName.startsWith(expectedPrefix) && !fileName.startsWith(`${gameType}_`)) {
+        showMessage('error', `Please select a ${gameType} layout file (should start with "${expectedPrefix}" or "${gameType}_")`);
+        return;
+      }
+
       setUploading(true);
       try {
         const text = await file.text();

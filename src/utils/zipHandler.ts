@@ -141,17 +141,30 @@ async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void
       gameStorage.csv[fileName] = content;
     } else if (relativePath.includes('media/')) {
       const base64Content = await zipEntry.async('base64');
-      const fileName = relativePath.split('/').pop() || '';
+
+      const pathAfterMedia = relativePath.substring(relativePath.indexOf('media/') + 6);
 
       if (relativePath.includes('images/')) {
-        gameStorage.media.images[fileName] = base64Content;
+        const pathAfterImages = pathAfterMedia.substring(pathAfterMedia.indexOf('images/') + 7);
+        gameStorage.media.images[pathAfterImages] = base64Content;
+        console.log(`[zipHandler] Saved image: ${pathAfterImages}`);
       } else if (relativePath.includes('sounds/')) {
-        gameStorage.media.sounds[fileName] = base64Content;
+        const pathAfterSounds = pathAfterMedia.substring(pathAfterMedia.indexOf('sounds/') + 7);
+        gameStorage.media.sounds[pathAfterSounds] = base64Content;
+        console.log(`[zipHandler] Saved sound: ${pathAfterSounds}`);
       } else if (relativePath.includes('videos/')) {
-        gameStorage.media.videos[fileName] = base64Content;
+        const pathAfterVideos = pathAfterMedia.substring(pathAfterMedia.indexOf('videos/') + 7);
+        gameStorage.media.videos[pathAfterVideos] = base64Content;
+        console.log(`[zipHandler] Saved video: ${pathAfterVideos}`);
       }
     }
   }
+
+  console.log('[zipHandler] Media files saved:', {
+    images: Object.keys(gameStorage.media.images).length,
+    sounds: Object.keys(gameStorage.media.sounds).length,
+    videos: Object.keys(gameStorage.media.videos).length
+  });
 
   const gameStorageKey = `game_${uniqid}`;
   localStorage.setItem(gameStorageKey, JSON.stringify(gameStorage));

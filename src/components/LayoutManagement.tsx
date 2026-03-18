@@ -137,6 +137,54 @@ export function LayoutManagement() {
     }
   };
 
+  const uploadLayoutFromFile = async (gameType: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      setUploading(true);
+      try {
+        const text = await file.text();
+        const layoutData = JSON.parse(text);
+
+        const version = layoutData.version || '1.0';
+
+        const { error } = await supabase
+          .from('layouts')
+          .upsert({
+            game_type: gameType,
+            version: version,
+            name: `${gameType.charAt(0).toUpperCase() + gameType.slice(1)} Layout v${version}`,
+            config: layoutData,
+            is_active: true,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'game_type,version'
+          });
+
+        if (error) throw error;
+
+        await supabase
+          .from('layouts')
+          .update({ is_active: false })
+          .eq('game_type', gameType)
+          .neq('version', version);
+
+        showMessage('success', `Layout uploaded successfully for ${gameType}`);
+        loadLayouts();
+      } catch (error) {
+        console.error('Error uploading layout:', error);
+        showMessage('error', 'Failed to upload layout. Make sure the file is valid JSON.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  };
+
   const downloadLayout = async (layout: Layout) => {
     if (!isElectron) {
       const blob = new Blob([JSON.stringify(layout.config, null, 2)], { type: 'application/json' });
@@ -193,37 +241,73 @@ export function LayoutManagement() {
         </div>
       )}
 
-      {isElectron && (
-        <div className="bg-slate-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Upload Layouts from Local</h3>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => uploadLayoutFromElectron('tagquest')}
-              disabled={uploading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {uploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              Upload TagQuest Layout
-            </button>
-            <button
-              onClick={() => uploadLayoutFromElectron('mystery')}
-              disabled={uploading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {uploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              Upload Mystery Layout
-            </button>
-          </div>
+      <div className="bg-slate-50 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">
+          {isElectron ? 'Upload Layouts from Local' : 'Upload Layout Files'}
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          {isElectron ? (
+            <>
+              <button
+                onClick={() => uploadLayoutFromElectron('tagquest')}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Upload TagQuest Layout
+              </button>
+              <button
+                onClick={() => uploadLayoutFromElectron('mystery')}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Upload Mystery Layout
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => uploadLayoutFromFile('tagquest')}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Upload TagQuest Layout
+              </button>
+              <button
+                onClick={() => uploadLayoutFromFile('mystery')}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Upload Mystery Layout
+              </button>
+            </>
+          )}
         </div>
-      )}
+        <p className="text-sm text-slate-600 mt-3">
+          {isElectron
+            ? 'Upload layouts from your local layouts folder'
+            : 'Select a layout JSON file to upload'}
+        </p>
+      </div>
 
       <div className="space-y-6">
         {Object.entries(groupedLayouts).map(([gameType, gameLayouts]) => (
@@ -281,9 +365,7 @@ export function LayoutManagement() {
         {Object.keys(groupedLayouts).length === 0 && (
           <div className="text-center py-12 text-slate-600">
             <p className="text-lg mb-2">No layouts uploaded yet</p>
-            {isElectron && (
-              <p className="text-sm">Use the upload buttons above to add layouts from your local system</p>
-            )}
+            <p className="text-sm">Use the upload buttons above to add layouts</p>
           </div>
         )}
       </div>

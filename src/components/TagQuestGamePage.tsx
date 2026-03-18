@@ -42,7 +42,9 @@ interface LayoutElement {
   width?: number;
   height?: number;
   src?: string;
+  filename?: string;
   text?: string;
+  previewText?: string;
   style?: Record<string, any>;
   children?: LayoutElement[];
 }
@@ -158,6 +160,25 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             }
           }
 
+          const { data: allMedia } = await supabase
+            .from('scenario_media')
+            .select('filename, data, media_type')
+            .eq('scenario_uniqid', gameUniqid);
+
+          const mediaByFilename: Record<string, string> = {};
+          if (allMedia) {
+            for (const m of allMedia) {
+              const mimeType = m.filename.endsWith('.jpg') || m.filename.endsWith('.jpeg')
+                ? 'image/jpeg'
+                : m.filename.endsWith('.png')
+                ? 'image/png'
+                : 'image/png';
+              mediaByFilename[m.filename] = `data:${mimeType};base64,${m.data}`;
+            }
+          }
+
+          const bgEntry = mediaByFilename['fond-ecran-taille-ok.jpg'] || null;
+
           const { data: layoutData, error: layoutError } = await supabase
             .from('layouts')
             .select('*')
@@ -166,15 +187,27 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             .maybeSingle();
 
           if (!layoutError && layoutData) {
-            setLayout(layoutData.config);
-            console.log('Layout loaded from Supabase:', layoutData);
+            const config = layoutData.config as GameLayout;
+
+            const resolvedElements = (config.elements || []).map((el: LayoutElement) => {
+              if (el.type === 'image' && el.filename) {
+                const fname = el.filename.split('/').pop() ?? '';
+                const resolved = mediaByFilename[fname];
+                if (resolved) return { ...el, src: resolved };
+              }
+              return el;
+            });
+
+            setLayout({
+              ...config,
+              background: bgEntry || config.background,
+              elements: resolvedElements
+            });
           } else {
             const layoutKey = `layout_tagquest`;
             const layoutStr = localStorage.getItem(layoutKey);
             if (layoutStr) {
-              const layoutData = JSON.parse(layoutStr);
-              setLayout(layoutData);
-              console.log('Layout loaded from localStorage:', layoutData);
+              setLayout(JSON.parse(layoutStr));
             } else {
               console.warn('No layout found for tagquest');
             }
@@ -404,8 +437,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       ...element.style
     };
 
-    let imageSrc = element.src;
-    if (element.type === 'image' && element.id && !element.src) {
+    let imageSrc = element.src || element.filename;
+    if (element.type === 'image' && !imageSrc && element.id) {
       imageSrc = mediaFiles[element.id] || '';
     }
 

@@ -105,12 +105,13 @@ function buildScenariosFolder(): StorageNode {
               };
 
               if (gameStorage.media.images) {
-                for (const filename of Object.keys(gameStorage.media.images)) {
+                for (const [filename, base64Content] of Object.entries(gameStorage.media.images)) {
+                  const size = base64Content ? new Blob([base64Content as string]).size : 0;
                   imagesFolder.children?.push({
                     name: filename,
                     path: `/scenarios/${uniqid}/media/images/${filename}`,
                     type: 'file',
-                    size: 0
+                    size
                   });
                 }
               }
@@ -126,12 +127,13 @@ function buildScenariosFolder(): StorageNode {
               };
 
               if (gameStorage.media.sounds) {
-                for (const filename of Object.keys(gameStorage.media.sounds)) {
+                for (const [filename, base64Content] of Object.entries(gameStorage.media.sounds)) {
+                  const size = base64Content ? new Blob([base64Content as string]).size : 0;
                   soundsFolder.children?.push({
                     name: filename,
                     path: `/scenarios/${uniqid}/media/sounds/${filename}`,
                     type: 'file',
-                    size: 0
+                    size
                   });
                 }
               }
@@ -147,12 +149,13 @@ function buildScenariosFolder(): StorageNode {
               };
 
               if (gameStorage.media.videos) {
-                for (const filename of Object.keys(gameStorage.media.videos)) {
+                for (const [filename, base64Content] of Object.entries(gameStorage.media.videos)) {
+                  const size = base64Content ? new Blob([base64Content as string]).size : 0;
                   videosFolder.children?.push({
                     name: filename,
                     path: `/scenarios/${uniqid}/media/videos/${filename}`,
                     type: 'file',
-                    size: 0
+                    size
                   });
                 }
               }
@@ -267,7 +270,7 @@ export function getWebStorageInfo(): { used: number; total: number } {
     }
   }
 
-  const quota = 10 * 1024 * 1024;
+  const quota = 100 * 1024 * 1024;
 
   return { used: totalSize, total: quota };
 }

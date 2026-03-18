@@ -290,85 +290,45 @@ async function saveLayout(data: any): Promise<void> {
 
 async function saveGameWeb(data: any): Promise<void> {
   const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
-  const { supabase } = await import('../lib/db');
 
-  if (!supabase) {
-    throw new Error('Supabase is not configured. Cannot upload files.');
+  const gameStorage: Record<string, any> = {
+    csv: {},
+    media: {
+      images: {},
+      sounds: {},
+      videos: {}
+    }
+  };
+
+  for (const [filename, content] of Object.entries(csvFiles)) {
+    gameStorage.csv[filename] = content;
   }
 
   for (const [filename, data] of Object.entries(images)) {
-    const blob = new Blob([data as Uint8Array], { type: 'image/jpeg' });
-    const storagePath = `${uniqid}/images/${filename}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('game_media')
-      .upload(storagePath, blob, {
-        contentType: blob.type,
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error(`Failed to upload ${storagePath}:`, uploadError);
-    }
+    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    gameStorage.media.images[filename] = base64;
   }
 
   for (const [filename, data] of Object.entries(sounds)) {
-    const blob = new Blob([data as Uint8Array], { type: 'audio/mpeg' });
-    const storagePath = `${uniqid}/sounds/${filename}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('game_media')
-      .upload(storagePath, blob, {
-        contentType: blob.type,
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error(`Failed to upload ${storagePath}:`, uploadError);
-    }
+    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    gameStorage.media.sounds[filename] = base64;
   }
 
   for (const [filename, data] of Object.entries(videos)) {
-    const blob = new Blob([data as Uint8Array], { type: 'video/mp4' });
-    const storagePath = `${uniqid}/videos/${filename}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('game_media')
-      .upload(storagePath, blob, {
-        contentType: blob.type,
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.error(`Failed to upload ${storagePath}:`, uploadError);
-    }
+    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
+    gameStorage.media.videos[filename] = base64;
   }
 
-  const game = gameData.game || gameData.scenario || {};
+  const gameStorageKey = `game_${uniqid}`;
+  localStorage.setItem(gameStorageKey, JSON.stringify(gameStorage));
 
-  const scenarioRecord = {
-    uniqid: uniqid,
-    title: game.title || game.name || 'Untitled',
-    description: game.description || '',
-    game_type: game.type || 'unknown',
-    version: game.version || '1.0',
-    duration_minutes: parseInt(game.duration) || 60,
-    difficulty: game.difficulty || 'medium',
-    csv_game: csvFiles['game.csv'] || '',
-    csv_enigmas: csvFiles['game_enigmas.csv'] || '',
-    csv_media_images: csvFiles['game_media_images.csv'] || '',
-    csv_meta: csvFiles['game_meta.csv'] || '',
-    csv_sounds: csvFiles['game_sounds.csv'] || '',
-    csv_user_meta: csvFiles['game_user_meta.csv'] || '',
-  };
+  const gamesListKey = 'uploaded_games_list';
+  const gamesList = JSON.parse(localStorage.getItem(gamesListKey) || '[]');
 
-  const { error: dbError } = await supabase
-    .from('scenarios')
-    .upsert(scenarioRecord, { onConflict: 'uniqid' });
-
-  if (dbError) {
-    throw new Error(`Failed to save scenario to database: ${dbError.message}`);
+  if (!gamesList.includes(uniqid)) {
+    gamesList.push(uniqid);
+    localStorage.setItem(gamesListKey, JSON.stringify(gamesList));
   }
 
-  console.log(`Successfully uploaded scenario ${uniqid} to Supabase`);
+  console.log(`Successfully saved scenario ${uniqid} to browser storage`);
 }

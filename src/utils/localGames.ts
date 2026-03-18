@@ -2,8 +2,10 @@ export async function getLocalGameIds(): Promise<string[]> {
   const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
   if (!isElectron) {
-    console.log('Electron not available');
-    return [];
+    const gamesListKey = 'uploaded_games_list';
+    const gamesList = JSON.parse(localStorage.getItem(gamesListKey) || '[]');
+    console.log('Browser storage games found:', gamesList);
+    return gamesList;
   }
 
   try {

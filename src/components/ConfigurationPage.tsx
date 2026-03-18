@@ -355,7 +355,7 @@ export function ConfigurationPage() {
             </div>
           </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-6">
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-3">Note</h3>
             <div className="text-sm text-slate-400 space-y-2">
               <p>
@@ -366,6 +366,8 @@ export function ConfigurationPage() {
               </p>
             </div>
           </div>
+
+          <FolderBrowser isElectron={isElectron} />
         </div>
       </div>
     );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Folder, FolderOpen, File, ChevronRight, ChevronDown, HardDrive, Database, RefreshCw, ExternalLink } from 'lucide-react';
+import { getWebStorageStructure, getWebStorageInfo } from '../utils/webStorage';
 
 interface FileNode {
   name: string;
@@ -51,104 +52,11 @@ export function FolderBrowser({ isElectron }: FolderBrowserProps) {
   };
 
   const loadWebStorageStructure = async () => {
-    const root: FileNode = {
-      name: 'Browser Storage',
-      path: '/',
-      type: 'folder',
-      expanded: true,
-      children: []
-    };
+    const structure = getWebStorageStructure();
+    setFileTree(structure);
 
-    const scenariosFolder: FileNode = {
-      name: 'Scenarios',
-      path: '/scenarios',
-      type: 'folder',
-      expanded: false,
-      children: []
-    };
-
-    const gamesListStr = localStorage.getItem('uploaded_games_list');
-    if (gamesListStr) {
-      try {
-        const gamesList = JSON.parse(gamesListStr);
-        for (const game of gamesList) {
-          const gameKey = `game_${game.uniqid}`;
-          const gameDataStr = localStorage.getItem(gameKey);
-          if (gameDataStr) {
-            const size = new Blob([gameDataStr]).size;
-            scenariosFolder.children?.push({
-              name: `${game.name || game.uniqid}`,
-              path: `/scenarios/${game.uniqid}`,
-              type: 'file',
-              size
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing games list:', error);
-      }
-    }
-
-    const layoutsFolder: FileNode = {
-      name: 'Layouts',
-      path: '/layouts',
-      type: 'folder',
-      expanded: false,
-      children: []
-    };
-
-    const layoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layout_'));
-    for (const key of layoutKeys) {
-      const dataStr = localStorage.getItem(key);
-      if (dataStr) {
-        const size = new Blob([dataStr]).size;
-        layoutsFolder.children?.push({
-          name: key.replace('layout_', ''),
-          path: `/layouts/${key}`,
-          type: 'file',
-          size
-        });
-      }
-    }
-
-    const patternsFolder: FileNode = {
-      name: 'Patterns',
-      path: '/patterns',
-      type: 'folder',
-      expanded: false,
-      children: []
-    };
-
-    const patternKeys = Object.keys(localStorage).filter(key => key.startsWith('pattern_'));
-    for (const key of patternKeys) {
-      const dataStr = localStorage.getItem(key);
-      if (dataStr) {
-        const size = new Blob([dataStr]).size;
-        patternsFolder.children?.push({
-          name: key.replace('pattern_', ''),
-          path: `/patterns/${key}`,
-          type: 'file',
-          size
-        });
-      }
-    }
-
-    root.children = [scenariosFolder, layoutsFolder, patternsFolder];
-    setFileTree(root);
-
-    let totalSize = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key) {
-        const value = localStorage.getItem(key);
-        if (value) {
-          totalSize += new Blob([key, value]).size;
-        }
-      }
-    }
-
-    const quota = 10 * 1024 * 1024;
-    setStorageInfo({ used: totalSize, total: quota });
+    const info = getWebStorageInfo();
+    setStorageInfo(info);
   };
 
   const toggleFolder = (path: string) => {

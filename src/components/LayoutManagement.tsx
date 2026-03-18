@@ -237,8 +237,8 @@ export function LayoutManagement() {
       {message && (
         <div className={`p-4 rounded-lg flex items-center gap-2 ${
           message.type === 'success'
-            ? 'bg-green-50 text-green-800'
-            : 'bg-red-50 text-red-800'
+            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+            : 'bg-red-500/20 text-red-400 border border-red-500/30'
         }`}>
           {message.type === 'success' ? (
             <Check className="w-5 h-5" />
@@ -249,8 +249,8 @@ export function LayoutManagement() {
         </div>
       )}
 
-      <div className="bg-slate-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">
+      <div className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">
           {isElectron ? 'Upload Layouts from Local' : 'Upload Layout Files'}
         </h3>
         <div className="flex flex-wrap gap-3">
@@ -310,7 +310,7 @@ export function LayoutManagement() {
             </>
           )}
         </div>
-        <p className="text-sm text-slate-600 mt-3">
+        <p className="text-sm text-slate-400 mt-3">
           {isElectron
             ? 'Upload layouts from your local layouts folder'
             : 'Select a layout JSON file to upload'}
@@ -319,25 +319,25 @@ export function LayoutManagement() {
 
       <div className="space-y-6">
         {Object.entries(groupedLayouts).map(([gameType, gameLayouts]) => (
-          <div key={gameType} className="bg-white rounded-lg shadow-sm border border-slate-200">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 capitalize">
+          <div key={gameType} className="bg-slate-700/30 rounded-lg border border-slate-600">
+            <div className="px-6 py-4 border-b border-slate-600">
+              <h3 className="text-lg font-semibold text-slate-200 capitalize">
                 {gameType} Layouts
               </h3>
             </div>
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-slate-600">
               {gameLayouts.map((layout) => (
                 <div key={layout.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-medium text-slate-900">{layout.name}</h4>
+                      <h4 className="font-medium text-slate-200">{layout.name}</h4>
                       {layout.is_active && (
-                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                        <span className="px-2 py-1 text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30 rounded">
                           Active
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-400 mt-1">
                       Version {layout.version} • Updated {new Date(layout.updated_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -345,21 +345,21 @@ export function LayoutManagement() {
                     {!layout.is_active && (
                       <button
                         onClick={() => setActiveLayout(layout.id, layout.game_type)}
-                        className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="px-3 py-1.5 text-sm text-blue-400 hover:bg-blue-500/20 rounded-lg border border-blue-500/30"
                       >
                         Set Active
                       </button>
                     )}
                     <button
                       onClick={() => downloadLayout(layout)}
-                      className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                      className="p-2 text-slate-400 hover:bg-slate-600 rounded-lg"
                       title="Download layout"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => deleteLayout(layout.id)}
-                      className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                      className="px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/20 rounded-lg border border-red-500/30"
                     >
                       Delete
                     </button>
@@ -371,7 +371,7 @@ export function LayoutManagement() {
         ))}
 
         {Object.keys(groupedLayouts).length === 0 && (
-          <div className="text-center py-12 text-slate-600">
+          <div className="text-center py-12 text-slate-400">
             <p className="text-lg mb-2">No layouts uploaded yet</p>
             <p className="text-sm">Use the upload buttons above to add layouts</p>
           </div>

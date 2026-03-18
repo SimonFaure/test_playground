@@ -5,6 +5,7 @@ import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
 import { detectFileType, saveUploadedFile, UploadResult } from '../utils/fileUpload';
 import { FolderBrowser } from './FolderBrowser';
+import { LayoutManagement } from './LayoutManagement';
 
 interface SerialPortInfo {
   path: string;
@@ -789,6 +790,14 @@ export function ConfigurationPage() {
         </div>
 
         <FolderBrowser isElectron={isElectron} />
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">Layout Management</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            Manage game layout configurations for TagQuest and Mystery games.
+          </p>
+          <LayoutManagement />
+        </div>
 
         <div className="bg-slate-800/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Information</h3>

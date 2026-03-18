@@ -400,7 +400,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 mb-8">
             <div className="flex items-center justify-center gap-3 text-white/80 mb-6">
               <Users className="w-6 h-6" />
-              <span className="text-lg">{config.teams.length} Teams</span>
+              <span className="text-lg">{config.teams?.length || config.numberOfTeams || 0} Teams</span>
             </div>
             <p className="text-white/60 mb-2">USB Port: {config.usbPort || 'Not configured'}</p>
             <p className="text-white/60">Message Duration: {config.messageDisplayDuration}s</p>

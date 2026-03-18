@@ -1,5 +1,5 @@
 import { checkInternetConnection } from '../utils/connectivity';
-import { getUserDataUpdate, downloadCardsFile, downloadPattern, downloadLayout } from './resourceSync';
+import { getUserDataUpdate, downloadCardsFile, downloadPattern, downloadLayout, downloadOnDemandCards } from './resourceSync';
 import { getGameTypesFromScenarios } from '../utils/gameTypes';
 import { DownloadQueueManager, getPriorityForType } from './downloadQueue';
 import { DownloadItem } from '../types/downloadQueue';
@@ -98,6 +98,18 @@ export async function syncResourcesBeforeScenarios(onProgress?: SyncProgressCall
           priority: getPriorityForType('cards'),
           downloadUrl: `${apiUrl}?action=download_cards&email=${encodeURIComponent(config.email)}&version=${userData.cards_version}`,
           targetPath: `cards_v${userData.cards_version}.csv`,
+        });
+      }
+
+      if (userData.has_on_demand_cards) {
+        console.log('[Sync] On-demand cards available, adding to queue');
+        downloadQueue.addItem({
+          type: 'on_demand_cards',
+          name: 'On-Demand Cards',
+          version: 1,
+          priority: getPriorityForType('cards'),
+          downloadUrl: `${apiUrl}?action=get_on_demand_cards&email=${encodeURIComponent(config.email)}`,
+          targetPath: 'on_demand_cards.csv',
         });
       }
 
@@ -261,6 +273,12 @@ export async function downloadResourceItem(item: DownloadItem): Promise<void> {
       const cardsContent = await downloadCardsFile(apiUrl, config.email, item.version);
       await (window as any).electron.cards.saveFile(item.version, cardsContent);
       console.log(`[Download] Cards saved: v${item.version}`);
+      break;
+
+    case 'on_demand_cards':
+      const onDemandCardsContent = await downloadOnDemandCards(apiUrl, config.email);
+      await (window as any).electron.cards.saveOnDemandFile(onDemandCardsContent);
+      console.log(`[Download] On-demand cards saved`);
       break;
 
     case 'pattern':

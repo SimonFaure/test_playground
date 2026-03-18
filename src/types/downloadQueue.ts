@@ -1,4 +1,4 @@
-export type DownloadItemType = 'cards' | 'pattern' | 'layout' | 'scenario';
+export type DownloadItemType = 'cards' | 'on_demand_cards' | 'pattern' | 'layout' | 'scenario';
 
 export interface DownloadItem {
   type: DownloadItemType;

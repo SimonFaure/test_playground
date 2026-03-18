@@ -289,6 +289,49 @@ export async function downloadCardsFile(apiUrl: string, email: string, version: 
   }
 }
 
+export async function downloadOnDemandCards(apiUrl: string, email: string): Promise<string> {
+  const url = `${apiUrl}?action=get_on_demand_cards&email=${encodeURIComponent(email)}`;
+  const startTime = Date.now();
+
+  console.log(`[ResourceSync] Downloading on-demand cards`);
+  console.log(`[ResourceSync] URL: ${url}`);
+
+  try {
+    const response = await fetch(url);
+    const duration = Date.now() - startTime;
+
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: response.status,
+      requestParams: { action: 'get_on_demand_cards', email },
+      duration,
+      success: response.ok,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download on-demand cards: ${response.statusText}`);
+    }
+
+    const content = await response.text();
+    console.log(`[ResourceSync] On-demand cards downloaded successfully, size: ${content.length} bytes`);
+    return content;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[ResourceSync] Error downloading on-demand cards:`, error);
+    await logApiCall({
+      endpoint: url,
+      method: 'GET',
+      statusCode: 0,
+      requestParams: { action: 'get_on_demand_cards', email },
+      duration,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+}
+
 export async function downloadPattern(apiUrl: string, email: string, patternUniqid: string): Promise<string> {
   const url = `${apiUrl}?action=download_pattern&email=${encodeURIComponent(email)}&pattern_uniqid=${patternUniqid}`;
   const startTime = Date.now();

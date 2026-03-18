@@ -67,31 +67,49 @@ async function handleZipFile(file: File): Promise<UploadResult> {
       const imagesFolder = zip.folder('images');
       if (imagesFolder) {
         const imageFiles = imagesFolder.file(/.+\.(jpg|jpeg|png|gif|webp)$/i);
+        console.log('[fileUpload] Found image files:', imageFiles.map(f => f.name));
         for (const imageFile of imageFiles) {
           const imageData = await imageFile.async('uint8array');
-          images[imageFile.name.split('/').pop() || ''] = imageData;
+          const relativePath = imageFile.name.replace(/^images\//, '');
+          if (relativePath) {
+            console.log(`[fileUpload] Storing image: ${relativePath}`);
+            images[relativePath] = imageData;
+          }
         }
       }
+      console.log('[fileUpload] Total images stored:', Object.keys(images).length);
 
       const sounds: Record<string, Uint8Array> = {};
       const soundsFolder = zip.folder('sounds');
       if (soundsFolder) {
         const soundFiles = soundsFolder.file(/.+\.(mp3|wav|ogg)$/i);
+        console.log('[fileUpload] Found sound files:', soundFiles.map(f => f.name));
         for (const soundFile of soundFiles) {
           const soundData = await soundFile.async('uint8array');
-          sounds[soundFile.name.split('/').pop() || ''] = soundData;
+          const relativePath = soundFile.name.replace(/^sounds\//, '');
+          if (relativePath) {
+            console.log(`[fileUpload] Storing sound: ${relativePath}`);
+            sounds[relativePath] = soundData;
+          }
         }
       }
+      console.log('[fileUpload] Total sounds stored:', Object.keys(sounds).length);
 
       const videos: Record<string, Uint8Array> = {};
       const videosFolder = zip.folder('videos');
       if (videosFolder) {
         const videoFiles = videosFolder.file(/.+\.(mp4|webm)$/i);
+        console.log('[fileUpload] Found video files:', videoFiles.map(f => f.name));
         for (const videoFile of videoFiles) {
           const videoData = await videoFile.async('uint8array');
-          videos[videoFile.name.split('/').pop() || ''] = videoData;
+          const relativePath = videoFile.name.replace(/^videos\//, '');
+          if (relativePath) {
+            console.log(`[fileUpload] Storing video: ${relativePath}`);
+            videos[relativePath] = videoData;
+          }
         }
       }
+      console.log('[fileUpload] Total videos stored:', Object.keys(videos).length);
 
       const gameName = gameData?.game?.title || gameData?.scenario?.name || 'Unknown Game';
       const uniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;

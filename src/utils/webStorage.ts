@@ -96,15 +96,15 @@ function buildScenariosFolder(): StorageNode {
                 children: []
               };
 
-              if (gameStorage.media.images && Object.keys(gameStorage.media.images).length > 0) {
-                const imagesFolder: StorageNode = {
-                  name: 'images',
-                  path: `/scenarios/${uniqid}/media/images`,
-                  type: 'folder',
-                  expanded: false,
-                  children: []
-                };
+              const imagesFolder: StorageNode = {
+                name: 'images',
+                path: `/scenarios/${uniqid}/media/images`,
+                type: 'folder',
+                expanded: false,
+                children: []
+              };
 
+              if (gameStorage.media.images) {
                 for (const filename of Object.keys(gameStorage.media.images)) {
                   imagesFolder.children?.push({
                     name: filename,
@@ -113,19 +113,19 @@ function buildScenariosFolder(): StorageNode {
                     size: 0
                   });
                 }
-
-                mediaFolder.children?.push(imagesFolder);
               }
 
-              if (gameStorage.media.sounds && Object.keys(gameStorage.media.sounds).length > 0) {
-                const soundsFolder: StorageNode = {
-                  name: 'sounds',
-                  path: `/scenarios/${uniqid}/media/sounds`,
-                  type: 'folder',
-                  expanded: false,
-                  children: []
-                };
+              mediaFolder.children?.push(imagesFolder);
 
+              const soundsFolder: StorageNode = {
+                name: 'sounds',
+                path: `/scenarios/${uniqid}/media/sounds`,
+                type: 'folder',
+                expanded: false,
+                children: []
+              };
+
+              if (gameStorage.media.sounds) {
                 for (const filename of Object.keys(gameStorage.media.sounds)) {
                   soundsFolder.children?.push({
                     name: filename,
@@ -134,19 +134,19 @@ function buildScenariosFolder(): StorageNode {
                     size: 0
                   });
                 }
-
-                mediaFolder.children?.push(soundsFolder);
               }
 
-              if (gameStorage.media.videos && Object.keys(gameStorage.media.videos).length > 0) {
-                const videosFolder: StorageNode = {
-                  name: 'videos',
-                  path: `/scenarios/${uniqid}/media/videos`,
-                  type: 'folder',
-                  expanded: false,
-                  children: []
-                };
+              mediaFolder.children?.push(soundsFolder);
 
+              const videosFolder: StorageNode = {
+                name: 'videos',
+                path: `/scenarios/${uniqid}/media/videos`,
+                type: 'folder',
+                expanded: false,
+                children: []
+              };
+
+              if (gameStorage.media.videos) {
                 for (const filename of Object.keys(gameStorage.media.videos)) {
                   videosFolder.children?.push({
                     name: filename,
@@ -155,13 +155,11 @@ function buildScenariosFolder(): StorageNode {
                     size: 0
                   });
                 }
-
-                mediaFolder.children?.push(videosFolder);
               }
 
-              if (mediaFolder.children && mediaFolder.children.length > 0) {
-                gameFolder.children?.push(mediaFolder);
-              }
+              mediaFolder.children?.push(videosFolder);
+
+              gameFolder.children?.push(mediaFolder);
             }
 
             scenariosFolder.children?.push(gameFolder);

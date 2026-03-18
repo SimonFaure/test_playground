@@ -53,6 +53,16 @@ function buildScenariosFolder(): StorageNode {
               children: []
             };
 
+            if (gameStorage.gameData) {
+              const gameDataSize = new Blob([JSON.stringify(gameStorage.gameData)]).size;
+              gameFolder.children?.push({
+                name: 'game-data.json',
+                path: `/scenarios/${uniqid}/game-data.json`,
+                type: 'file',
+                size: gameDataSize
+              });
+            }
+
             if (gameStorage.csv) {
               const csvFolder: StorageNode = {
                 name: 'csv',

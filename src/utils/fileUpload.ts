@@ -434,6 +434,7 @@ async function saveGameWeb(data: any): Promise<void> {
   const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
 
   const gameStorage: Record<string, any> = {
+    gameData,
     csv: {},
     media: {
       images: {},

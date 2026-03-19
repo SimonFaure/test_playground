@@ -451,7 +451,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     }
 
     if (element.id === 'animation_quest_image') {
+      console.log("element");
+console.log(element);
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
+      console.log("quests");
+console.log(quests);
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
       return quests.flatMap((quest) => {

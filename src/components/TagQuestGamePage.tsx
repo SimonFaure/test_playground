@@ -64,7 +64,7 @@ interface GameLayout {
 export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }: TagQuestGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [layout, setLayout] = useState<GameLayout | null>(null);
-  const [gameStarted, setGameStarted] = useState(false);
+  const [gameStarted, setGameStarted] = useState(true);
   const [lastCardData, setLastCardData] = useState<CardData | null>(null);
   const [showCardAlert, setShowCardAlert] = useState(false);
   const [teams, setTeams] = useState<TeamScore[]>([]);
@@ -360,34 +360,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartGame = async () => {
-    setGameStarted(true);
-
+  useEffect(() => {
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
     if (isElectron) {
-      try {
-        const dbResult = await (window as any).electron.db.connect();
-        if (dbResult.success) {
-          console.log('✓ Database connection successful:', dbResult.message);
-        } else {
-          console.error('✗ Database connection failed:', dbResult.message);
-        }
-      } catch (error) {
-        console.error('✗ Database connection error:', error);
-      }
+      (window as any).electron.db.connect().catch(() => {});
     }
-  };
-
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'Enter' && !gameStarted) {
-        handleStartGame();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameStarted]);
+  }, []);
 
   useEffect(() => {
     const initializeUSB = async () => {

@@ -68,7 +68,7 @@ interface GameData {
 export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const gameDataRef = useRef<GameData | null>(null);
-  const [gameStarted, setGameStarted] = useState(false);
+  const [gameStarted, setGameStarted] = useState(true);
   const [gameEnded, setGameEnded] = useState(false);
   const [score, setScore] = useState(0);
   const [time, setTime] = useState(0);
@@ -185,6 +185,13 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
 
     loadGameData();
   }, [gameUniqid]);
+
+  useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+    if (isElectron) {
+      (window as any).electron.db.connect().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!gameStarted) return;

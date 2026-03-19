@@ -454,29 +454,27 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
-      return quests.map((quest) => {
+      return quests.flatMap((quest) => {
         const mainSrc = mediaFiles[quest.main_image] || '';
         const subImages = ([quest.image_1, quest.image_2, quest.image_3, quest.image_4] as (string | undefined)[])
           .filter((img): img is string => !!img)
           .map(imgKey => mediaFiles[imgKey] || imgKey);
 
-        return (
+        return [
           <div key={`quest-${quest.id}-wrapper`} id={`quest-${quest.id}-wrapper`} style={{ ...wrapperStyle }}>
             <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>
-            {subImages.length > 0 && (
-              <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap' }}>
-                {subImages.map((src, i) => (
-                  <img key={i} src={src} alt={`${quest.text} ${i + 1}`} style={{ width: '50%' }} />
-                ))}
-              </div>
-            )}
-            <div className="quest_title" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', textAlign: 'center', color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
-              {quest.text}
+            <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap' }}>
+              {subImages.map((src, i) => (
+                <img key={i} src={src} alt={`${quest.text} ${i + 1}`} style={{ width: '50%' }} />
+              ))}
             </div>
+          </div>,
+          <div key={`quest-${quest.id}-title`} className="quest_title" style={{ ...wrapperStyle, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+            {quest.text}
           </div>
-        );
+        ];
       });
     }
 

@@ -14,11 +14,15 @@ interface TagQuestGamePageProps {
 
 interface GameQuest {
   id: string;
-  game_id: string;
+  game_id?: string;
   number: string;
   text: string;
   main_image: string;
-  [key: string]: string;
+  image_1?: string;
+  image_2?: string;
+  image_3?: string;
+  image_4?: string;
+  [key: string]: string | undefined;
 }
 
 interface GameData {
@@ -446,7 +450,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
     if (element.id === 'animation_quest_image') {
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
-      const questDivStyle: React.CSSProperties = {
+      const overlayStyle: React.CSSProperties = {
         position: 'absolute',
         top: 0,
         left: 0,
@@ -456,14 +460,40 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       return (
         <div key={`${element.id}-${index}`} style={wrapperStyle}>
           {quests.map((quest) => {
-            const src = mediaFiles[quest.main_image] || '';
+            const mainSrc = mediaFiles[quest.main_image] || '';
+            const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean);
             return (
-              <div key={quest.id} style={questDivStyle}>
-                <img
-                  src={src}
-                  alt={quest.text}
-                  style={{ width: '100%' }}
-                />
+              <div key={quest.id}>
+                <div style={overlayStyle}>
+                  <img
+                    src={mainSrc}
+                    alt={quest.text}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                </div>
+                {subImages.length > 0 && (
+                  <div style={{
+                    ...overlayStyle,
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateRows: '1fr 1fr',
+                    gap: '4px',
+                    padding: '4px',
+                    boxSizing: 'border-box',
+                  }}>
+                    {subImages.map((imgKey, i) => {
+                      const src = mediaFiles[imgKey] || '';
+                      return (
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`${quest.text} ${i + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

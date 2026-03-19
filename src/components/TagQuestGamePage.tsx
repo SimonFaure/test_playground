@@ -150,6 +150,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           if (scenarioData) {
             const gdj = scenarioData.game_data_json;
             const quests = gdj?.game_data?.quests || gdj?.quests || [];
+            console.log("scenarioData");
+            console.log(scenarioData);
             setGameData({
               game: {
                 id: scenarioData.id.toString(),

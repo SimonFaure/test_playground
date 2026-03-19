@@ -119,6 +119,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
               if (id && uuid && fileName) {
                 const mediaPath = `data/games/${gameUniqid}/media/${uuid}/${fileName}`;
                 mediaMap[id] = mediaPath;
+                mediaMap[fileName] = mediaPath;
               }
             }
 
@@ -175,6 +176,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
                   if (urlData?.signedUrl) {
                     mediaMap[row.id] = urlData.signedUrl;
+                    mediaMap[row.file_name] = urlData.signedUrl;
                   }
                 }
               }
@@ -450,49 +452,49 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
     if (element.id === 'animation_quest_image') {
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
-      const overlayStyle: React.CSSProperties = {
+      const quest = quests[0];
+      if (!quest) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
+
+      const mainSrc = mediaFiles[quest.main_image] || '';
+      const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean) as string[];
+
+      const containerStyle: React.CSSProperties = {
+        ...wrapperStyle,
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: wrapperStyle.width,
-        height: wrapperStyle.height,
       };
+
       return (
-        <div key={`${element.id}-${index}`} style={wrapperStyle}>
-          {quests.map((quest) => {
-            const mainSrc = mediaFiles[quest.main_image] || '';
-            const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean);
-            return (
-              <div key={quest.id}>
-                <div style={{ ...overlayStyle, opacity: 0 }}>
+        <div key={`${element.id}-${index}`} style={containerStyle}>
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0 }}>
+            <img
+              src={mainSrc}
+              alt={quest.text}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+          {subImages.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+            }}>
+              {subImages.map((imgKey, i) => {
+                const src = mediaFiles[imgKey] || '';
+                return (
                   <img
-                    src={mainSrc}
-                    alt={quest.text}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    key={i}
+                    src={src}
+                    alt={`${quest.text} ${i + 1}`}
+                    style={{ width: '50%', height: '50%', objectFit: 'contain' }}
                   />
-                </div>
-                {subImages.length > 0 && (
-                  <div style={{
-                    ...overlayStyle,
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                  }}>
-                    {subImages.map((imgKey, i) => {
-                      const src = mediaFiles[imgKey] || '';
-                      return (
-                        <img
-                          key={i}
-                          src={src}
-                          alt={`${quest.text} ${i + 1}`}
-                          style={{ width: '50%', height: '50%', objectFit: 'contain' }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }

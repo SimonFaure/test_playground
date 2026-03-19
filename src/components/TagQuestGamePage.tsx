@@ -464,7 +464,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean);
             return (
               <div key={quest.id}>
-                <div style={overlayStyle}>
+                <div style={{ ...overlayStyle, opacity: 0 }}>
                   <img
                     src={mainSrc}
                     alt={quest.text}
@@ -474,12 +474,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 {subImages.length > 0 && (
                   <div style={{
                     ...overlayStyle,
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gridTemplateRows: '1fr 1fr',
-                    gap: '4px',
-                    padding: '4px',
-                    boxSizing: 'border-box',
+                    display: 'flex',
+                    flexWrap: 'wrap',
                   }}>
                     {subImages.map((imgKey, i) => {
                       const src = mediaFiles[imgKey] || '';
@@ -488,7 +484,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                           key={i}
                           src={src}
                           alt={`${quest.text} ${i + 1}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          style={{ width: '50%', height: '50%', objectFit: 'contain' }}
                         />
                       );
                     })}

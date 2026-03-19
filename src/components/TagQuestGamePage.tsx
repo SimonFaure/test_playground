@@ -431,7 +431,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     };
   }, [gameStarted, config.usbPort]);
 
-  const renderLayoutElement = (element: LayoutElement, index: number): JSX.Element => {
+  const renderLayoutElement = (element: LayoutElement, index: number): JSX.Element | JSX.Element[] => {
     if (!bgDimensions) {
       return <div key={`${element.id}-${index}`} />;
     }
@@ -454,32 +454,30 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
-      return (
-        <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, position: 'absolute', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
-          {quests.map((quest) => {
-            const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean) as string[];
-            const imagesToShow = subImages.length > 0 ? subImages : [quest.main_image].filter(Boolean);
-            const cellSize = quests.length === 1 ? '100%' : quests.length <= 4 ? '50%' : '33.33%';
+      return quests.map((quest) => {
+        const mainSrc = mediaFiles[quest.main_image] || '';
+        const subImages = ([quest.image_1, quest.image_2, quest.image_3, quest.image_4] as (string | undefined)[])
+          .filter((img): img is string => !!img)
+          .map(imgKey => mediaFiles[imgKey] || imgKey);
 
-            return (
-              <div key={quest.id} style={{ width: cellSize, height: cellSize, display: 'flex', flexWrap: 'wrap' }}>
-                {imagesToShow.map((imgKey, i) => {
-                  const src = mediaFiles[imgKey] || '';
-                  const imgSize = imagesToShow.length > 1 ? '50%' : '100%';
-                  return (
-                    <img
-                      key={i}
-                      src={src}
-                      alt={`${quest.text} ${i + 1}`}
-                      style={{ width: imgSize, height: imgSize, objectFit: 'contain' }}
-                    />
-                  );
-                })}
+        return (
+          <div key={`quest-${quest.id}-wrapper`} id={`quest-${quest.id}-wrapper`} style={{ ...wrapperStyle }}>
+            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}>
+              <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
+            </div>
+            {subImages.length > 0 && (
+              <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap' }}>
+                {subImages.map((src, i) => (
+                  <img key={i} src={src} alt={`${quest.text} ${i + 1}`} style={{ width: '50%' }} />
+                ))}
               </div>
-            );
-          })}
-        </div>
-      );
+            )}
+            <div className="quest_title" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', textAlign: 'center', color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+              {quest.text}
+            </div>
+          </div>
+        );
+      });
     }
 
     switch (element.type) {

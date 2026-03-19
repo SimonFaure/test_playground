@@ -148,7 +148,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           }
 
           if (scenarioData) {
-            const quests = scenarioData.game_data_json?.quests || [];
+            const gdj = scenarioData.game_data_json;
+            const quests = gdj?.game_data?.quests || gdj?.quests || [];
             setGameData({
               game: {
                 id: scenarioData.id.toString(),
@@ -156,7 +157,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 type: scenarioData.game_type,
                 title: scenarioData.title
               },
-              game_data: scenarioData.game_data_json,
+              game_data: gdj?.game_data || gdj,
               game_quests: quests
             });
           }

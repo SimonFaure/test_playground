@@ -116,6 +116,7 @@ async function handleZipFile(file: File): Promise<UploadResult> {
         data: {
           uniqid,
           gameData,
+          gameDataRaw: gameDataContent,
           csvFiles,
           images,
           sounds,
@@ -161,7 +162,8 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
           layoutData: data,
           gameType,
           version,
-          fileName: file.name
+          fileName: file.name,
+          rawContent: text
         },
         isValid: true
       };
@@ -171,7 +173,7 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
       return {
         type: 'layout',
         name: file.name,
-        data: { layoutData: data, fileName: file.name },
+        data: { layoutData: data, fileName: file.name, rawContent: text },
         isValid: true
       };
     }
@@ -185,7 +187,8 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
         data: {
           patternData: data,
           patternSlug,
-          fileName: file.name
+          fileName: file.name,
+          rawContent: text
         },
         isValid: true
       };
@@ -226,14 +229,14 @@ async function handleCsvFile(file: File, fileName: string): Promise<UploadResult
       return {
         type: 'cards',
         name: file.name,
-        data: { csvContent: text },
+        data: { csvContent: text, fileName: file.name },
         isValid: true
       };
     } else if (fileName.includes('layout')) {
       return {
         type: 'layout',
         name: file.name,
-        data: { csvContent: text },
+        data: { csvContent: text, fileName: file.name },
         isValid: true
       };
     } else {
@@ -273,7 +276,7 @@ export async function saveUploadedFile(result: UploadResult): Promise<void> {
     } else if (result.type === 'layout') {
       await saveLayoutWeb(result.data);
     } else if (result.type === 'cards') {
-      throw new Error('Card uploads are not yet supported in web version. Use the Electron app for card uploads.');
+      await saveCardsWeb(result.data);
     } else {
       throw new Error(`Cannot save file of type: ${result.type}`);
     }
@@ -352,32 +355,76 @@ async function savePatternElectron(data: any): Promise<void> {
 }
 
 async function savePatternWeb(data: any): Promise<void> {
-  const { patternData, patternSlug, fileName, csvContent } = data;
+  const { patternData, patternSlug, fileName, csvContent, rawContent } = data;
 
-  const patternStorageKey = `pattern_${patternSlug}`;
+  const isJson = !!rawContent || !!patternData;
+  const fileContent = rawContent || csvContent || JSON.stringify(patternData);
+  const ext = isJson && !csvContent ? 'json' : 'csv';
 
-  if (csvContent) {
-    localStorage.setItem(patternStorageKey, csvContent);
-  } else if (patternData) {
-    localStorage.setItem(patternStorageKey, JSON.stringify(patternData));
-  } else {
-    throw new Error('No pattern data or CSV content found');
+  let gameType = 'mystery';
+  if (patternData?.game_type) {
+    gameType = patternData.game_type;
+  } else if (csvContent) {
+    const firstLine = csvContent.split('\n')[0] || '';
+    const headers = firstLine.split(',');
+    const gameTypeIndex = headers.indexOf('game_type');
+    if (gameTypeIndex !== -1) {
+      const secondLine = csvContent.split('\n')[1] || '';
+      const values = secondLine.split(',');
+      if (values[gameTypeIndex]) {
+        gameType = values[gameTypeIndex].trim().replace(/^"|"$/g, '');
+      }
+    }
   }
 
-  const patternsListKey = 'uploaded_patterns_list';
-  const patternsList = JSON.parse(localStorage.getItem(patternsListKey) || '[]');
+  const storagePath = `patterns/${gameType}/${patternSlug}.${ext}`;
+  const blob = new Blob([fileContent], { type: ext === 'json' ? 'application/json' : 'text/csv' });
 
-  if (!patternsList.includes(patternSlug)) {
-    patternsList.push(patternSlug);
-    localStorage.setItem(patternsListKey, JSON.stringify(patternsList));
+  const { error: uploadError } = await supabase.storage
+    .from('resources')
+    .upload(storagePath, blob, { upsert: true, contentType: blob.type });
+
+  if (uploadError) {
+    console.error('Error uploading pattern to storage:', uploadError);
+    throw new Error(`Failed to upload pattern: ${uploadError.message}`);
   }
 
-  console.log(`Pattern ${patternSlug} saved to browser storage`);
+  const { error: upsertError } = await supabase
+    .from('patterns')
+    .upsert({
+      slug: patternSlug,
+      name: patternSlug,
+      game_type: gameType,
+    }, { onConflict: 'slug' });
+
+  if (upsertError) {
+    console.warn('Error upserting pattern record:', upsertError);
+  }
+
+  console.log(`Pattern ${patternSlug} saved to Supabase Storage at ${storagePath}`);
 }
 
 async function saveCards(data: any): Promise<void> {
   console.log('Cards save not yet implemented:', data);
   throw new Error('Cards upload is not yet implemented');
+}
+
+async function saveCardsWeb(data: any): Promise<void> {
+  const { csvContent, fileName } = data;
+
+  const storagePath = `cards/${fileName}`;
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+
+  const { error: uploadError } = await supabase.storage
+    .from('resources')
+    .upload(storagePath, blob, { upsert: true, contentType: 'text/csv' });
+
+  if (uploadError) {
+    console.error('Error uploading cards to storage:', uploadError);
+    throw new Error(`Failed to upload cards: ${uploadError.message}`);
+  }
+
+  console.log(`Cards file ${fileName} saved to Supabase Storage at ${storagePath}`);
 }
 
 async function saveLayout(data: any): Promise<void> {
@@ -404,49 +451,71 @@ async function saveLayoutElectron(data: any): Promise<void> {
 }
 
 async function saveLayoutWeb(data: any): Promise<void> {
-  const { layoutData, gameType, version, fileName } = data;
+  const { layoutData, gameType, version, fileName, rawContent } = data;
 
-  const layoutIdentifier = fileName
-    ? fileName.replace('.json', '')
-    : (layoutData.name || layoutData.id || `layout_${Date.now()}`);
+  const storagePath = `layouts/${fileName || `${gameType}_layout_${version || Date.now()}.json`}`;
+  const fileContent = rawContent || JSON.stringify(layoutData);
+  const blob = new Blob([fileContent], { type: 'application/json' });
 
-  const layoutStorageKey = `layout_${layoutIdentifier}`;
+  const { error: uploadError } = await supabase.storage
+    .from('resources')
+    .upload(storagePath, blob, { upsert: true, contentType: 'application/json' });
 
-  const layoutWithMetadata = {
-    ...layoutData,
-    _metadata: {
-      gameType,
-      version,
-      fileName,
-      uploadedAt: new Date().toISOString()
-    }
-  };
-
-  localStorage.setItem(layoutStorageKey, JSON.stringify(layoutWithMetadata));
-
-  const layoutsListKey = 'uploaded_layouts_list';
-  const layoutsList = JSON.parse(localStorage.getItem(layoutsListKey) || '[]');
-
-  if (!layoutsList.includes(layoutIdentifier)) {
-    layoutsList.push(layoutIdentifier);
-    localStorage.setItem(layoutsListKey, JSON.stringify(layoutsList));
+  if (uploadError) {
+    console.error('Error uploading layout to storage:', uploadError);
+    throw new Error(`Failed to upload layout: ${uploadError.message}`);
   }
 
-  console.log(`Layout ${layoutIdentifier} saved to browser storage`);
+  if (gameType && version) {
+    const { error: upsertError } = await supabase
+      .from('layouts')
+      .upsert({
+        game_type: gameType,
+        version,
+        name: fileName ? fileName.replace('.json', '') : `${gameType} ${version}`,
+        config: layoutData,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'game_type,version' });
+
+    if (upsertError) {
+      console.warn('Error upserting layout record:', upsertError);
+    }
+  }
+
+  console.log(`Layout saved to Supabase Storage at ${storagePath}`);
 }
 
 async function saveGameWeb(data: any): Promise<void> {
-  const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
+  const { uniqid, gameData, gameDataRaw, csvFiles, images, sounds, videos } = data;
 
-  const uint8ArrayToBase64 = (uint8Array: Uint8Array): string => {
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
+  const gameDataContent = gameDataRaw || JSON.stringify(gameData);
+  const gameDataBlob = new Blob([gameDataContent], { type: 'application/json' });
+
+  const { error: gameDataUploadError } = await supabase.storage
+    .from('resources')
+    .upload(`scenarios/${uniqid}/game-data.json`, gameDataBlob, {
+      upsert: true,
+      contentType: 'application/json'
+    });
+
+  if (gameDataUploadError) {
+    console.error('Error uploading game-data.json:', gameDataUploadError);
+    throw new Error(`Failed to upload game-data.json: ${gameDataUploadError.message}`);
+  }
+
+  for (const [filename, content] of Object.entries(csvFiles)) {
+    const csvBlob = new Blob([content as string], { type: 'text/csv' });
+    const { error: csvError } = await supabase.storage
+      .from('resources')
+      .upload(`scenarios/${uniqid}/${filename}`, csvBlob, {
+        upsert: true,
+        contentType: 'text/csv'
+      });
+
+    if (csvError) {
+      console.error(`Error uploading CSV ${filename}:`, csvError);
     }
-    return btoa(binary);
-  };
+  }
 
   let title = 'Untitled Scenario';
   let description = '';
@@ -497,58 +566,33 @@ async function saveGameWeb(data: any): Promise<void> {
     throw new Error(`Failed to save scenario: ${scenarioError.message}`);
   }
 
-  const { error: deleteError } = await supabase
-    .from('scenario_media')
-    .delete()
-    .eq('scenario_uniqid', uniqid);
+  const uploadMedia = async (mediaFiles: Record<string, Uint8Array>, subfolder: string, mediaType: string) => {
+    for (const [filename, fileData] of Object.entries(mediaFiles)) {
+      const ext = filename.split('.').pop()?.toLowerCase() || '';
+      const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp',
+        mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+        mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg'
+      };
+      const contentType = mimeMap[ext] || 'application/octet-stream';
 
-  if (deleteError) {
-    console.warn('Error deleting old media:', deleteError);
-  }
+      const { error: mediaUploadError } = await supabase.storage
+        .from('resources')
+        .upload(`scenarios/${uniqid}/${subfolder}/${filename}`, fileData, {
+          upsert: true,
+          contentType
+        });
 
-  const mediaRecords = [];
-
-  for (const [filename, data] of Object.entries(images)) {
-    mediaRecords.push({
-      scenario_uniqid: uniqid,
-      filename,
-      media_type: 'image',
-      data: uint8ArrayToBase64(data as Uint8Array)
-    });
-  }
-
-  for (const [filename, data] of Object.entries(sounds)) {
-    mediaRecords.push({
-      scenario_uniqid: uniqid,
-      filename,
-      media_type: 'sound',
-      data: uint8ArrayToBase64(data as Uint8Array)
-    });
-  }
-
-  for (const [filename, data] of Object.entries(videos)) {
-    mediaRecords.push({
-      scenario_uniqid: uniqid,
-      filename,
-      media_type: 'video',
-      data: uint8ArrayToBase64(data as Uint8Array)
-    });
-  }
-
-  if (mediaRecords.length > 0) {
-    const batchSize = 10;
-    for (let i = 0; i < mediaRecords.length; i += batchSize) {
-      const batch = mediaRecords.slice(i, i + batchSize);
-      const { error: mediaError } = await supabase
-        .from('scenario_media')
-        .insert(batch);
-
-      if (mediaError) {
-        console.error('Error saving media batch:', mediaError);
-        throw new Error(`Failed to save media: ${mediaError.message}`);
+      if (mediaUploadError) {
+        console.error(`Error uploading media ${filename}:`, mediaUploadError);
       }
     }
-  }
+  };
 
-  console.log(`Successfully saved scenario ${uniqid} to Supabase`);
+  await uploadMedia(images, 'images', 'image');
+  await uploadMedia(sounds, 'sounds', 'sound');
+  await uploadMedia(videos, 'videos', 'video');
+
+  console.log(`Successfully saved scenario ${uniqid} to Supabase Storage`);
 }

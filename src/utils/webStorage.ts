@@ -9,54 +9,6 @@ interface StorageNode {
   expanded?: boolean;
 }
 
-function buildMediaTree(mediaFiles: Record<string, string>, parentFolder: StorageNode, basePath: string): void {
-  const folderMap = new Map<string, StorageNode>();
-
-  console.log(`[webStorage] Building media tree for ${basePath}, files:`, Object.keys(mediaFiles));
-
-  for (const [filePath, base64Content] of Object.entries(mediaFiles)) {
-    const parts = filePath.split('/').filter(p => p);
-    const fileName = parts[parts.length - 1];
-    const folderParts = parts.slice(0, -1);
-
-    console.log(`[webStorage] Processing file: ${filePath}, parts:`, parts, 'folderParts:', folderParts);
-
-    let currentFolder = parentFolder;
-    let currentPath = basePath;
-
-    for (let i = 0; i < folderParts.length; i++) {
-      const folderName = folderParts[i];
-      if (!folderName) continue;
-
-      currentPath = `${currentPath}/${folderName}`;
-
-      if (!folderMap.has(currentPath)) {
-        const newFolder: StorageNode = {
-          name: folderName,
-          path: currentPath,
-          type: 'folder',
-          expanded: false,
-          children: []
-        };
-        currentFolder.children?.push(newFolder);
-        folderMap.set(currentPath, newFolder);
-        console.log(`[webStorage] Created folder node: ${currentPath}`);
-      }
-
-      currentFolder = folderMap.get(currentPath)!;
-    }
-
-    const size = base64Content ? new Blob([base64Content]).size : 0;
-    currentFolder.children?.push({
-      name: fileName,
-      path: `${currentPath}/${fileName}`,
-      type: 'file',
-      size
-    });
-    console.log(`[webStorage] Added file: ${fileName} to folder: ${currentPath}`);
-  }
-}
-
 export async function getWebStorageStructure(): Promise<StorageNode> {
   const root: StorageNode = {
     name: 'Browser Storage',
@@ -66,14 +18,23 @@ export async function getWebStorageStructure(): Promise<StorageNode> {
     children: []
   };
 
-  const scenariosFolder = await buildScenariosFolder();
-  const layoutsFolder = buildLayoutsFolder();
-  const patternsFolder = buildPatternsFolder();
-  const configFolder = buildConfigFolder();
+  const [scenariosFolder, layoutsFolder, patternsFolder, cardsFolder, configFolder] = await Promise.all([
+    buildScenariosFolder(),
+    buildLayoutsFolder(),
+    buildPatternsFolder(),
+    buildCardsFolder(),
+    buildConfigFolder()
+  ]);
 
-  root.children = [scenariosFolder, layoutsFolder, patternsFolder, configFolder];
+  root.children = [scenariosFolder, layoutsFolder, patternsFolder, cardsFolder, configFolder];
 
   return root;
+}
+
+async function listStorageFolder(prefix: string): Promise<{ name: string; metadata?: { size?: number } }[]> {
+  const { data, error } = await supabase.storage.from('resources').list(prefix, { limit: 1000 });
+  if (error || !data) return [];
+  return data;
 }
 
 async function buildScenariosFolder(): Promise<StorageNode> {
@@ -90,14 +51,7 @@ async function buildScenariosFolder(): Promise<StorageNode> {
       .from('scenarios')
       .select('uniqid, title');
 
-    if (error) {
-      console.error('Error fetching scenarios:', error);
-      return scenariosFolder;
-    }
-
-    if (!scenarios || scenarios.length === 0) {
-      return scenariosFolder;
-    }
+    if (error || !scenarios) return scenariosFolder;
 
     for (const scenario of scenarios) {
       const { uniqid } = scenario;
@@ -109,78 +63,58 @@ async function buildScenariosFolder(): Promise<StorageNode> {
         children: []
       };
 
-      const { data: mediaFiles, error: mediaError } = await supabase
-        .from('scenario_media')
-        .select('filename, media_type, data')
-        .eq('scenario_uniqid', uniqid);
+      const [rootFiles, imageFiles, soundFiles, videoFiles] = await Promise.all([
+        listStorageFolder(`scenarios/${uniqid}`),
+        listStorageFolder(`scenarios/${uniqid}/images`),
+        listStorageFolder(`scenarios/${uniqid}/sounds`),
+        listStorageFolder(`scenarios/${uniqid}/videos`)
+      ]);
 
-      if (!mediaError && mediaFiles && mediaFiles.length > 0) {
+      for (const file of rootFiles) {
+        if (file.name && !['images', 'sounds', 'videos'].includes(file.name)) {
+          gameFolder.children?.push({
+            name: file.name,
+            path: `/scenarios/${uniqid}/${file.name}`,
+            type: 'file',
+            size: file.metadata?.size
+          });
+        }
+      }
+
+      const mediaSubfolders = [
+        { name: 'images', files: imageFiles },
+        { name: 'sounds', files: soundFiles },
+        { name: 'videos', files: videoFiles }
+      ];
+
+      const mediaChildren: StorageNode[] = [];
+      for (const { name, files } of mediaSubfolders) {
+        if (files.length > 0) {
+          const subFolder: StorageNode = {
+            name,
+            path: `/scenarios/${uniqid}/${name}`,
+            type: 'folder',
+            expanded: false,
+            children: files.map(f => ({
+              name: f.name,
+              path: `/scenarios/${uniqid}/${name}/${f.name}`,
+              type: 'file' as const,
+              size: f.metadata?.size
+            }))
+          };
+          mediaChildren.push(subFolder);
+        }
+      }
+
+      if (mediaChildren.length > 0) {
         const mediaFolder: StorageNode = {
           name: 'media',
           path: `/scenarios/${uniqid}/media`,
           type: 'folder',
           expanded: false,
-          children: []
+          children: mediaChildren
         };
-
-        const imagesFolder: StorageNode = {
-          name: 'images',
-          path: `/scenarios/${uniqid}/media/images`,
-          type: 'folder',
-          expanded: false,
-          children: []
-        };
-
-        const soundsFolder: StorageNode = {
-          name: 'sounds',
-          path: `/scenarios/${uniqid}/media/sounds`,
-          type: 'folder',
-          expanded: false,
-          children: []
-        };
-
-        const videosFolder: StorageNode = {
-          name: 'videos',
-          path: `/scenarios/${uniqid}/media/videos`,
-          type: 'folder',
-          expanded: false,
-          children: []
-        };
-
-        const mediaByType: Record<string, Record<string, string>> = {
-          images: {},
-          sounds: {},
-          videos: {}
-        };
-
-        for (const media of mediaFiles) {
-          if (media.media_type === 'image') {
-            mediaByType.images[media.filename] = media.data;
-          } else if (media.media_type === 'sound') {
-            mediaByType.sounds[media.filename] = media.data;
-          } else if (media.media_type === 'video') {
-            mediaByType.videos[media.filename] = media.data;
-          }
-        }
-
-        if (Object.keys(mediaByType.images).length > 0) {
-          buildMediaTree(mediaByType.images, imagesFolder, `/scenarios/${uniqid}/media/images`);
-          mediaFolder.children?.push(imagesFolder);
-        }
-
-        if (Object.keys(mediaByType.sounds).length > 0) {
-          buildMediaTree(mediaByType.sounds, soundsFolder, `/scenarios/${uniqid}/media/sounds`);
-          mediaFolder.children?.push(soundsFolder);
-        }
-
-        if (Object.keys(mediaByType.videos).length > 0) {
-          buildMediaTree(mediaByType.videos, videosFolder, `/scenarios/${uniqid}/media/videos`);
-          mediaFolder.children?.push(videosFolder);
-        }
-
-        if (mediaFolder.children && mediaFolder.children.length > 0) {
-          gameFolder.children?.push(mediaFolder);
-        }
+        gameFolder.children?.push(mediaFolder);
       }
 
       scenariosFolder.children?.push(gameFolder);
@@ -192,7 +126,7 @@ async function buildScenariosFolder(): Promise<StorageNode> {
   return scenariosFolder;
 }
 
-function buildLayoutsFolder(): StorageNode {
+async function buildLayoutsFolder(): Promise<StorageNode> {
   const layoutsFolder: StorageNode = {
     name: 'Layouts',
     path: '/layouts',
@@ -201,24 +135,26 @@ function buildLayoutsFolder(): StorageNode {
     children: []
   };
 
-  const layoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layout_'));
-  for (const key of layoutKeys) {
-    const dataStr = localStorage.getItem(key);
-    if (dataStr) {
-      const size = new Blob([dataStr]).size;
-      layoutsFolder.children?.push({
-        name: key.replace('layout_', ''),
-        path: `/layouts/${key}`,
-        type: 'file',
-        size
-      });
+  try {
+    const files = await listStorageFolder('layouts');
+    for (const file of files) {
+      if (file.name) {
+        layoutsFolder.children?.push({
+          name: file.name,
+          path: `/layouts/${file.name}`,
+          type: 'file',
+          size: file.metadata?.size
+        });
+      }
     }
+  } catch (err) {
+    console.warn('Error listing layouts from storage:', err);
   }
 
   return layoutsFolder;
 }
 
-function buildPatternsFolder(): StorageNode {
+async function buildPatternsFolder(): Promise<StorageNode> {
   const patternsFolder: StorageNode = {
     name: 'Patterns',
     path: '/patterns',
@@ -227,21 +163,67 @@ function buildPatternsFolder(): StorageNode {
     children: []
   };
 
-  const patternKeys = Object.keys(localStorage).filter(key => key.startsWith('pattern_'));
-  for (const key of patternKeys) {
-    const dataStr = localStorage.getItem(key);
-    if (dataStr) {
-      const size = new Blob([dataStr]).size;
-      patternsFolder.children?.push({
-        name: key.replace('pattern_', ''),
-        path: `/patterns/${key}`,
-        type: 'file',
-        size
-      });
+  try {
+    const gameTypeFolders = await listStorageFolder('patterns');
+
+    for (const folder of gameTypeFolders) {
+      if (!folder.name) continue;
+
+      const gameTypeFolder: StorageNode = {
+        name: folder.name,
+        path: `/patterns/${folder.name}`,
+        type: 'folder',
+        expanded: false,
+        children: []
+      };
+
+      const patternFiles = await listStorageFolder(`patterns/${folder.name}`);
+      for (const file of patternFiles) {
+        if (file.name) {
+          gameTypeFolder.children?.push({
+            name: file.name,
+            path: `/patterns/${folder.name}/${file.name}`,
+            type: 'file',
+            size: file.metadata?.size
+          });
+        }
+      }
+
+      patternsFolder.children?.push(gameTypeFolder);
     }
+  } catch (err) {
+    console.warn('Error listing patterns from storage:', err);
   }
 
   return patternsFolder;
+}
+
+async function buildCardsFolder(): Promise<StorageNode> {
+  const cardsFolder: StorageNode = {
+    name: 'Cards',
+    path: '/cards',
+    type: 'folder',
+    expanded: false,
+    children: []
+  };
+
+  try {
+    const files = await listStorageFolder('cards');
+    for (const file of files) {
+      if (file.name) {
+        cardsFolder.children?.push({
+          name: file.name,
+          path: `/cards/${file.name}`,
+          type: 'file',
+          size: file.metadata?.size
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Error listing cards from storage:', err);
+  }
+
+  return cardsFolder;
 }
 
 function buildConfigFolder(): StorageNode {
@@ -333,9 +315,7 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
     }
 
     if (pathParts[0] === 'scenarios') {
-      if (pathParts.length === 1) {
-        return false;
-      }
+      if (pathParts.length === 1) return false;
 
       const uniqid = pathParts[1];
 
@@ -350,93 +330,82 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
           return false;
         }
 
-        return true;
-      }
+        const { data: allFiles } = await supabase.storage
+          .from('resources')
+          .list(`scenarios/${uniqid}`, { limit: 1000 });
 
-      if (pathParts.length >= 3) {
-        if (pathParts[2] === 'media') {
-          if (pathParts.length === 3) {
-            const { error } = await supabase
-              .from('scenario_media')
-              .delete()
-              .eq('scenario_uniqid', uniqid);
-
-            if (error) {
-              console.error('Error deleting all media:', error);
-              return false;
-            }
-            return true;
-          } else if (pathParts.length === 4) {
-            const mediaType = pathParts[3];
-            const { error } = await supabase
-              .from('scenario_media')
-              .delete()
-              .eq('scenario_uniqid', uniqid)
-              .eq('media_type', mediaType.slice(0, -1));
-
-            if (error) {
-              console.error('Error deleting media type:', error);
-              return false;
-            }
-            return true;
-          } else if (pathParts.length === 5) {
-            const mediaType = pathParts[3];
-            const filename = pathParts[4];
-            const { error } = await supabase
-              .from('scenario_media')
-              .delete()
-              .eq('scenario_uniqid', uniqid)
-              .eq('media_type', mediaType.slice(0, -1))
-              .eq('filename', filename);
-
-            if (error) {
-              console.error('Error deleting media file:', error);
-              return false;
-            }
-            return true;
+        if (allFiles) {
+          const filePaths = allFiles.map(f => `scenarios/${uniqid}/${f.name}`);
+          if (filePaths.length > 0) {
+            await supabase.storage.from('resources').remove(filePaths);
           }
         }
 
         return true;
       }
+
+      if (pathParts.length >= 3) {
+        const storagePath = pathParts.slice(1).join('/');
+
+        if (pathParts[2] === 'media' && pathParts.length === 3) {
+          const { error } = await supabase
+            .from('scenario_media')
+            .delete()
+            .eq('scenario_uniqid', uniqid);
+
+          if (error) console.error('Error deleting all media:', error);
+          return !error;
+        }
+
+        const { error } = await supabase.storage
+          .from('resources')
+          .remove([`scenarios/${storagePath}`]);
+
+        return !error;
+      }
     }
 
     if (pathParts[0] === 'layouts') {
-      if (pathParts.length === 2) {
-        const layoutKey = pathParts[1];
-        localStorage.removeItem(layoutKey);
+      if (pathParts.length >= 2) {
+        const fileName = pathParts.slice(1).join('/');
+        const { error } = await supabase.storage
+          .from('resources')
+          .remove([`layouts/${fileName}`]);
 
-        const layoutsListStr = localStorage.getItem('uploaded_layouts_list');
-        if (layoutsListStr) {
-          const layoutsList = JSON.parse(layoutsListStr);
-          const layoutId = layoutKey.replace('layout_', '');
-          const updatedList = layoutsList.filter((id: string) => id !== layoutId);
-          localStorage.setItem('uploaded_layouts_list', JSON.stringify(updatedList));
-        }
-        return true;
+        return !error;
       }
     }
 
     if (pathParts[0] === 'patterns') {
-      if (pathParts.length === 2) {
-        const patternKey = pathParts[1];
-        localStorage.removeItem(patternKey);
+      if (pathParts.length >= 2) {
+        const fileName = pathParts.slice(1).join('/');
+        const { error } = await supabase.storage
+          .from('resources')
+          .remove([`patterns/${fileName}`]);
 
-        const patternsListStr = localStorage.getItem('uploaded_patterns_list');
-        if (patternsListStr) {
-          const patternsList = JSON.parse(patternsListStr);
-          const patternId = patternKey.replace('pattern_', '');
-          const updatedList = patternsList.filter((id: string) => id !== patternId);
-          localStorage.setItem('uploaded_patterns_list', JSON.stringify(updatedList));
+        if (!error && pathParts.length === 3) {
+          const slug = pathParts[2].replace(/\.(json|csv)$/, '');
+          await supabase.from('patterns').delete().eq('slug', slug);
         }
-        return true;
+
+        return !error;
+      }
+    }
+
+    if (pathParts[0] === 'cards') {
+      if (pathParts.length >= 2) {
+        const fileName = pathParts.slice(1).join('/');
+        const { error } = await supabase.storage
+          .from('resources')
+          .remove([`cards/${fileName}`]);
+
+        return !error;
       }
     }
 
     if (pathParts[0] === 'config') {
       if (pathParts.length === 2) {
-        const configKey = pathParts[1];
-        localStorage.removeItem(configKey);
+        localStorage.removeItem(pathParts[1]);
         return true;
       }
     }

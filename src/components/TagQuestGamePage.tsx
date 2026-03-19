@@ -452,49 +452,32 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
     if (element.id === 'animation_quest_image') {
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
-      const quest = quests[0];
-      if (!quest) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
-
-      const mainSrc = mediaFiles[quest.main_image] || '';
-      const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean) as string[];
-
-      const containerStyle: React.CSSProperties = {
-        ...wrapperStyle,
-        position: 'absolute',
-      };
+      if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
       return (
-        <div key={`${element.id}-${index}`} style={containerStyle}>
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0 }}>
-            <img
-              src={mainSrc}
-              alt={quest.text}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            />
-          </div>
-          {subImages.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexWrap: 'wrap',
-            }}>
-              {subImages.map((imgKey, i) => {
-                const src = mediaFiles[imgKey] || '';
-                return (
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`${quest.text} ${i + 1}`}
-                    style={{ width: '50%', height: '50%', objectFit: 'contain' }}
-                  />
-                );
-              })}
-            </div>
-          )}
+        <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, position: 'absolute', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+          {quests.map((quest) => {
+            const subImages = [quest.image_1, quest.image_2, quest.image_3, quest.image_4].filter(Boolean) as string[];
+            const imagesToShow = subImages.length > 0 ? subImages : [quest.main_image].filter(Boolean);
+            const cellSize = quests.length === 1 ? '100%' : quests.length <= 4 ? '50%' : '33.33%';
+
+            return (
+              <div key={quest.id} style={{ width: cellSize, height: cellSize, display: 'flex', flexWrap: 'wrap' }}>
+                {imagesToShow.map((imgKey, i) => {
+                  const src = mediaFiles[imgKey] || '';
+                  const imgSize = imagesToShow.length > 1 ? '50%' : '100%';
+                  return (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={`${quest.text} ${i + 1}`}
+                      style={{ width: imgSize, height: imgSize, objectFit: 'contain' }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       );
     }

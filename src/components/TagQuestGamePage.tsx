@@ -143,13 +143,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           }
 
           if (scenarioData) {
+            const quests = scenarioData.game_data_json?.quests || [];
             setGameData({
               game: {
                 id: scenarioData.id.toString(),
                 uniqid: scenarioData.uniqid,
                 type: scenarioData.game_type,
                 title: scenarioData.title
-              }
+              },
+              game_quests: quests
             });
 
             if (scenarioData.csv_media_images) {
@@ -194,6 +196,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
               mediaByFilename[m.filename] = `data:${mimeType};base64,${m.data}`;
             }
           }
+
+          setMediaFiles(prev => ({ ...prev, ...mediaByFilename }));
 
           const bgEntry = mediaByFilename['fond-ecran-taille-ok.jpg'] || null;
 

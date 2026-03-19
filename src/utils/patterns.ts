@@ -1,3 +1,5 @@
+const DEFAULT_PATTERN_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
+
 export async function getPatternFolders(gameTypeName: string): Promise<string[]> {
   if (window.electron?.patterns?.listFolders) {
     try {
@@ -6,12 +8,16 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
       return folders;
     } catch (error) {
       console.error('Error reading pattern folders:', error);
-      return ['ado_adultes', 'kids', 'mini_kids'];
+      return DEFAULT_PATTERN_FOLDERS;
     }
   }
 
-  console.log('Electron patterns API not available, using default patterns');
-  return ['ado_adultes', 'kids', 'mini_kids'];
+  const uploadedList: string[] = JSON.parse(localStorage.getItem('uploaded_patterns_list') || '[]');
+  const merged = [...DEFAULT_PATTERN_FOLDERS];
+  for (const slug of uploadedList) {
+    if (!merged.includes(slug)) merged.push(slug);
+  }
+  return merged;
 }
 
 async function readGameDataFile(uniqid: string): Promise<any> {

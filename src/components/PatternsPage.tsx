@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Map, ChevronRight, ArrowLeft, CheckCircle, XCircle, Loader, FolderOpen } from 'lucide-react';
+import { Map, ChevronRight, CheckCircle, XCircle, Loader, FolderOpen, Upload } from 'lucide-react';
 import { getPatternFolders } from '../utils/patterns';
+
+const DEFAULT_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
 interface PatternMeta {
   id: string;
@@ -21,9 +23,8 @@ interface PatternEnigmaRow {
 interface PatternFolder {
   folder: string;
   meta: PatternMeta | null;
+  source: 'static' | 'local';
 }
-
-const GAME_TYPES = ['mystery'];
 
 function parseCSVRaw(csvContent: string): any[] {
   const lines = csvContent.trim().split('\n');
@@ -45,7 +46,15 @@ function parseCSVRaw(csvContent: string): any[] {
   return result;
 }
 
-async function readPatternFile(gameType: string, folder: string, filename: string): Promise<string | null> {
+function parseAnswers(raw: string): string[] {
+  try {
+    return JSON.parse(raw.replace(/""/g, '"'));
+  } catch {
+    return [];
+  }
+}
+
+async function readStaticPatternFile(gameType: string, folder: string, filename: string): Promise<string | null> {
   if ((window as any).electron?.patterns?.readFile) {
     try {
       return await (window as any).electron.patterns.readFile(gameType, folder, filename);
@@ -62,12 +71,75 @@ async function readPatternFile(gameType: string, folder: string, filename: strin
   }
 }
 
-function parseAnswers(raw: string): string[] {
+function readLocalPatternData(slug: string): string | null {
+  const raw = localStorage.getItem(`pattern_${slug}`);
+  if (!raw) return null;
   try {
-    return JSON.parse(raw.replace(/""/g, '"'));
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null) {
+      if (typeof parsed.csv === 'string') return parsed.csv;
+      if (typeof parsed.csvContent === 'string') return parsed.csvContent;
+    }
+    return null;
   } catch {
-    return [];
+    return raw;
   }
+}
+
+function extractLocalPatternMeta(slug: string): PatternMeta | null {
+  const raw = localStorage.getItem(`pattern_${slug}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return {
+        id: parsed.id || '',
+        game_type: parsed.game_type || parsed.gameType || '',
+        name: parsed.name || parsed.title || '',
+        pattern_uniqid: parsed.pattern_uniqid || parsed.uniqid || '',
+        public: parsed.public || parsed.audience || '',
+      };
+    }
+  } catch {
+  }
+  return null;
+}
+
+function extractLocalEnigmas(slug: string): PatternEnigmaRow[] | null {
+  const raw = localStorage.getItem(`pattern_${slug}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null) {
+      const rows: any[] = parsed.enigmas || parsed.patterns_survival_balises || parsed.data || [];
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((row: any, i: number) => ({
+          id: String(row.id ?? i + 1),
+          pattern_id: String(row.pattern_id ?? ''),
+          enigma_id: String(row.enigma_id ?? row.enigmaId ?? ''),
+          good_answers: Array.isArray(row.good_answers) ? row.good_answers.map(String)
+            : parseAnswers(row.good_answers || '[]'),
+          wrong_answers: Array.isArray(row.wrong_answers) ? row.wrong_answers.map(String)
+            : parseAnswers(row.wrong_answers || '[]'),
+        }));
+      }
+    }
+  } catch {
+  }
+  const csvContent = readLocalPatternData(slug);
+  if (csvContent) {
+    const rows = parseCSVRaw(csvContent);
+    if (rows.length > 0 && ('enigma_id' in rows[0] || 'good_answers' in rows[0])) {
+      return rows.map(row => ({
+        id: row.id,
+        pattern_id: row.pattern_id,
+        enigma_id: row.enigma_id,
+        good_answers: parseAnswers(row.good_answers || '[]'),
+        wrong_answers: parseAnswers(row.wrong_answers || '[]'),
+      }));
+    }
+  }
+  return null;
 }
 
 export function PatternsPage() {
@@ -88,15 +160,21 @@ export function PatternsPage() {
     setEnigmas([]);
     try {
       const folders = await getPatternFolders(gameType);
+      const uploadedList: string[] = JSON.parse(localStorage.getItem('uploaded_patterns_list') || '[]');
       const patternList: PatternFolder[] = [];
       for (const folder of folders) {
-        const csv = await readPatternFile(gameType, folder, 'pattern.csv');
+        const isLocal = !DEFAULT_FOLDERS.includes(folder) && uploadedList.includes(folder);
         let meta: PatternMeta | null = null;
-        if (csv) {
-          const rows = parseCSVRaw(csv);
-          if (rows.length > 0) meta = rows[0] as PatternMeta;
+        if (isLocal) {
+          meta = extractLocalPatternMeta(folder);
+        } else {
+          const csv = await readStaticPatternFile(gameType, folder, 'pattern.csv');
+          if (csv) {
+            const rows = parseCSVRaw(csv);
+            if (rows.length > 0) meta = rows[0] as PatternMeta;
+          }
         }
-        patternList.push({ folder, meta });
+        patternList.push({ folder, meta, source: isLocal ? 'local' : 'static' });
       }
       setPatterns(patternList);
     } catch (err) {
@@ -110,17 +188,22 @@ export function PatternsPage() {
     setEnigmas([]);
     setLoadingEnigmas(true);
     try {
-      const csv = await readPatternFile(gameType, pattern.folder, 'patterns_survival_balises.csv');
-      if (csv) {
-        const rows = parseCSVRaw(csv);
-        const parsed: PatternEnigmaRow[] = rows.map(row => ({
-          id: row.id,
-          pattern_id: row.pattern_id,
-          enigma_id: row.enigma_id,
-          good_answers: parseAnswers(row.good_answers || '[]'),
-          wrong_answers: parseAnswers(row.wrong_answers || '[]'),
-        }));
-        setEnigmas(parsed);
+      if (pattern.source === 'local') {
+        const rows = extractLocalEnigmas(pattern.folder);
+        if (rows) setEnigmas(rows);
+      } else {
+        const csv = await readStaticPatternFile(gameType, pattern.folder, 'patterns_survival_balises.csv');
+        if (csv) {
+          const rows = parseCSVRaw(csv);
+          const parsed: PatternEnigmaRow[] = rows.map(row => ({
+            id: row.id,
+            pattern_id: row.pattern_id,
+            enigma_id: row.enigma_id,
+            good_answers: parseAnswers(row.good_answers || '[]'),
+            wrong_answers: parseAnswers(row.wrong_answers || '[]'),
+          }));
+          setEnigmas(parsed);
+        }
       }
     } catch (err) {
       console.error('Error loading enigmas:', err);
@@ -172,21 +255,27 @@ export function PatternsPage() {
                   <div className="min-w-0">
                     <p className="text-white font-semibold truncate">{displayName(pattern)}</p>
                     <p className="text-slate-400 text-xs mt-0.5 font-mono">{pattern.folder}</p>
-                    {pattern.meta && (
-                      <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {pattern.source === 'local' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800/50 font-medium flex items-center gap-1">
+                          <Upload size={10} />
+                          uploaded
+                        </span>
+                      )}
+                      {pattern.meta?.game_type && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
                           {pattern.meta.game_type}
                         </span>
-                        {pattern.meta.public && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-medium">
-                            {pattern.meta.public}
-                          </span>
-                        )}
-                        {pattern.meta.id && (
-                          <span className="text-xs text-slate-500">ID: {pattern.meta.id}</span>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {pattern.meta?.public && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-medium">
+                          {pattern.meta.public}
+                        </span>
+                      )}
+                      {pattern.meta?.id && (
+                        <span className="text-xs text-slate-500">ID: {pattern.meta.id}</span>
+                      )}
+                    </div>
                   </div>
                   <ChevronRight
                     size={18}

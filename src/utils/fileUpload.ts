@@ -215,10 +215,11 @@ async function handleCsvFile(file: File, fileName: string): Promise<UploadResult
     const text = await file.text();
 
     if (fileName.includes('pattern')) {
+      const patternSlug = file.name.replace('.csv', '').replace(/^pattern_?/, '') || file.name.replace('.csv', '');
       return {
         type: 'pattern',
         name: file.name,
-        data: { csvContent: text },
+        data: { csvContent: text, patternSlug, fileName: file.name },
         isValid: true
       };
     } else if (fileName.includes('card') || fileName.includes('client')) {

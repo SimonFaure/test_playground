@@ -37,18 +37,28 @@ async function handleZipFile(file: File): Promise<UploadResult> {
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
 
-    const gameDataFile = zip.file('game-data.json');
-    if (!gameDataFile) {
+    const allFiles = zip.file(/.+/);
+
+    let gameDataEntry = allFiles.find(e => !e.dir && e.name === 'game-data.json');
+    if (!gameDataEntry) {
+      gameDataEntry = allFiles.find(e => !e.dir && e.name.endsWith('/game-data.json'));
+    }
+
+    if (!gameDataEntry) {
       return {
         type: 'unknown',
         name: file.name,
         data: null,
         isValid: false,
-        error: 'Invalid ZIP structure. Expected game-data.json at the root.'
+        error: 'Invalid ZIP structure. game-data.json not found.'
       };
     }
 
-    const gameDataContent = await gameDataFile.async('string');
+    const prefix = gameDataEntry.name === 'game-data.json'
+      ? ''
+      : gameDataEntry.name.slice(0, gameDataEntry.name.lastIndexOf('/') + 1);
+
+    const gameDataContent = await gameDataEntry.async('string');
     const gameData = JSON.parse(gameDataContent);
     const uniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
 
@@ -63,11 +73,12 @@ async function handleZipFile(file: File): Promise<UploadResult> {
     }
 
     const zipEntries: Record<string, Uint8Array> = {};
-    const allFiles = zip.file(/.+/);
 
     for (const entry of allFiles) {
       if (entry.dir) continue;
-      zipEntries[entry.name] = await entry.async('uint8array');
+      const relativePath = prefix ? entry.name.slice(prefix.length) : entry.name;
+      if (!relativePath) continue;
+      zipEntries[relativePath] = await entry.async('uint8array');
     }
 
     const gameName = gameData?.game?.title || gameData?.scenario?.title || gameData?.scenario?.name || 'Unknown Game';

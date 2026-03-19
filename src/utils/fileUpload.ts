@@ -37,131 +37,47 @@ async function handleZipFile(file: File): Promise<UploadResult> {
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
 
-    const hasGameData = zip.file('game-data.json') !== null;
-    const csvFolder = zip.folder('csv');
-    const hasCsvFolder = csvFolder !== null;
-
-    if (hasGameData && hasCsvFolder) {
-      const gameDataFile = zip.file('game-data.json');
-      if (!gameDataFile) {
-        return {
-          type: 'unknown',
-          name: file.name,
-          data: null,
-          isValid: false,
-          error: 'Invalid game structure: game-data.json not found'
-        };
-      }
-
-      const gameDataContent = await gameDataFile.async('string');
-      const gameData = JSON.parse(gameDataContent);
-
-      const csvFiles: Record<string, string> = {};
-      const csvFilesList = csvFolder.file(/.+\.csv$/);
-
-      for (const csvFile of csvFilesList) {
-        const csvContent = await csvFile.async('string');
-        csvFiles[csvFile.name.split('/').pop() || ''] = csvContent;
-      }
-
-      const images: Record<string, Uint8Array> = {};
-      const sounds: Record<string, Uint8Array> = {};
-      const videos: Record<string, Uint8Array> = {};
-
-      const gameUniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
-
-      const mediaPrefixesToTry = [
-        'media/',
-        `${gameUniqid}/media/`
-      ].filter(Boolean);
-
-      let mediaFiles: JSZip.JSZipObject[] = [];
-      let usedPrefix = '';
-
-      for (const prefix of mediaPrefixesToTry) {
-        const folder = zip.folder(prefix.replace(/\/$/, ''));
-        if (folder) {
-          const found = folder.file(/.+/);
-          if (found.length > 0) {
-            mediaFiles = found;
-            usedPrefix = prefix;
-            break;
-          }
-        }
-      }
-
-      if (mediaFiles.length === 0) {
-        const allFiles = zip.file(/.+/);
-        const mediaMatches = allFiles.filter(f => f.name.includes('/media/'));
-        if (mediaMatches.length > 0) {
-          mediaFiles = mediaMatches;
-          const firstMatch = mediaMatches[0].name;
-          const mediaIdx = firstMatch.indexOf('/media/');
-          usedPrefix = firstMatch.substring(0, mediaIdx + '/media/'.length);
-        }
-      }
-
-      console.log('[fileUpload] Found media files:', mediaFiles.map(f => f.name));
-
-      for (const mediaFile of mediaFiles) {
-        const lowerName = mediaFile.name.toLowerCase();
-        const mediaData = await mediaFile.async('uint8array');
-        const relativePath = mediaFile.name.replace(usedPrefix, '');
-
-        if (!relativePath || relativePath.includes('/')) continue;
-
-        if (lowerName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          console.log(`[fileUpload] Storing image: ${relativePath}`);
-          images[relativePath] = mediaData;
-        } else if (lowerName.match(/\.(mp3|wav|ogg)$/i)) {
-          console.log(`[fileUpload] Storing sound: ${relativePath}`);
-          sounds[relativePath] = mediaData;
-        } else if (lowerName.match(/\.(mp4|webm|ogv)$/i)) {
-          console.log(`[fileUpload] Storing video: ${relativePath}`);
-          videos[relativePath] = mediaData;
-        }
-      }
-
-      console.log('[fileUpload] Total images stored:', Object.keys(images).length);
-      console.log('[fileUpload] Total sounds stored:', Object.keys(sounds).length);
-      console.log('[fileUpload] Total videos stored:', Object.keys(videos).length);
-
-      const gameName = gameData?.game?.title || gameData?.scenario?.title || gameData?.scenario?.name || 'Unknown Game';
-      const uniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
-
-      if (!uniqid) {
-        return {
-          type: 'unknown',
-          name: file.name,
-          data: null,
-          isValid: false,
-          error: 'Invalid game structure: uniqid not found in game data'
-        };
-      }
-
-      return {
-        type: 'game',
-        name: gameName,
-        data: {
-          uniqid,
-          gameData,
-          gameDataRaw: gameDataContent,
-          csvFiles,
-          images,
-          sounds,
-          videos
-        },
-        isValid: true
-      };
-    } else {
+    const gameDataFile = zip.file('game-data.json');
+    if (!gameDataFile) {
       return {
         type: 'unknown',
         name: file.name,
         data: null,
         isValid: false,
-        error: 'Invalid ZIP structure. Expected game-data.json and csv folder for a game.'
+        error: 'Invalid ZIP structure. Expected game-data.json at the root.'
       };
     }
+
+    const gameDataContent = await gameDataFile.async('string');
+    const gameData = JSON.parse(gameDataContent);
+    const uniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
+
+    if (!uniqid) {
+      return {
+        type: 'unknown',
+        name: file.name,
+        data: null,
+        isValid: false,
+        error: 'Invalid game structure: uniqid not found in game-data.json'
+      };
+    }
+
+    const zipEntries: Record<string, Uint8Array> = {};
+    const allFiles = zip.file(/.+/);
+
+    for (const entry of allFiles) {
+      if (entry.dir) continue;
+      zipEntries[entry.name] = await entry.async('uint8array');
+    }
+
+    const gameName = gameData?.game?.title || gameData?.scenario?.title || gameData?.scenario?.name || 'Unknown Game';
+
+    return {
+      type: 'game',
+      name: gameName,
+      data: { uniqid, gameData, gameDataRaw: gameDataContent, zipEntries },
+      isValid: true
+    };
   } catch (error) {
     console.error('Error processing ZIP file:', error);
     return {
@@ -331,28 +247,11 @@ export async function saveUploadedFile(result: UploadResult): Promise<void> {
 }
 
 async function saveGame(data: any): Promise<void> {
-  const { uniqid, gameData, csvFiles, images, sounds, videos } = data;
+  const { uniqid, zipEntries } = data;
   const electron = (window as any).electron;
 
-  await electron.scenarios.saveGameData(uniqid, gameData);
-
-  for (const [filename, content] of Object.entries(csvFiles)) {
-    await electron.scenarios.saveCsv(uniqid, filename, content as string);
-  }
-
-  for (const [filename, data] of Object.entries(images)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
-    await electron.scenarios.saveMedia(uniqid, 'images', filename, base64);
-  }
-
-  for (const [filename, data] of Object.entries(sounds)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
-    await electron.scenarios.saveMedia(uniqid, 'sounds', filename, base64);
-  }
-
-  for (const [filename, data] of Object.entries(videos)) {
-    const base64 = btoa(String.fromCharCode(...(data as Uint8Array)));
-    await electron.scenarios.saveMedia(uniqid, 'videos', filename, base64);
+  for (const [entryPath, fileData] of Object.entries(zipEntries as Record<string, Uint8Array>)) {
+    await electron.scenarios.saveZipEntry(uniqid, entryPath, btoa(String.fromCharCode(...fileData)));
   }
 
   await electron.scenarios.refresh();
@@ -515,34 +414,29 @@ async function saveLayoutWeb(data: any): Promise<void> {
 }
 
 async function saveGameWeb(data: any): Promise<void> {
-  const { uniqid, gameData, gameDataRaw, csvFiles, images, sounds, videos } = data;
+  const { uniqid, gameData, gameDataRaw, zipEntries } = data;
 
-  const gameDataContent = gameDataRaw || JSON.stringify(gameData);
-  const gameDataBlob = new Blob([gameDataContent], { type: 'application/json' });
+  const mimeMap: Record<string, string> = {
+    json: 'application/json',
+    csv: 'text/csv',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    gif: 'image/gif', webp: 'image/webp',
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+    mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg'
+  };
 
-  const { error: gameDataUploadError } = await supabase.storage
-    .from('resources')
-    .upload(`scenarios/${uniqid}/game-data.json`, gameDataBlob, {
-      upsert: true,
-      contentType: 'application/json'
-    });
+  for (const [entryPath, fileData] of Object.entries(zipEntries as Record<string, Uint8Array>)) {
+    const ext = entryPath.split('.').pop()?.toLowerCase() || '';
+    const contentType = mimeMap[ext] || 'application/octet-stream';
+    const storagePath = `scenarios/${uniqid}/${entryPath}`;
 
-  if (gameDataUploadError) {
-    console.error('Error uploading game-data.json:', gameDataUploadError);
-    throw new Error(`Failed to upload game-data.json: ${gameDataUploadError.message}`);
-  }
-
-  for (const [filename, content] of Object.entries(csvFiles)) {
-    const csvBlob = new Blob([content as string], { type: 'text/csv' });
-    const { error: csvError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('resources')
-      .upload(`scenarios/${uniqid}/${filename}`, csvBlob, {
-        upsert: true,
-        contentType: 'text/csv'
-      });
+      .upload(storagePath, fileData, { upsert: true, contentType });
 
-    if (csvError) {
-      console.error(`Error uploading CSV ${filename}:`, csvError);
+    if (uploadError) {
+      console.error(`Error uploading ${entryPath}:`, uploadError);
+      throw new Error(`Failed to upload ${entryPath}: ${uploadError.message}`);
     }
   }
 
@@ -550,29 +444,17 @@ async function saveGameWeb(data: any): Promise<void> {
   let description = '';
   let game_type = 'mystery';
 
-  if (gameData.game && gameData.game.title) {
-    title = gameData.game.title;
-  } else if (gameData.scenario && gameData.scenario.title) {
-    title = gameData.scenario.title;
-  } else if (gameData.title) {
-    title = gameData.title;
-  }
+  if (gameData.game?.title) title = gameData.game.title;
+  else if (gameData.scenario?.title) title = gameData.scenario.title;
+  else if (gameData.title) title = gameData.title;
 
-  if (gameData.game_meta && gameData.game_meta.scenario) {
-    description = gameData.game_meta.scenario;
-  } else if (gameData.scenario?.description) {
-    description = gameData.scenario.description;
-  } else if (gameData.description) {
-    description = gameData.description;
-  }
+  if (gameData.game_meta?.scenario) description = gameData.game_meta.scenario;
+  else if (gameData.scenario?.description) description = gameData.scenario.description;
+  else if (gameData.description) description = gameData.description;
 
-  if (gameData.game?.type) {
-    game_type = gameData.game.type;
-  } else if (gameData.scenario?.game_type) {
-    game_type = gameData.scenario.game_type;
-  } else if (gameData.game_type) {
-    game_type = gameData.game_type;
-  }
+  if (gameData.game?.type) game_type = gameData.game.type;
+  else if (gameData.scenario?.game_type) game_type = gameData.scenario.game_type;
+  else if (gameData.game_type) game_type = gameData.game_type;
 
   const { error: scenarioError } = await supabase
     .from('scenarios')
@@ -586,42 +468,12 @@ async function saveGameWeb(data: any): Promise<void> {
       difficulty: gameData.difficulty || 'medium',
       game_data_json: gameData,
       updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'uniqid'
-    });
+    }, { onConflict: 'uniqid' });
 
   if (scenarioError) {
     console.error('Error saving scenario:', scenarioError);
     throw new Error(`Failed to save scenario: ${scenarioError.message}`);
   }
-
-  const uploadMedia = async (mediaFiles: Record<string, Uint8Array>, subfolder: string, mediaType: string) => {
-    for (const [filename, fileData] of Object.entries(mediaFiles)) {
-      const ext = filename.split('.').pop()?.toLowerCase() || '';
-      const mimeMap: Record<string, string> = {
-        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-        gif: 'image/gif', webp: 'image/webp',
-        mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
-        mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg'
-      };
-      const contentType = mimeMap[ext] || 'application/octet-stream';
-
-      const { error: mediaUploadError } = await supabase.storage
-        .from('resources')
-        .upload(`scenarios/${uniqid}/${subfolder}/${filename}`, fileData, {
-          upsert: true,
-          contentType
-        });
-
-      if (mediaUploadError) {
-        console.error(`Error uploading media ${filename}:`, mediaUploadError);
-      }
-    }
-  };
-
-  await uploadMedia(images, 'images', 'image');
-  await uploadMedia(sounds, 'sounds', 'sound');
-  await uploadMedia(videos, 'videos', 'video');
 
   console.log(`Successfully saved scenario ${uniqid} to Supabase Storage`);
 }

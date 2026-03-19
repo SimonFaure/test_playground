@@ -54,7 +54,8 @@ async function handleZipFile(file: File): Promise<UploadResult> {
       }
 
       const gameDataContent = await gameDataFile.async('string');
-      const gameData = JSON.parse(gameDataContent);
+      const parsedGameData = JSON.parse(gameDataContent);
+      const gameData = parsedGameData.game_data !== undefined ? parsedGameData.game_data : parsedGameData;
 
       const csvFiles: Record<string, string> = {};
       const csvFilesList = csvFolder.file(/.+\.csv$/);
@@ -467,10 +468,8 @@ async function saveGameWeb(data: any): Promise<void> {
     description = gameData.description;
   }
 
-  if (gameData.game && gameData.game.type) {
+  if (gameData.game?.type) {
     game_type = gameData.game.type;
-  } else if (gameData.scenario && gameData.scenario.scenario_type) {
-    game_type = gameData.scenario.scenario_type;
   } else if (gameData.game_type) {
     game_type = gameData.game_type;
   }

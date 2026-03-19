@@ -437,6 +437,29 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       imageSrc = mediaFiles[element.id] || '';
     }
 
+    if (element.id === 'animation_quest_image') {
+      const quests = gameData?.game_quests || [];
+      return (
+        <div key={`${element.id}-${index}`} style={wrapperStyle}>
+          {quests.map((quest) => {
+            const src = mediaFiles[quest.main_image] || '';
+            return (
+              <div
+                key={quest.id}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              >
+                <img
+                  src={src}
+                  alt={quest.text}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
     switch (element.type) {
       case 'image':
         return (
@@ -475,44 +498,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
           </div>
         );
-      case 'quest': {
-        const quests = gameData?.game_quests || [];
-        const animChild = element.children?.find(c => c.id === 'animation_quest_image');
-        const animStyle: React.CSSProperties = animChild
-          ? {
-              position: 'absolute',
-              left: animChild.x !== undefined ? `${(animChild.x / 100) * bgDimensions.width}px` : '0',
-              top: animChild.y !== undefined ? `${(animChild.y / 100) * bgDimensions.height}px` : '0',
-              width: animChild.width !== undefined ? `${(animChild.width / 100) * bgDimensions.width}px` : '50%',
-              height: animChild.height !== undefined ? `${(animChild.height / 100) * bgDimensions.height}px` : '50%',
-            }
-          : {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: element.width !== undefined ? `${(element.width / 100) * bgDimensions.width * 0.5}px` : '50%',
-              height: element.height !== undefined ? `${(element.height / 100) * bgDimensions.height * 0.5}px` : '50%',
-            };
-        return (
-          <div key={`${element.id}-${index}`} style={wrapperStyle}>
-            {quests.map((quest) => {
-              const src = mediaFiles[quest.main_image] || '';
-              return (
-                <div
-                  key={quest.id}
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                >
-                  <img
-                    src={src}
-                    alt={quest.text}
-                    style={{ ...animStyle, objectFit: 'contain' } as React.CSSProperties}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
       default:
         return <div key={`${element.id}-${index}`}>Unknown element type</div>;
     }

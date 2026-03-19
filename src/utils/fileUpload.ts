@@ -54,8 +54,7 @@ async function handleZipFile(file: File): Promise<UploadResult> {
       }
 
       const gameDataContent = await gameDataFile.async('string');
-      const parsedGameData = JSON.parse(gameDataContent);
-      const gameData = parsedGameData.game_data !== undefined ? parsedGameData.game_data : parsedGameData;
+      const gameData = JSON.parse(gameDataContent);
 
       const csvFiles: Record<string, string> = {};
       const csvFilesList = csvFolder.file(/.+\.csv$/);
@@ -98,7 +97,7 @@ async function handleZipFile(file: File): Promise<UploadResult> {
       console.log('[fileUpload] Total sounds stored:', Object.keys(sounds).length);
       console.log('[fileUpload] Total videos stored:', Object.keys(videos).length);
 
-      const gameName = gameData?.game?.title || gameData?.scenario?.name || 'Unknown Game';
+      const gameName = gameData?.game?.title || gameData?.scenario?.title || gameData?.scenario?.name || 'Unknown Game';
       const uniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
 
       if (!uniqid) {
@@ -462,7 +461,7 @@ async function saveGameWeb(data: any): Promise<void> {
 
   if (gameData.game_meta && gameData.game_meta.scenario) {
     description = gameData.game_meta.scenario;
-  } else if (gameData.scenario && gameData.scenario.description) {
+  } else if (gameData.scenario?.description) {
     description = gameData.scenario.description;
   } else if (gameData.description) {
     description = gameData.description;
@@ -470,6 +469,8 @@ async function saveGameWeb(data: any): Promise<void> {
 
   if (gameData.game?.type) {
     game_type = gameData.game.type;
+  } else if (gameData.scenario?.game_type) {
+    game_type = gameData.scenario.game_type;
   } else if (gameData.game_type) {
     game_type = gameData.game_type;
   }
@@ -481,7 +482,7 @@ async function saveGameWeb(data: any): Promise<void> {
       title,
       description,
       game_type,
-      version: gameData.version || gameData.game_meta?.game_version || '1.0',
+      version: gameData.version || gameData.game_meta?.game_version || gameData.game_data?.game_meta?.scenario_version || '1.0',
       duration_minutes: gameData.duration_minutes || 60,
       difficulty: gameData.difficulty || 'medium',
       game_data_json: gameData,

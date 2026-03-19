@@ -177,7 +177,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 : m.filename.endsWith('.png')
                 ? 'image/png'
                 : 'image/png';
-              mediaByFilename[m.filename] = `data:${mimeType};base64,${m.data}`;
+              const dataUrl = `data:${mimeType};base64,${m.data}`;
+              mediaByFilename[m.filename] = dataUrl;
+              mediaByFilename[`media/${m.filename}`] = dataUrl;
             }
           }
 
@@ -438,11 +440,16 @@ console.log(gameData);
 console.log(quests);
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
+      const resolveMedia = (key: string | undefined): string => {
+        if (!key) return '';
+        return mediaFiles[key] || mediaFiles[key.replace(/^media\//, '')] || mediaFiles[`media/${key}`] || '';
+      };
+
       return quests.flatMap((quest) => {
-        const mainSrc = mediaFiles[quest.main_image] || '';
+        const mainSrc = resolveMedia(quest.main_image);
         const subImages = ([quest.image_1, quest.image_2, quest.image_3, quest.image_4] as (string | undefined)[])
           .filter((img): img is string => !!img)
-          .map(imgKey => mediaFiles[imgKey] || imgKey);
+          .map(imgKey => resolveMedia(imgKey));
 
         return [
           <div key={`quest-${quest.id}-wrapper`} id={`quest-${quest.id}-wrapper`} style={{ ...wrapperStyle }}>

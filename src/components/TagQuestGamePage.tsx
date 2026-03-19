@@ -665,12 +665,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           </div>
         )}
 
-        {showCardAlert && lastCardData && (
-          <CardDetectionAlert
+        <CardDetectionAlert
             cardData={lastCardData}
-            onClose={() => setShowCardAlert(false)}
+            show={showCardAlert}
           />
-        )}
       </div>
     );
   }
@@ -749,12 +747,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
         </div>
       </div>
 
-      {showCardAlert && lastCardData && (
-        <CardDetectionAlert
+      <CardDetectionAlert
           cardData={lastCardData}
-          onClose={() => setShowCardAlert(false)}
+          show={showCardAlert}
         />
-      )}
     </div>
   );
 }

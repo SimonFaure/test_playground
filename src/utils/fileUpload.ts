@@ -451,5 +451,30 @@ async function saveGameWeb(data: any): Promise<void> {
     }
   }
 
+  const scenario = gameData?.game || gameData?.scenario || gameData;
+  const title = scenario?.title || scenario?.name || uniqid;
+  const gameType = scenario?.game_type || scenario?.type || 'mystery';
+  const description = scenario?.description || '';
+  const version = scenario?.version || '1.0';
+  const durationMinutes = scenario?.duration_minutes || scenario?.duration || 60;
+  const difficulty = scenario?.difficulty || 'medium';
+
+  const { error: upsertError } = await supabase
+    .from('scenarios')
+    .upsert({
+      uniqid,
+      title,
+      description,
+      game_type: gameType,
+      version,
+      duration_minutes: durationMinutes,
+      difficulty,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'uniqid' });
+
+  if (upsertError) {
+    console.warn('Warning: failed to upsert scenario record:', upsertError);
+  }
+
   console.log(`Successfully saved scenario ${uniqid} to Supabase Storage`);
 }

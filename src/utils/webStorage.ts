@@ -47,14 +47,22 @@ async function buildScenariosFolder(): Promise<StorageNode> {
   };
 
   try {
+    let uniqids: string[] = [];
+
     const { data: scenarios, error } = await supabase
       .from('scenarios')
       .select('uniqid, title');
 
-    if (error || !scenarios) return scenariosFolder;
+    if (!error && scenarios && scenarios.length > 0) {
+      uniqids = scenarios.map((s: any) => s.uniqid);
+    } else {
+      const storageFolders = await listStorageFolder('scenarios');
+      uniqids = storageFolders
+        .filter(f => f.name && f.name !== '.emptyFolderPlaceholder')
+        .map(f => f.name);
+    }
 
-    for (const scenario of scenarios) {
-      const { uniqid } = scenario;
+    for (const uniqid of uniqids) {
       const gameFolder: StorageNode = {
         name: uniqid,
         path: `/scenarios/${uniqid}`,

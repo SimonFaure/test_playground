@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Map, ChevronRight, CheckCircle, XCircle, Loader, FolderOpen, Upload, Radio } from 'lucide-react';
+import { Map, ChevronRight, Loader, FolderOpen, Upload, Radio } from 'lucide-react';
 import { getPatternFolders } from '../utils/patterns';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const DEFAULT_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
@@ -12,26 +17,19 @@ interface PatternMeta {
   public: string;
 }
 
-interface PatternEnigmaRow {
-  id: string;
-  pattern_id: string;
-  enigma_id: string;
-  good_answers: string[];
-  wrong_answers: string[];
-}
-
-interface PatternBaliseRow {
-  id: string;
-  pattern_id: string;
-  image: number;
-  position: number;
-  balise_id: number;
-}
-
 interface PatternFolder {
   folder: string;
   meta: PatternMeta | null;
   source: 'static' | 'local';
+  supabaseId?: string;
+}
+
+interface TagquestPatternItem {
+  id: string;
+  pattern_id: string;
+  item_index: number;
+  assignment_type: string;
+  station_key_number: number;
 }
 
 function parseCSVRaw(csvContent: string): any[] {
@@ -54,14 +52,6 @@ function parseCSVRaw(csvContent: string): any[] {
   return result;
 }
 
-function parseAnswers(raw: string): string[] {
-  try {
-    return JSON.parse(raw.replace(/""/g, '"'));
-  } catch {
-    return [];
-  }
-}
-
 async function readStaticPatternFile(gameType: string, folder: string, filename: string): Promise<string | null> {
   if ((window as any).electron?.patterns?.readFile) {
     try {
@@ -79,21 +69,6 @@ async function readStaticPatternFile(gameType: string, folder: string, filename:
   }
 }
 
-function readLocalPatternData(slug: string): string | null {
-  const raw = localStorage.getItem(`pattern_${slug}`);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === 'object' && parsed !== null) {
-      if (typeof parsed.csv === 'string') return parsed.csv;
-      if (typeof parsed.csvContent === 'string') return parsed.csvContent;
-    }
-    return null;
-  } catch {
-    return raw;
-  }
-}
-
 function extractLocalPatternMeta(slug: string): PatternMeta | null {
   const raw = localStorage.getItem(`pattern_${slug}`);
   if (!raw) return null;
@@ -108,55 +83,22 @@ function extractLocalPatternMeta(slug: string): PatternMeta | null {
         public: parsed.public || parsed.audience || '',
       };
     }
-  } catch {
-  }
+  } catch {}
   return null;
 }
 
-function extractLocalEnigmas(slug: string): PatternEnigmaRow[] | null {
-  const raw = localStorage.getItem(`pattern_${slug}`);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === 'object' && parsed !== null) {
-      const rows: any[] = parsed.enigmas || parsed.patterns_survival_balises || parsed.data || [];
-      if (Array.isArray(rows) && rows.length > 0) {
-        return rows.map((row: any, i: number) => ({
-          id: String(row.id ?? i + 1),
-          pattern_id: String(row.pattern_id ?? ''),
-          enigma_id: String(row.enigma_id ?? row.enigmaId ?? ''),
-          good_answers: Array.isArray(row.good_answers) ? row.good_answers.map(String)
-            : parseAnswers(row.good_answers || '[]'),
-          wrong_answers: Array.isArray(row.wrong_answers) ? row.wrong_answers.map(String)
-            : parseAnswers(row.wrong_answers || '[]'),
-        }));
-      }
-    }
-  } catch {
-  }
-  const csvContent = readLocalPatternData(slug);
-  if (csvContent) {
-    const rows = parseCSVRaw(csvContent);
-    if (rows.length > 0 && ('enigma_id' in rows[0] || 'good_answers' in rows[0])) {
-      return rows.map(row => ({
-        id: row.id,
-        pattern_id: row.pattern_id,
-        enigma_id: row.enigma_id,
-        good_answers: parseAnswers(row.good_answers || '[]'),
-        wrong_answers: parseAnswers(row.wrong_answers || '[]'),
-      }));
-    }
-  }
-  return null;
-}
-
-function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
-  const images = [...new Set(balises.map(b => b.image))].sort((a, b) => a - b);
-  const positions = [...new Set(balises.map(b => b.position))].sort((a, b) => a - b);
+function VisuelBaliseGrid({ items }: { items: TagquestPatternItem[] }) {
+  const quests = [...new Set(items.map(i => i.item_index))].sort((a, b) => a - b);
+  const imageTypes = [...new Set(items.map(i => i.assignment_type))]
+    .sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.replace(/\D/g, ''), 10);
+      return numA - numB;
+    });
 
   const lookup = new Map<string, number>();
-  for (const b of balises) {
-    lookup.set(`${b.image}-${b.position}`, b.balise_id);
+  for (const item of items) {
+    lookup.set(`${item.item_index}-${item.assignment_type}`, item.station_key_number);
   }
 
   return (
@@ -164,7 +106,7 @@ function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
       <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80 flex items-center gap-2">
         <Radio size={14} className="text-cyan-400" />
         <p className="text-slate-300 text-sm font-medium">
-          Station assignments — {images.length} quest image{images.length !== 1 ? 's' : ''}, {positions.length} position{positions.length !== 1 ? 's' : ''}
+          {quests.length} quest{quests.length !== 1 ? 's' : ''} — {imageTypes.length} image type{imageTypes.length !== 1 ? 's' : ''}
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -172,14 +114,17 @@ function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
           <thead>
             <tr className="border-b border-slate-700 bg-slate-800/60">
               <th className="text-left px-4 py-3 text-slate-400 font-semibold whitespace-nowrap">
-                Image
+                Quest
               </th>
-              {positions.map(pos => (
-                <th key={pos} className="text-center px-3 py-3 text-slate-400 font-semibold whitespace-nowrap min-w-[64px]">
+              {imageTypes.map(type => (
+                <th
+                  key={type}
+                  className="text-center px-3 py-3 text-slate-400 font-semibold whitespace-nowrap min-w-[80px]"
+                >
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs text-slate-500 font-normal">pos</span>
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-700 text-slate-200 font-bold text-xs">
-                      {pos}
+                    <span className="text-xs text-slate-500 font-normal">station</span>
+                    <span className="inline-flex items-center justify-center px-2 h-7 rounded-md bg-cyan-900/40 border border-cyan-700/50 text-cyan-300 font-mono font-bold text-xs">
+                      {type}
                     </span>
                   </div>
                 </th>
@@ -187,28 +132,25 @@ function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {images.map((img, index) => (
+            {quests.map((quest, index) => (
               <tr
-                key={img}
+                key={quest}
                 className={`border-b border-slate-700/50 transition hover:bg-slate-700/20 ${
                   index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/30'
                 }`}
               >
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-900/40 border border-cyan-700/50 text-cyan-300 font-bold text-sm">
-                      {img}
-                    </span>
-                    <span className="text-slate-500 text-xs font-mono">img {img}</span>
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700 border border-slate-600 text-white font-bold text-sm">
+                    {quest}
                   </span>
                 </td>
-                {positions.map(pos => {
-                  const baliseId = lookup.get(`${img}-${pos}`);
+                {imageTypes.map(type => {
+                  const station = lookup.get(`${quest}-${type}`);
                   return (
-                    <td key={pos} className="px-3 py-3 text-center">
-                      {baliseId !== undefined ? (
-                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700 border border-slate-600 text-white font-mono font-bold text-sm hover:bg-slate-600 transition">
-                          {baliseId}
+                    <td key={type} className="px-3 py-3 text-center">
+                      {station !== undefined ? (
+                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700 border border-slate-600 text-white font-mono font-bold text-sm hover:bg-cyan-900/40 hover:border-cyan-700/50 hover:text-cyan-200 transition cursor-default">
+                          {station}
                         </span>
                       ) : (
                         <span className="text-slate-700 text-lg select-none">·</span>
@@ -225,18 +167,13 @@ function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
   );
 }
 
-type DetailTab = 'enigmas' | 'balises';
-
 export function PatternsPage() {
   const [gameType] = useState('mystery');
   const [patterns, setPatterns] = useState<PatternFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPattern, setSelectedPattern] = useState<PatternFolder | null>(null);
-  const [enigmas, setEnigmas] = useState<PatternEnigmaRow[]>([]);
-  const [loadingEnigmas, setLoadingEnigmas] = useState(false);
-  const [balises, setBalises] = useState<PatternBaliseRow[]>([]);
-  const [loadingBalises, setLoadingBalises] = useState(false);
-  const [activeTab, setActiveTab] = useState<DetailTab>('enigmas');
+  const [items, setItems] = useState<TagquestPatternItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
 
   useEffect(() => {
     loadPatterns();
@@ -245,10 +182,17 @@ export function PatternsPage() {
   const loadPatterns = async () => {
     setLoading(true);
     setSelectedPattern(null);
-    setEnigmas([]);
+    setItems([]);
     try {
       const folders = await getPatternFolders(gameType);
       const uploadedList: string[] = JSON.parse(localStorage.getItem('uploaded_patterns_list') || '[]');
+
+      let supabasePatterns: { id: string; slug: string }[] = [];
+      if (supabase) {
+        const { data } = await supabase.from('patterns').select('id, slug');
+        supabasePatterns = data || [];
+      }
+
       const patternList: PatternFolder[] = [];
       for (const folder of folders) {
         const isLocal = !DEFAULT_FOLDERS.includes(folder) && uploadedList.includes(folder);
@@ -262,7 +206,13 @@ export function PatternsPage() {
             if (rows.length > 0) meta = rows[0] as PatternMeta;
           }
         }
-        patternList.push({ folder, meta, source: isLocal ? 'local' : 'static' });
+        const supabaseMatch = supabasePatterns.find(p => p.slug === folder);
+        patternList.push({
+          folder,
+          meta,
+          source: isLocal ? 'local' : 'static',
+          supabaseId: supabaseMatch?.id,
+        });
       }
       setPatterns(patternList);
     } catch (err) {
@@ -273,51 +223,23 @@ export function PatternsPage() {
 
   const handleSelectPattern = async (pattern: PatternFolder) => {
     setSelectedPattern(pattern);
-    setEnigmas([]);
-    setBalises([]);
-    setActiveTab('enigmas');
-    setLoadingEnigmas(true);
-    setLoadingBalises(true);
+    setItems([]);
+    setLoadingItems(true);
     try {
-      if (pattern.source === 'local') {
-        const rows = extractLocalEnigmas(pattern.folder);
-        if (rows) setEnigmas(rows);
-      } else {
-        const csv = await readStaticPatternFile(gameType, pattern.folder, 'patterns_survival_balises.csv');
-        if (csv) {
-          const rows = parseCSVRaw(csv);
-          const parsed: PatternEnigmaRow[] = rows.map(row => ({
-            id: row.id,
-            pattern_id: row.pattern_id,
-            enigma_id: row.enigma_id,
-            good_answers: parseAnswers(row.good_answers || '[]'),
-            wrong_answers: parseAnswers(row.wrong_answers || '[]'),
-          }));
-          setEnigmas(parsed);
+      if (supabase && pattern.supabaseId) {
+        const { data, error } = await supabase
+          .from('tagquest_pattern_items')
+          .select('*')
+          .eq('pattern_id', pattern.supabaseId)
+          .order('item_index', { ascending: true });
+        if (!error && data) {
+          setItems(data);
         }
       }
     } catch (err) {
-      console.error('Error loading enigmas:', err);
+      console.error('Error loading pattern items:', err);
     }
-    setLoadingEnigmas(false);
-
-    try {
-      const csv = await readStaticPatternFile(gameType, pattern.folder, 'patterns_balises.csv');
-      if (csv) {
-        const rows = parseCSVRaw(csv);
-        const parsed: PatternBaliseRow[] = rows.map(row => ({
-          id: row.id,
-          pattern_id: row.pattern_id,
-          image: parseInt(row.image, 10),
-          position: parseInt(row.position, 10),
-          balise_id: parseInt(row.balise_id, 10),
-        })).filter(r => !isNaN(r.image) && !isNaN(r.position) && !isNaN(r.balise_id));
-        setBalises(parsed);
-      }
-    } catch (err) {
-      console.error('Error loading balises:', err);
-    }
-    setLoadingBalises(false);
+    setLoadingItems(false);
   };
 
   const displayName = (p: PatternFolder) =>
@@ -329,7 +251,7 @@ export function PatternsPage() {
         <Map size={28} className="text-emerald-400" />
         <div>
           <h2 className="text-3xl font-bold text-white">Patterns</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Browse game patterns and their enigma answer tables</p>
+          <p className="text-slate-400 text-sm mt-0.5">Browse game patterns and their station assignments</p>
         </div>
       </div>
 
@@ -381,8 +303,11 @@ export function PatternsPage() {
                           {pattern.meta.public}
                         </span>
                       )}
-                      {pattern.meta?.id && (
-                        <span className="text-xs text-slate-500">ID: {pattern.meta.id}</span>
+                      {pattern.supabaseId && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-900/40 text-cyan-400 border border-cyan-800/50 font-medium flex items-center gap-1">
+                          <Radio size={10} />
+                          synced
+                        </span>
                       )}
                     </div>
                   </div>
@@ -405,158 +330,42 @@ export function PatternsPage() {
                 <div className="text-center py-20">
                   <Map size={48} className="text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-400 text-lg font-medium">Select a pattern</p>
-                  <p className="text-slate-500 text-sm mt-1">Click a pattern on the left to view its details</p>
+                  <p className="text-slate-500 text-sm mt-1">Click a pattern on the left to view its station assignments</p>
                 </div>
               </div>
             ) : (
               <div>
-                <div className="flex items-start justify-between gap-3 mb-5">
-                  <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-5">
+                  <Radio size={18} className="text-cyan-400 shrink-0" />
+                  <div>
                     <h3 className="text-xl font-bold text-white">{displayName(selectedPattern)}</h3>
+                    <p className="text-slate-400 text-xs mt-0.5 font-mono">{selectedPattern.folder}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-1 mb-5 bg-slate-800/60 border border-slate-700 rounded-xl p-1 w-fit">
-                  <button
-                    onClick={() => setActiveTab('enigmas')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      activeTab === 'enigmas'
-                        ? 'bg-emerald-600 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <CheckCircle size={14} />
-                    Enigmas
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
-                      activeTab === 'enigmas' ? 'bg-emerald-500/40 text-emerald-100' : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {enigmas.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('balises')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      activeTab === 'balises'
-                        ? 'bg-cyan-700 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <Radio size={14} />
-                    Visuel balise
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
-                      activeTab === 'balises' ? 'bg-cyan-600/40 text-cyan-100' : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {balises.length}
-                    </span>
-                  </button>
-                </div>
-
-                {activeTab === 'enigmas' && (
-                  loadingEnigmas ? (
-                    <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
-                      <Loader size={20} className="animate-spin" />
-                      <span>Loading enigmas...</span>
-                    </div>
-                  ) : enigmas.length === 0 ? (
-                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-8 text-center">
-                      <CheckCircle size={32} className="text-slate-600 mx-auto mb-3" />
-                      <p className="text-slate-400">No enigma data found for this pattern.</p>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl overflow-hidden">
-                      <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
-                        <p className="text-slate-400 text-sm">
-                          {enigmas.length} enigma{enigmas.length !== 1 ? 's' : ''} in this pattern
-                        </p>
-                      </div>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-700 bg-slate-800/60">
-                            <th className="text-left px-4 py-3 text-slate-400 font-semibold w-12">#</th>
-                            <th className="text-left px-4 py-3 text-slate-400 font-semibold w-24">Enigma</th>
-                            <th className="text-left px-4 py-3 text-slate-400 font-semibold">
-                              <span className="flex items-center gap-1.5">
-                                <CheckCircle size={13} className="text-green-400" />
-                                Good Answers
-                              </span>
-                            </th>
-                            <th className="text-left px-4 py-3 text-slate-400 font-semibold">
-                              <span className="flex items-center gap-1.5">
-                                <XCircle size={13} className="text-red-400" />
-                                Wrong Answers
-                              </span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {enigmas.map((row, index) => (
-                            <tr
-                              key={row.id}
-                              className={`border-b border-slate-700/50 transition hover:bg-slate-700/30 ${
-                                index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/30'
-                              }`}
-                            >
-                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{row.id}</td>
-                              <td className="px-4 py-3">
-                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700 text-white font-bold text-sm">
-                                  {row.enigma_id}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {row.good_answers.length > 0 ? (
-                                    row.good_answers.map((ans, i) => (
-                                      <span
-                                        key={i}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-green-900/30 border border-green-700/50 text-green-300 font-mono font-semibold text-xs"
-                                      >
-                                        {ans}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-slate-600 text-xs italic">—</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {row.wrong_answers.length > 0 ? (
-                                    row.wrong_answers.map((ans, i) => (
-                                      <span
-                                        key={i}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-700/50 text-red-300 font-mono font-semibold text-xs"
-                                      >
-                                        {ans}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-slate-600 text-xs italic">—</span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                )}
-
-                {activeTab === 'balises' && (
-                  loadingBalises ? (
-                    <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
-                      <Loader size={20} className="animate-spin" />
-                      <span>Loading station assignments...</span>
-                    </div>
-                  ) : balises.length === 0 ? (
-                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-8 text-center">
-                      <Radio size={32} className="text-slate-600 mx-auto mb-3" />
-                      <p className="text-slate-400 font-medium">No station assignment data found.</p>
-                      <p className="text-slate-500 text-xs mt-1">Add a <span className="font-mono">patterns_balises.csv</span> file to this pattern folder.</p>
-                    </div>
-                  ) : (
-                    <BaliseGrid balises={balises} />
-                  )
+                {loadingItems ? (
+                  <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
+                    <Loader size={20} className="animate-spin" />
+                    <span>Loading station assignments...</span>
+                  </div>
+                ) : !selectedPattern.supabaseId ? (
+                  <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-10 text-center">
+                    <Radio size={36} className="text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-300 font-semibold mb-1">Pattern not synced</p>
+                    <p className="text-slate-500 text-sm">
+                      This pattern has no entry in the database yet. Add it to Supabase to manage station assignments.
+                    </p>
+                  </div>
+                ) : items.length === 0 ? (
+                  <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-10 text-center">
+                    <Radio size={36} className="text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-300 font-semibold mb-1">No station assignments yet</p>
+                    <p className="text-slate-500 text-sm">
+                      Add items to the <span className="font-mono text-slate-400">tagquest_pattern_items</span> table for this pattern.
+                    </p>
+                  </div>
+                ) : (
+                  <VisuelBaliseGrid items={items} />
                 )}
               </div>
             )}

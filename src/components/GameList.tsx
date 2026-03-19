@@ -447,6 +447,34 @@ export function GameList() {
         console.error('Error deleting scenario:', error);
         showAlert('error', 'Failed to delete scenario');
       }
+    } else if (!isElectron) {
+      try {
+        const { data: storageFiles } = await supabase.storage
+          .from('game-media')
+          .list(scenarioToDelete.uniqid, { limit: 1000 });
+
+        if (storageFiles && storageFiles.length > 0) {
+          const filePaths = storageFiles.map(f => `${scenarioToDelete.uniqid}/${f.name}`);
+          await supabase.storage.from('game-media').remove(filePaths);
+        }
+
+        const { error } = await supabase
+          .from('scenarios')
+          .delete()
+          .eq('uniqid', scenarioToDelete.uniqid);
+
+        if (error) {
+          console.error('Error deleting scenario:', error);
+          showAlert('error', `Failed to delete scenario: ${error.message}`);
+        } else {
+          showAlert('success', `Successfully deleted scenario: ${scenarioToDelete.title}`);
+          await loadScenarios();
+          await loadLocalGames();
+        }
+      } catch (error) {
+        console.error('Error deleting scenario:', error);
+        showAlert('error', 'Failed to delete scenario');
+      }
     }
 
     setDeleteConfirmOpen(false);

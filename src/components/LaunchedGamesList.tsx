@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
+import { GameTestModal } from './GameTestModal';
 import type { GameConfig } from './LaunchGameModal';
 
 interface LaunchedGame {
@@ -73,6 +74,8 @@ export function LaunchedGamesList() {
   });
   const [configGameId, setConfigGameId] = useState<number | null>(null);
   const [configGameName, setConfigGameName] = useState<string>('');
+  const [testGameId, setTestGameId] = useState<number | null>(null);
+  const [testGameName, setTestGameName] = useState<string>('');
 
   useEffect(() => {
     loadGames();
@@ -526,6 +529,17 @@ export function LaunchedGamesList() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      setTestGameId(game.id);
+                      setTestGameName(game.name);
+                    }}
+                    className="p-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition"
+                    title="Run Game Test"
+                  >
+                    <FlaskConical size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       handleShowRankings(game.id);
                     }}
                     className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition"
@@ -962,6 +976,17 @@ export function LaunchedGamesList() {
           }}
           onSave={() => {
             loadGames();
+          }}
+        />
+      )}
+
+      {testGameId !== null && (
+        <GameTestModal
+          gameId={testGameId}
+          gameName={testGameName}
+          onClose={() => {
+            setTestGameId(null);
+            setTestGameName('');
           }}
         />
       )}

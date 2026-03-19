@@ -68,28 +68,57 @@ async function handleZipFile(file: File): Promise<UploadResult> {
       const sounds: Record<string, Uint8Array> = {};
       const videos: Record<string, Uint8Array> = {};
 
-      const mediaFolder = zip.folder('media');
-      if (mediaFolder) {
-        const mediaFiles = mediaFolder.file(/.+/);
-        console.log('[fileUpload] Found media files:', mediaFiles.map(f => f.name));
+      const gameUniqid = gameData?.game?.uniqid || gameData?.scenario?.uniqid;
 
-        for (const mediaFile of mediaFiles) {
-          const fileName = mediaFile.name.toLowerCase();
-          const mediaData = await mediaFile.async('uint8array');
-          const relativePath = mediaFile.name.replace(/^media\//, '');
+      const mediaPrefixesToTry = [
+        'media/',
+        `${gameUniqid}/media/`
+      ].filter(Boolean);
 
-          if (!relativePath || relativePath.includes('/')) continue;
+      let mediaFiles: JSZip.JSZipObject[] = [];
+      let usedPrefix = '';
 
-          if (fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-            console.log(`[fileUpload] Storing image: ${relativePath}`);
-            images[relativePath] = mediaData;
-          } else if (fileName.match(/\.(mp3|wav|ogg)$/i)) {
-            console.log(`[fileUpload] Storing sound: ${relativePath}`);
-            sounds[relativePath] = mediaData;
-          } else if (fileName.match(/\.(mp4|webm|ogv)$/i)) {
-            console.log(`[fileUpload] Storing video: ${relativePath}`);
-            videos[relativePath] = mediaData;
+      for (const prefix of mediaPrefixesToTry) {
+        const folder = zip.folder(prefix.replace(/\/$/, ''));
+        if (folder) {
+          const found = folder.file(/.+/);
+          if (found.length > 0) {
+            mediaFiles = found;
+            usedPrefix = prefix;
+            break;
           }
+        }
+      }
+
+      if (mediaFiles.length === 0) {
+        const allFiles = zip.file(/.+/);
+        const mediaMatches = allFiles.filter(f => f.name.includes('/media/'));
+        if (mediaMatches.length > 0) {
+          mediaFiles = mediaMatches;
+          const firstMatch = mediaMatches[0].name;
+          const mediaIdx = firstMatch.indexOf('/media/');
+          usedPrefix = firstMatch.substring(0, mediaIdx + '/media/'.length);
+        }
+      }
+
+      console.log('[fileUpload] Found media files:', mediaFiles.map(f => f.name));
+
+      for (const mediaFile of mediaFiles) {
+        const lowerName = mediaFile.name.toLowerCase();
+        const mediaData = await mediaFile.async('uint8array');
+        const relativePath = mediaFile.name.replace(usedPrefix, '');
+
+        if (!relativePath || relativePath.includes('/')) continue;
+
+        if (lowerName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          console.log(`[fileUpload] Storing image: ${relativePath}`);
+          images[relativePath] = mediaData;
+        } else if (lowerName.match(/\.(mp3|wav|ogg)$/i)) {
+          console.log(`[fileUpload] Storing sound: ${relativePath}`);
+          sounds[relativePath] = mediaData;
+        } else if (lowerName.match(/\.(mp4|webm|ogv)$/i)) {
+          console.log(`[fileUpload] Storing video: ${relativePath}`);
+          videos[relativePath] = mediaData;
         }
       }
 

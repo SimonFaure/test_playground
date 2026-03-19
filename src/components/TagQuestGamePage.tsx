@@ -156,6 +156,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                 type: scenarioData.game_type,
                 title: scenarioData.title
               },
+              game_data: scenarioData.game_data_json,
               game_quests: quests
             });
 

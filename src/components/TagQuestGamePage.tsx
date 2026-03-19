@@ -28,6 +28,9 @@ interface GameData {
     type: string;
     title: string;
   };
+  game_data?: {
+    quests?: GameQuest[];
+  };
   game_quests?: GameQuest[];
   game_media_images?: Array<{
     id: string;
@@ -438,20 +441,24 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     }
 
     if (element.id === 'animation_quest_image') {
-      const quests = gameData?.game_quests || [];
+      const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
+      const questDivStyle: React.CSSProperties = {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: wrapperStyle.width,
+        height: wrapperStyle.height,
+      };
       return (
         <div key={`${element.id}-${index}`} style={wrapperStyle}>
           {quests.map((quest) => {
             const src = mediaFiles[quest.main_image] || '';
             return (
-              <div
-                key={quest.id}
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-              >
+              <div key={quest.id} style={questDivStyle}>
                 <img
                   src={src}
                   alt={quest.text}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  style={{ width: '100%' }}
                 />
               </div>
             );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, ShieldCheck, List, BookOpen, Activity, CreditCard, LayoutGrid as Layout } from 'lucide-react';
+import { Settings, ShieldCheck, List, BookOpen, Activity, CreditCard, LayoutGrid as Layout, Map } from 'lucide-react';
 import { GameList } from './components/GameList';
 import { ConfigurationPage } from './components/ConfigurationPage';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
@@ -9,6 +9,7 @@ import { ApiDocsPage } from './components/ApiDocsPage';
 import { ApiLogsPage } from './components/ApiLogsPage';
 import ClientCardsPage from './components/ClientCardsPage';
 import { LayoutManagement } from './components/LayoutManagement';
+import { PatternsPage } from './components/PatternsPage';
 import { EmailSetupModal } from './components/EmailSetupModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { SyncLoadingModal, SyncStep } from './components/SyncLoadingModal';
@@ -16,7 +17,7 @@ import { supabase } from './lib/db';
 import { loadConfig, saveConfig } from './utils/config';
 import { DownloadItem } from './types/downloadQueue';
 
-type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs' | 'client-cards' | 'layouts';
+type Page = 'games' | 'launched-games' | 'config' | 'admin-config' | 'api-docs' | 'api-logs' | 'client-cards' | 'layouts' | 'patterns';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('games');
@@ -348,6 +349,17 @@ function App() {
                 <CreditCard size={16} />
                 Cards
               </button>
+              <button
+                onClick={() => setCurrentPage('patterns')}
+                className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${
+                  currentPage === 'patterns'
+                    ? isAdminMode ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Map size={16} />
+                Patterns
+              </button>
               {isAdminMode && (
                 <>
                   <button
@@ -385,6 +397,7 @@ function App() {
       {currentPage === 'api-docs' && <ApiDocsPage />}
       {currentPage === 'client-cards' && <ClientCardsPage />}
       {currentPage === 'api-logs' && <ApiLogsPage />}
+      {currentPage === 'patterns' && <PatternsPage />}
       {currentPage === 'layouts' && isAdminMode && <LayoutManagement />}
       {currentPage === 'admin-config' && isAdminMode && <AdminConfigPage />}
 

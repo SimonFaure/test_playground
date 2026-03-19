@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Map, ChevronRight, Loader, FolderOpen, Upload, Radio } from 'lucide-react';
+import { Map, ChevronRight, Loader, FolderOpen, Upload, Radio, Trash2 } from 'lucide-react';
 import { getPatternFolders } from '../utils/patterns';
 import { createClient } from '@supabase/supabase-js';
 
@@ -174,6 +174,8 @@ export function PatternsPage() {
   const [selectedPattern, setSelectedPattern] = useState<PatternFolder | null>(null);
   const [items, setItems] = useState<TagquestPatternItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<PatternFolder | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadPatterns();
@@ -242,6 +244,31 @@ export function PatternsPage() {
     setLoadingItems(false);
   };
 
+  const deletePattern = async (pattern: PatternFolder) => {
+    setDeleting(true);
+    try {
+      localStorage.removeItem(`pattern_${pattern.folder}`);
+      const list: string[] = JSON.parse(localStorage.getItem('uploaded_patterns_list') || '[]');
+      const updated = list.filter(s => s !== pattern.folder);
+      localStorage.setItem('uploaded_patterns_list', JSON.stringify(updated));
+
+      if (supabase && pattern.supabaseId) {
+        await supabase.from('tagquest_pattern_items').delete().eq('pattern_id', pattern.supabaseId);
+        await supabase.from('patterns').delete().eq('id', pattern.supabaseId);
+      }
+
+      if (selectedPattern?.folder === pattern.folder) {
+        setSelectedPattern(null);
+        setItems([]);
+      }
+      setConfirmDelete(null);
+      await loadPatterns();
+    } catch (err) {
+      console.error('Error deleting pattern:', err);
+    }
+    setDeleting(false);
+  };
+
   const displayName = (p: PatternFolder) =>
     p.meta?.name || p.folder.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -273,54 +300,64 @@ export function PatternsPage() {
             )}
 
             {patterns.map(pattern => (
-              <button
-                key={pattern.folder}
-                onClick={() => handleSelectPattern(pattern)}
-                className={`w-full text-left p-4 rounded-xl border-2 transition group ${
-                  selectedPattern?.folder === pattern.folder
-                    ? 'bg-emerald-900/25 border-emerald-500'
-                    : 'bg-slate-800/60 border-slate-700 hover:border-slate-500 hover:bg-slate-700/60'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold truncate">{displayName(pattern)}</p>
-                    <p className="text-slate-400 text-xs mt-0.5 font-mono">{pattern.folder}</p>
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      {pattern.source === 'local' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800/50 font-medium flex items-center gap-1">
-                          <Upload size={10} />
-                          uploaded
-                        </span>
-                      )}
-                      {pattern.meta?.game_type && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
-                          {pattern.meta.game_type}
-                        </span>
-                      )}
-                      {pattern.meta?.public && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-medium">
-                          {pattern.meta.public}
-                        </span>
-                      )}
-                      {pattern.supabaseId && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-900/40 text-cyan-400 border border-cyan-800/50 font-medium flex items-center gap-1">
-                          <Radio size={10} />
-                          synced
-                        </span>
-                      )}
+              <div key={pattern.folder} className="relative group/card">
+                <button
+                  onClick={() => handleSelectPattern(pattern)}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition group ${
+                    selectedPattern?.folder === pattern.folder
+                      ? 'bg-emerald-900/25 border-emerald-500'
+                      : 'bg-slate-800/60 border-slate-700 hover:border-slate-500 hover:bg-slate-700/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 pr-6">
+                      <p className="text-white font-semibold truncate">{displayName(pattern)}</p>
+                      <p className="text-slate-400 text-xs mt-0.5 font-mono">{pattern.folder}</p>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {pattern.source === 'local' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800/50 font-medium flex items-center gap-1">
+                            <Upload size={10} />
+                            uploaded
+                          </span>
+                        )}
+                        {pattern.meta?.game_type && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium">
+                            {pattern.meta.game_type}
+                          </span>
+                        )}
+                        {pattern.meta?.public && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-medium">
+                            {pattern.meta.public}
+                          </span>
+                        )}
+                        {pattern.supabaseId && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-900/40 text-cyan-400 border border-cyan-800/50 font-medium flex items-center gap-1">
+                            <Radio size={10} />
+                            synced
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <ChevronRight
+                      size={18}
+                      className={`shrink-0 ml-3 transition-transform ${
+                        selectedPattern?.folder === pattern.folder
+                          ? 'text-emerald-400 translate-x-0.5'
+                          : 'text-slate-500 group-hover:text-slate-300'
+                      }`}
+                    />
                   </div>
-                  <ChevronRight
-                    size={18}
-                    className={`shrink-0 ml-3 transition-transform ${
-                      selectedPattern?.folder === pattern.folder
-                        ? 'text-emerald-400 translate-x-0.5'
-                        : 'text-slate-500 group-hover:text-slate-300'
-                    }`}
-                  />
-                </div>
-              </button>
+                </button>
+                {pattern.source === 'local' && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setConfirmDelete(pattern); }}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-900/30 opacity-0 group-hover/card:opacity-100 transition"
+                    title="Delete pattern"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
 
@@ -369,6 +406,51 @@ export function PatternsPage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-900/40 border border-red-700/50">
+                <Trash2 size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold">Delete pattern</h3>
+                <p className="text-slate-400 text-xs">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-slate-300 text-sm mb-1">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-white">{displayName(confirmDelete)}</span>?
+            </p>
+            {confirmDelete.supabaseId && (
+              <p className="text-amber-400 text-xs mt-2 bg-amber-900/20 border border-amber-800/40 rounded-lg px-3 py-2">
+                This will also remove all station assignments from the database.
+              </p>
+            )}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deletePattern(confirmDelete)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 text-white text-sm font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <><Loader size={14} className="animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 size={14} /> Delete</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -443,14 +443,15 @@ console.log(quests);
         return mediaFiles[key] || mediaFiles[key.replace(/^media\//, '')] || mediaFiles[`media/${key}`] || '';
       };
 
-      return quests.flatMap((quest) => {
+      return quests.flatMap((quest, questIndex) => {
+        const questNum = questIndex + 1;
         const mainSrc = resolveMedia(quest.main_image);
         const subImages = ([quest.image_1, quest.image_2, quest.image_3, quest.image_4] as (string | undefined)[])
           .filter((img): img is string => !!img)
           .map(imgKey => resolveMedia(imgKey));
 
         return [
-          <div key={`quest-${quest.id}-wrapper`} id={`quest-${quest.id}-wrapper`} style={{ ...wrapperStyle }}>
+          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle }}>
             <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>
@@ -460,7 +461,7 @@ console.log(quests);
               ))}
             </div>
           </div>,
-          <div key={`quest-${quest.id}-title`} className="quest_title" style={{ ...wrapperStyle, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
             {quest.text}
           </div>
         ];

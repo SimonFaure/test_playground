@@ -159,7 +159,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
               game_data: scenarioData.game_data_json,
               game_quests: quests
             });
-
+console.log("scenarioData");
+console.log(scenarioData);
+console.log("quests");
+console.log(quests);
             if (scenarioData.csv_media_images) {
               const mediaMap: Record<string, string> = {};
               const lines = scenarioData.csv_media_images.split('\n').filter(Boolean);

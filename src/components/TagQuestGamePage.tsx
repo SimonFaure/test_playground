@@ -454,6 +454,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       console.log("element");
 console.log(element);
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
+      console.log("gameData");
+console.log(gameData);
       console.log("quests");
 console.log(quests);
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;

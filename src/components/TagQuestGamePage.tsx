@@ -450,8 +450,10 @@ console.log(quests);
           .filter((img): img is string => !!img)
           .map(imgKey => resolveMedia(imgKey));
 
+        const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
+
         return [
-          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle }}>
+          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight }}>
             <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>

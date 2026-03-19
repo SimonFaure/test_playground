@@ -64,6 +64,7 @@ interface GameLayout {
 export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }: TagQuestGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [layout, setLayout] = useState<GameLayout | null>(null);
+  const [layoutLoading, setLayoutLoading] = useState(true);
   const [gameStarted, setGameStarted] = useState(true);
   const [lastCardData, setLastCardData] = useState<CardData | null>(null);
   const [showCardAlert, setShowCardAlert] = useState(false);
@@ -219,6 +220,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
         }
       } catch (error) {
         console.error('Error loading game data:', error);
+      } finally {
+        setLayoutLoading(false);
       }
     };
 
@@ -467,7 +470,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     }
   };
 
-  if (!gameData) {
+  if (!gameData || layoutLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading game data...</div>

@@ -51,7 +51,7 @@ export function LaunchedGamesList() {
   const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
   const [showRankings, setShowRankings] = useState<number | null>(null);
   const [rankings, setRankings] = useState<Team[]>([]);
-  const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string } | null>(null);
+  const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string; launchedGameId: number } | null>(null);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamSortBy, setTeamSortBy] = useState<'ranking' | 'name'>('ranking');
   const [minimizedTeams, setMinimizedTeams] = useState<Set<number>>(new Set());
@@ -393,7 +393,7 @@ export function LaunchedGamesList() {
       delayBeforeReset: parseInt(metaMap.delayBeforeReset || '2'),
     };
 
-    setPlayingGame({ config, uniqid: game.game_uniqid });
+    setPlayingGame({ config, uniqid: game.game_uniqid, launchedGameId: game.id });
   };
 
   const getFilteredAndSortedTeams = () => {
@@ -434,6 +434,7 @@ export function LaunchedGamesList() {
       <GamePage
         config={playingGame.config}
         gameUniqid={playingGame.uniqid}
+        launchedGameId={playingGame.launchedGameId}
         onBack={() => setPlayingGame(null)}
       />
     );

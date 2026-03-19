@@ -118,44 +118,60 @@ export function GameList() {
   };
 
   const loadScenariosFromSupabase = async () => {
-    const { data: scenariosFromDb, error } = await supabase
-      .from('scenarios')
-      .select('*');
+    const { data: storageFolders, error: storageError } = await supabase.storage
+      .from('resources')
+      .list('scenarios', { limit: 1000 });
 
-    if (error) {
-      console.error('Error loading scenarios from Supabase:', error);
-      return gamesData;
-    }
-
-    if (!scenariosFromDb || scenariosFromDb.length === 0) {
+    if (storageError || !storageFolders || storageFolders.length === 0) {
       return gamesData;
     }
 
     const gameTypeMap = new Map();
     const scenariosList = [];
 
-    for (const scenario of scenariosFromDb) {
-      const gameTypeId = scenario.game_type;
+    for (const folder of storageFolders) {
+      if (!folder.name) continue;
+      const uniqid = folder.name;
 
-      if (!gameTypeMap.has(gameTypeId)) {
-        gameTypeMap.set(gameTypeId, {
-          id: gameTypeId,
-          name: gameTypeId.charAt(0).toUpperCase() + gameTypeId.slice(1),
-          description: `${gameTypeId} game type`
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('resources')
+        .download(`scenarios/${uniqid}/game-data.json`);
+
+      if (fileError || !fileData) continue;
+
+      let gameData: any;
+      try {
+        const text = await fileData.text();
+        gameData = JSON.parse(text);
+      } catch {
+        continue;
+      }
+
+      const title = gameData?.game?.title || gameData?.scenario?.title || gameData?.title || 'Unknown';
+      const description = gameData?.game_meta?.scenario || gameData?.scenario?.description || gameData?.description || '';
+      const game_type = gameData?.game?.type || gameData?.scenario?.game_type || gameData?.game_type || 'mystery';
+      const difficulty = gameData?.difficulty || gameData?.game?.difficulty || 'medium';
+      const duration_minutes = gameData?.duration_minutes || gameData?.game?.duration_minutes || 60;
+
+      if (!gameTypeMap.has(game_type)) {
+        gameTypeMap.set(game_type, {
+          id: game_type,
+          name: game_type.charAt(0).toUpperCase() + game_type.slice(1),
+          description: `${game_type} game type`
         });
       }
 
-      const imageUrl = await getScenarioImageUrl(scenario.uniqid);
+      const imageUrl = await getScenarioImageFromStorage(uniqid);
 
       scenariosList.push({
-        id: scenario.id,
-        game_type_id: gameTypeId,
-        title: scenario.title,
-        description: scenario.description,
-        difficulty: scenario.difficulty,
-        duration_minutes: scenario.duration_minutes,
+        id: uniqid,
+        game_type_id: game_type,
+        title,
+        description,
+        difficulty,
+        duration_minutes,
         image_url: imageUrl || '/placeholder-image.jpg',
-        uniqid: scenario.uniqid,
+        uniqid,
         available_for_purchase: false
       });
     }
@@ -196,6 +212,33 @@ export function GameList() {
 
     if (anyImage && anyImage.data) {
       return `data:image/png;base64,${anyImage.data}`;
+    }
+
+    return null;
+  };
+
+  const getScenarioImageFromStorage = async (uniqid: string): Promise<string | null> => {
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const imageFolders = ['images', ''];
+
+    for (const folder of imageFolders) {
+      const path = folder ? `scenarios/${uniqid}/${folder}` : `scenarios/${uniqid}`;
+      const { data: files } = await supabase.storage.from('resources').list(path, { limit: 50 });
+      if (!files) continue;
+
+      const imageFile = files.find(f =>
+        imageExtensions.some(ext => f.name.toLowerCase().endsWith(`.${ext}`)) &&
+        f.name.toLowerCase().includes('instruction')
+      ) || files.find(f =>
+        imageExtensions.some(ext => f.name.toLowerCase().endsWith(`.${ext}`))
+      );
+
+      if (imageFile) {
+        const { data } = supabase.storage
+          .from('resources')
+          .getPublicUrl(`${path}/${imageFile.name}`);
+        return data.publicUrl;
+      }
     }
 
     return null;

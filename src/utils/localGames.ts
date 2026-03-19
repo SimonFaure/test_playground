@@ -5,20 +5,20 @@ export async function getLocalGameIds(): Promise<string[]> {
 
   if (!isElectron) {
     try {
-      const { data: scenarios, error } = await supabase
-        .from('scenarios')
-        .select('uniqid');
+      const { data: folders, error } = await supabase.storage
+        .from('resources')
+        .list('scenarios', { limit: 1000 });
 
       if (error) {
-        console.error('Error fetching scenarios:', error);
+        console.error('Error fetching scenarios from storage:', error);
         return [];
       }
 
-      const gameIds = scenarios?.map(s => s.uniqid) || [];
+      const gameIds = folders?.map(f => f.name).filter(Boolean) || [];
       console.log('Browser storage games found:', gameIds);
       return gameIds;
     } catch (error) {
-      console.error('Error reading games from Supabase:', error);
+      console.error('Error reading games from Supabase storage:', error);
       return [];
     }
   }

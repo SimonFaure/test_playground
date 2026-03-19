@@ -88,7 +88,7 @@ async function buildScenariosFolder(): Promise<StorageNode> {
   try {
     const { data: scenarios, error } = await supabase
       .from('scenarios')
-      .select('uniqid, title, csv_game, csv_enigmas, csv_media_images, csv_meta, csv_sounds, csv_user_meta');
+      .select('uniqid, title');
 
     if (error) {
       console.error('Error fetching scenarios:', error);
@@ -108,39 +108,6 @@ async function buildScenariosFolder(): Promise<StorageNode> {
         expanded: false,
         children: []
       };
-
-      const csvFolder: StorageNode = {
-        name: 'csv',
-        path: `/scenarios/${uniqid}/csv`,
-        type: 'folder',
-        expanded: false,
-        children: []
-      };
-
-      const csvFiles = {
-        'game.csv': scenario.csv_game,
-        'game_enigmas.csv': scenario.csv_enigmas,
-        'game_media_images.csv': scenario.csv_media_images,
-        'game_meta.csv': scenario.csv_meta,
-        'game_sounds.csv': scenario.csv_sounds,
-        'game_user_meta.csv': scenario.csv_user_meta
-      };
-
-      for (const [filename, content] of Object.entries(csvFiles)) {
-        if (content) {
-          const size = new Blob([content]).size;
-          csvFolder.children?.push({
-            name: filename,
-            path: `/scenarios/${uniqid}/csv/${filename}`,
-            type: 'file',
-            size
-          });
-        }
-      }
-
-      if (csvFolder.children && csvFolder.children.length > 0) {
-        gameFolder.children?.push(csvFolder);
-      }
 
       const { data: mediaFiles, error: mediaError } = await supabase
         .from('scenario_media')
@@ -387,33 +354,7 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
       }
 
       if (pathParts.length >= 3) {
-        if (pathParts[2] === 'csv') {
-          if (pathParts.length === 4) {
-            const filename = pathParts[3];
-            const csvColumnMap: Record<string, string> = {
-              'game.csv': 'csv_game',
-              'game_enigmas.csv': 'csv_enigmas',
-              'game_media_images.csv': 'csv_media_images',
-              'game_meta.csv': 'csv_meta',
-              'game_sounds.csv': 'csv_sounds',
-              'game_user_meta.csv': 'csv_user_meta'
-            };
-
-            const columnName = csvColumnMap[filename];
-            if (columnName) {
-              const { error } = await supabase
-                .from('scenarios')
-                .update({ [columnName]: '' })
-                .eq('uniqid', uniqid);
-
-              if (error) {
-                console.error('Error deleting CSV file:', error);
-                return false;
-              }
-              return true;
-            }
-          }
-        } else if (pathParts[2] === 'media') {
+        if (pathParts[2] === 'media') {
           if (pathParts.length === 3) {
             const { error } = await supabase
               .from('scenario_media')

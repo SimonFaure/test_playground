@@ -485,12 +485,7 @@ async function saveGameWeb(data: any): Promise<void> {
       version: gameData.version || gameData.game_meta?.game_version || '1.0',
       duration_minutes: gameData.duration_minutes || 60,
       difficulty: gameData.difficulty || 'medium',
-      csv_game: csvFiles['game.csv'] || '',
-      csv_enigmas: csvFiles['game_enigmas.csv'] || '',
-      csv_media_images: csvFiles['game_media_images.csv'] || '',
-      csv_meta: csvFiles['game_meta.csv'] || '',
-      csv_sounds: csvFiles['game_sounds.csv'] || '',
-      csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+      game_data_json: gameData,
       updated_at: new Date().toISOString()
     }, {
       onConflict: 'uniqid'

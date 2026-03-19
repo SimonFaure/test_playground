@@ -124,17 +124,26 @@ async function saveZipToDataFolder(zip: JSZip, uniqid: string): Promise<void> {
 }
 
 async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void> {
-  const csvFiles: Record<string, string> = {};
+  let gameDataJson: Record<string, unknown> | null = null;
   const mediaFiles: Array<{ filename: string; media_type: string; data: string }> = [];
+
+  const gameDataFile = Object.keys(zip.files).find(
+    f => f.endsWith('game-data.json') || f === 'game-data.json'
+  );
+  if (gameDataFile && !zip.files[gameDataFile].dir) {
+    const content = await zip.files[gameDataFile].async('text');
+    try {
+      const parsed = JSON.parse(content);
+      gameDataJson = parsed.game_data !== undefined ? parsed.game_data : parsed;
+    } catch {
+      console.warn('[zipHandler] Failed to parse game-data.json');
+    }
+  }
 
   for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
     if (zipEntry.dir) continue;
 
-    if (relativePath.includes('csv/')) {
-      const content = await zipEntry.async('text');
-      const fileName = relativePath.split('/').pop() || '';
-      csvFiles[fileName] = content;
-    } else if (relativePath.includes('media/')) {
+    if (relativePath.includes('media/')) {
       const base64Content = await zipEntry.async('base64');
       const pathAfterMedia = relativePath.substring(relativePath.indexOf('media/') + 6);
 
@@ -169,23 +178,13 @@ async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void
   let gameTitle = 'Untitled Scenario';
   let gameType = 'mystery';
 
-  if (csvFiles['game.csv']) {
-    const lines = csvFiles['game.csv'].trim().split('\n');
-    if (lines.length >= 2) {
-      const headers = lines[0].split(',').map(h => h.trim());
-      const values = lines[1].split(',').map(v => v.trim());
+  if (gameDataJson) {
+    const gd = gameDataJson as any;
+    if (gd.game?.title) gameTitle = gd.game.title;
+    else if (gd.title) gameTitle = gd.title;
 
-      const titleIndex = headers.indexOf('title');
-      const typeIndex = headers.indexOf('type');
-
-      if (titleIndex !== -1 && values[titleIndex]) {
-        gameTitle = values[titleIndex];
-      }
-
-      if (typeIndex !== -1 && values[typeIndex]) {
-        gameType = values[typeIndex];
-      }
-    }
+    if (gd.game?.type) gameType = gd.game.type;
+    else if (gd.type) gameType = gd.type;
   }
 
   const { error: scenarioError } = await supabase
@@ -194,12 +193,7 @@ async function saveZipToBrowserStorage(zip: JSZip, uniqid: string): Promise<void
       uniqid,
       title: gameTitle,
       game_type: gameType,
-      csv_game: csvFiles['game.csv'] || '',
-      csv_enigmas: csvFiles['game_enigmas.csv'] || '',
-      csv_media_images: csvFiles['game_media_images.csv'] || '',
-      csv_meta: csvFiles['game_meta.csv'] || '',
-      csv_sounds: csvFiles['game_sounds.csv'] || '',
-      csv_user_meta: csvFiles['game_user_meta.csv'] || '',
+      game_data_json: gameDataJson,
       updated_at: new Date().toISOString()
     }, {
       onConflict: 'uniqid'

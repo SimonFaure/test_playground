@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Map, ChevronRight, CheckCircle, XCircle, Loader, FolderOpen, Upload } from 'lucide-react';
+import { Map, ChevronRight, CheckCircle, XCircle, Loader, FolderOpen, Upload, Radio } from 'lucide-react';
 import { getPatternFolders } from '../utils/patterns';
 
 const DEFAULT_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
@@ -18,6 +18,14 @@ interface PatternEnigmaRow {
   enigma_id: string;
   good_answers: string[];
   wrong_answers: string[];
+}
+
+interface PatternBaliseRow {
+  id: string;
+  pattern_id: string;
+  image: number;
+  position: number;
+  balise_id: number;
 }
 
 interface PatternFolder {
@@ -142,6 +150,83 @@ function extractLocalEnigmas(slug: string): PatternEnigmaRow[] | null {
   return null;
 }
 
+function BaliseGrid({ balises }: { balises: PatternBaliseRow[] }) {
+  const images = [...new Set(balises.map(b => b.image))].sort((a, b) => a - b);
+  const positions = [...new Set(balises.map(b => b.position))].sort((a, b) => a - b);
+
+  const lookup = new Map<string, number>();
+  for (const b of balises) {
+    lookup.set(`${b.image}-${b.position}`, b.balise_id);
+  }
+
+  return (
+    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80 flex items-center gap-2">
+        <Radio size={14} className="text-cyan-400" />
+        <p className="text-slate-300 text-sm font-medium">
+          Station assignments — {images.length} quest image{images.length !== 1 ? 's' : ''}, {positions.length} position{positions.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-700 bg-slate-800/60">
+              <th className="text-left px-4 py-3 text-slate-400 font-semibold whitespace-nowrap">
+                Image
+              </th>
+              {positions.map(pos => (
+                <th key={pos} className="text-center px-3 py-3 text-slate-400 font-semibold whitespace-nowrap min-w-[64px]">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-slate-500 font-normal">pos</span>
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-700 text-slate-200 font-bold text-xs">
+                      {pos}
+                    </span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {images.map((img, index) => (
+              <tr
+                key={img}
+                className={`border-b border-slate-700/50 transition hover:bg-slate-700/20 ${
+                  index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/30'
+                }`}
+              >
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-900/40 border border-cyan-700/50 text-cyan-300 font-bold text-sm">
+                      {img}
+                    </span>
+                    <span className="text-slate-500 text-xs font-mono">img {img}</span>
+                  </span>
+                </td>
+                {positions.map(pos => {
+                  const baliseId = lookup.get(`${img}-${pos}`);
+                  return (
+                    <td key={pos} className="px-3 py-3 text-center">
+                      {baliseId !== undefined ? (
+                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-700 border border-slate-600 text-white font-mono font-bold text-sm hover:bg-slate-600 transition">
+                          {baliseId}
+                        </span>
+                      ) : (
+                        <span className="text-slate-700 text-lg select-none">·</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+type DetailTab = 'enigmas' | 'balises';
+
 export function PatternsPage() {
   const [gameType] = useState('mystery');
   const [patterns, setPatterns] = useState<PatternFolder[]>([]);
@@ -149,6 +234,9 @@ export function PatternsPage() {
   const [selectedPattern, setSelectedPattern] = useState<PatternFolder | null>(null);
   const [enigmas, setEnigmas] = useState<PatternEnigmaRow[]>([]);
   const [loadingEnigmas, setLoadingEnigmas] = useState(false);
+  const [balises, setBalises] = useState<PatternBaliseRow[]>([]);
+  const [loadingBalises, setLoadingBalises] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>('enigmas');
 
   useEffect(() => {
     loadPatterns();
@@ -186,7 +274,10 @@ export function PatternsPage() {
   const handleSelectPattern = async (pattern: PatternFolder) => {
     setSelectedPattern(pattern);
     setEnigmas([]);
+    setBalises([]);
+    setActiveTab('enigmas');
     setLoadingEnigmas(true);
+    setLoadingBalises(true);
     try {
       if (pattern.source === 'local') {
         const rows = extractLocalEnigmas(pattern.folder);
@@ -209,6 +300,24 @@ export function PatternsPage() {
       console.error('Error loading enigmas:', err);
     }
     setLoadingEnigmas(false);
+
+    try {
+      const csv = await readStaticPatternFile(gameType, pattern.folder, 'patterns_balises.csv');
+      if (csv) {
+        const rows = parseCSVRaw(csv);
+        const parsed: PatternBaliseRow[] = rows.map(row => ({
+          id: row.id,
+          pattern_id: row.pattern_id,
+          image: parseInt(row.image, 10),
+          position: parseInt(row.position, 10),
+          balise_id: parseInt(row.balise_id, 10),
+        })).filter(r => !isNaN(r.image) && !isNaN(r.position) && !isNaN(r.balise_id));
+        setBalises(parsed);
+      }
+    } catch (err) {
+      console.error('Error loading balises:', err);
+    }
+    setLoadingBalises(false);
   };
 
   const displayName = (p: PatternFolder) =>
@@ -296,101 +405,158 @@ export function PatternsPage() {
                 <div className="text-center py-20">
                   <Map size={48} className="text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-400 text-lg font-medium">Select a pattern</p>
-                  <p className="text-slate-500 text-sm mt-1">Click a pattern on the left to view its enigma table</p>
+                  <p className="text-slate-500 text-sm mt-1">Click a pattern on the left to view its details</p>
                 </div>
-              </div>
-            ) : loadingEnigmas ? (
-              <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
-                <Loader size={20} className="animate-spin" />
-                <span>Loading enigmas...</span>
               </div>
             ) : (
               <div>
-                <div className="flex items-center gap-3 mb-5">
+                <div className="flex items-start justify-between gap-3 mb-5">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-bold text-white">{displayName(selectedPattern)}</h3>
-                    <p className="text-slate-400 text-sm mt-0.5">
-                      {enigmas.length} enigma{enigmas.length !== 1 ? 's' : ''} in this pattern
-                    </p>
                   </div>
                 </div>
 
-                {enigmas.length === 0 ? (
-                  <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-8 text-center">
-                    <p className="text-slate-400">No enigma data found for this pattern.</p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-700 bg-slate-800/80">
-                          <th className="text-left px-4 py-3 text-slate-400 font-semibold w-12">#</th>
-                          <th className="text-left px-4 py-3 text-slate-400 font-semibold w-24">Enigma</th>
-                          <th className="text-left px-4 py-3 text-slate-400 font-semibold">
-                            <span className="flex items-center gap-1.5">
-                              <CheckCircle size={13} className="text-green-400" />
-                              Good Answers
-                            </span>
-                          </th>
-                          <th className="text-left px-4 py-3 text-slate-400 font-semibold">
-                            <span className="flex items-center gap-1.5">
-                              <XCircle size={13} className="text-red-400" />
-                              Wrong Answers
-                            </span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {enigmas.map((row, index) => (
-                          <tr
-                            key={row.id}
-                            className={`border-b border-slate-700/50 transition hover:bg-slate-700/30 ${
-                              index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/30'
-                            }`}
-                          >
-                            <td className="px-4 py-3 text-slate-500 text-xs font-mono">{row.id}</td>
-                            <td className="px-4 py-3">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700 text-white font-bold text-sm">
-                                {row.enigma_id}
+                <div className="flex gap-1 mb-5 bg-slate-800/60 border border-slate-700 rounded-xl p-1 w-fit">
+                  <button
+                    onClick={() => setActiveTab('enigmas')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      activeTab === 'enigmas'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <CheckCircle size={14} />
+                    Enigmas
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
+                      activeTab === 'enigmas' ? 'bg-emerald-500/40 text-emerald-100' : 'bg-slate-700 text-slate-400'
+                    }`}>
+                      {enigmas.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('balises')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      activeTab === 'balises'
+                        ? 'bg-cyan-700 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <Radio size={14} />
+                    Visuel balise
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
+                      activeTab === 'balises' ? 'bg-cyan-600/40 text-cyan-100' : 'bg-slate-700 text-slate-400'
+                    }`}>
+                      {balises.length}
+                    </span>
+                  </button>
+                </div>
+
+                {activeTab === 'enigmas' && (
+                  loadingEnigmas ? (
+                    <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
+                      <Loader size={20} className="animate-spin" />
+                      <span>Loading enigmas...</span>
+                    </div>
+                  ) : enigmas.length === 0 ? (
+                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-8 text-center">
+                      <CheckCircle size={32} className="text-slate-600 mx-auto mb-3" />
+                      <p className="text-slate-400">No enigma data found for this pattern.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                        <p className="text-slate-400 text-sm">
+                          {enigmas.length} enigma{enigmas.length !== 1 ? 's' : ''} in this pattern
+                        </p>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-700 bg-slate-800/60">
+                            <th className="text-left px-4 py-3 text-slate-400 font-semibold w-12">#</th>
+                            <th className="text-left px-4 py-3 text-slate-400 font-semibold w-24">Enigma</th>
+                            <th className="text-left px-4 py-3 text-slate-400 font-semibold">
+                              <span className="flex items-center gap-1.5">
+                                <CheckCircle size={13} className="text-green-400" />
+                                Good Answers
                               </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1.5">
-                                {row.good_answers.length > 0 ? (
-                                  row.good_answers.map((ans, i) => (
-                                    <span
-                                      key={i}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-green-900/30 border border-green-700/50 text-green-300 font-mono font-semibold text-xs"
-                                    >
-                                      {ans}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-slate-600 text-xs italic">—</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1.5">
-                                {row.wrong_answers.length > 0 ? (
-                                  row.wrong_answers.map((ans, i) => (
-                                    <span
-                                      key={i}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-700/50 text-red-300 font-mono font-semibold text-xs"
-                                    >
-                                      {ans}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-slate-600 text-xs italic">—</span>
-                                )}
-                              </div>
-                            </td>
+                            </th>
+                            <th className="text-left px-4 py-3 text-slate-400 font-semibold">
+                              <span className="flex items-center gap-1.5">
+                                <XCircle size={13} className="text-red-400" />
+                                Wrong Answers
+                              </span>
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {enigmas.map((row, index) => (
+                            <tr
+                              key={row.id}
+                              className={`border-b border-slate-700/50 transition hover:bg-slate-700/30 ${
+                                index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/30'
+                              }`}
+                            >
+                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{row.id}</td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700 text-white font-bold text-sm">
+                                  {row.enigma_id}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {row.good_answers.length > 0 ? (
+                                    row.good_answers.map((ans, i) => (
+                                      <span
+                                        key={i}
+                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-green-900/30 border border-green-700/50 text-green-300 font-mono font-semibold text-xs"
+                                      >
+                                        {ans}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-slate-600 text-xs italic">—</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {row.wrong_answers.length > 0 ? (
+                                    row.wrong_answers.map((ans, i) => (
+                                      <span
+                                        key={i}
+                                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-700/50 text-red-300 font-mono font-semibold text-xs"
+                                      >
+                                        {ans}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-slate-600 text-xs italic">—</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+
+                {activeTab === 'balises' && (
+                  loadingBalises ? (
+                    <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
+                      <Loader size={20} className="animate-spin" />
+                      <span>Loading station assignments...</span>
+                    </div>
+                  ) : balises.length === 0 ? (
+                    <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-8 text-center">
+                      <Radio size={32} className="text-slate-600 mx-auto mb-3" />
+                      <p className="text-slate-400 font-medium">No station assignment data found.</p>
+                      <p className="text-slate-500 text-xs mt-1">Add a <span className="font-mono">patterns_balises.csv</span> file to this pattern folder.</p>
+                    </div>
+                  ) : (
+                    <BaliseGrid balises={balises} />
+                  )
                 )}
               </div>
             )}

@@ -89,6 +89,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
   const [gameMessage, setGameMessage] = useState('');
   const [mediaFiles, setMediaFiles] = useState<Record<string, string>>({});
   const [bgDimensions, setBgDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [launchedGameInfo, setLaunchedGameInfo] = useState<{ start_time: string | null; duration: number | null } | null>(null);
   const bgImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -238,6 +240,40 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       return () => clearInterval(interval);
     }
   }, [launchedGameId]);
+
+  useEffect(() => {
+    if (!launchedGameId) return;
+
+    const fetchLaunchedGame = async () => {
+      const { data } = await supabase
+        .from('launched_games')
+        .select('start_time, duration')
+        .eq('id', launchedGameId)
+        .maybeSingle();
+
+      if (data) {
+        setLaunchedGameInfo({ start_time: data.start_time, duration: data.duration });
+      }
+    };
+
+    fetchLaunchedGame();
+  }, [launchedGameId]);
+
+  useEffect(() => {
+    if (!launchedGameInfo?.start_time || launchedGameInfo.duration == null) return;
+
+    const tick = () => {
+      const startMs = new Date(launchedGameInfo.start_time!).getTime();
+      const durationMs = (launchedGameInfo.duration ?? 0) * 60 * 1000;
+      const endMs = startMs + durationMs;
+      const remaining = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
+      setCountdown(remaining);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [launchedGameInfo]);
 
   const loadTeams = async () => {
     if (!launchedGameId) return;
@@ -434,8 +470,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
       const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
 
-      console.log("quests");
-console.log(quests);
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
       const resolveMedia = (key: string | undefined): string => {
@@ -452,9 +486,11 @@ console.log(quests);
 
         const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
 
+        const isRightPlacement = (element.x ?? 0) >= 50;
+
         return [
-          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight }}>
-            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}>
+          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, opacity: 0 }}>
+            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: isRightPlacement ? 'blur(8px)' : undefined }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>
             <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap' }}>
@@ -470,6 +506,11 @@ console.log(quests);
       });
     }
 
+    const elementId = element.id?.toLowerCase() ?? '';
+    const isMultiplicator = elementId.includes('multiplicat');
+    const isPoints = elementId.includes('points');
+    const isTimer = elementId.includes('timer') || elementId.includes('countdown');
+
     switch (element.type) {
       case 'image':
         return (
@@ -481,7 +522,15 @@ console.log(quests);
             />
           </div>
         );
-      case 'text':
+      case 'text': {
+        let displayText: string | number | undefined;
+        if (isTimer) {
+          displayText = countdown !== null ? formatTime(countdown) : formatTime(0);
+        } else if (isMultiplicator || isPoints) {
+          displayText = 0;
+        } else {
+          displayText = element.text ?? element.previewText;
+        }
         return (
           <div key={`${element.id}-${index}`} style={wrapperStyle}>
             <div
@@ -498,10 +547,11 @@ console.log(quests);
                 whiteSpace: 'nowrap',
               }}
             >
-              {element.text ?? element.previewText}
+              {displayText}
             </div>
           </div>
         );
+      }
       case 'container':
         return (
           <div key={`${element.id}-${index}`} style={wrapperStyle}>

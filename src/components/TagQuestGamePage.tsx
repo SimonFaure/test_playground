@@ -12,16 +12,13 @@ interface TagQuestGamePageProps {
   onBack: () => void;
 }
 
-interface GameEnigma {
+interface GameQuest {
   id: string;
   game_id: string;
   number: string;
   text: string;
-  answer_type: string;
-  good_answer: string;
-  good_answer_image: string;
-  good_answer_points: string;
-  wrong_answer_points: string;
+  main_image: string;
+  [key: string]: string;
 }
 
 interface GameData {
@@ -31,7 +28,7 @@ interface GameData {
     type: string;
     title: string;
   };
-  game_enigmas?: GameEnigma[];
+  game_quests?: GameQuest[];
   game_media_images?: Array<{
     id: string;
     uuid: string;
@@ -479,30 +476,36 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           </div>
         );
       case 'quest': {
-        const enigmas = gameData?.game_enigmas || [];
-        const elW = element.width !== undefined ? (element.width / 100) * bgDimensions.width : undefined;
-        const elH = element.height !== undefined ? (element.height / 100) * bgDimensions.height : undefined;
-        const imgW = elW !== undefined ? elW * 0.5 : undefined;
-        const imgH = elH !== undefined ? elH * 0.5 : undefined;
+        const quests = gameData?.game_quests || [];
+        const animChild = element.children?.find(c => c.id === 'animation_quest_image');
+        const animStyle: React.CSSProperties = animChild
+          ? {
+              position: 'absolute',
+              left: animChild.x !== undefined ? `${(animChild.x / 100) * bgDimensions.width}px` : '0',
+              top: animChild.y !== undefined ? `${(animChild.y / 100) * bgDimensions.height}px` : '0',
+              width: animChild.width !== undefined ? `${(animChild.width / 100) * bgDimensions.width}px` : '50%',
+              height: animChild.height !== undefined ? `${(animChild.height / 100) * bgDimensions.height}px` : '50%',
+            }
+          : {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: element.width !== undefined ? `${(element.width / 100) * bgDimensions.width * 0.5}px` : '50%',
+              height: element.height !== undefined ? `${(element.height / 100) * bgDimensions.height * 0.5}px` : '50%',
+            };
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, position: 'absolute' }}>
-            {enigmas.map((enigma) => {
-              const src = mediaFiles[enigma.good_answer_image] || '';
+          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+            {quests.map((quest) => {
+              const src = mediaFiles[quest.main_image] || '';
               return (
                 <div
-                  key={enigma.id}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: imgW !== undefined ? `${imgW}px` : '50%',
-                    height: imgH !== undefined ? `${imgH}px` : '50%',
-                  }}
+                  key={quest.id}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
                 >
                   <img
                     src={src}
-                    alt={enigma.text}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    alt={quest.text}
+                    style={{ ...animStyle, objectFit: 'contain' } as React.CSSProperties}
                   />
                 </div>
               );

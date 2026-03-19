@@ -12,6 +12,18 @@ interface TagQuestGamePageProps {
   onBack: () => void;
 }
 
+interface GameEnigma {
+  id: string;
+  game_id: string;
+  number: string;
+  text: string;
+  answer_type: string;
+  good_answer: string;
+  good_answer_image: string;
+  good_answer_points: string;
+  wrong_answer_points: string;
+}
+
 interface GameData {
   game: {
     id: string;
@@ -19,6 +31,7 @@ interface GameData {
     type: string;
     title: string;
   };
+  game_enigmas?: GameEnigma[];
   game_media_images?: Array<{
     id: string;
     uuid: string;
@@ -36,7 +49,7 @@ interface TeamScore {
 
 interface LayoutElement {
   id: string;
-  type: 'image' | 'text' | 'container';
+  type: 'image' | 'text' | 'container' | 'quest';
   name?: string;
   x?: number;
   y?: number;
@@ -465,6 +478,38 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
           </div>
         );
+      case 'quest': {
+        const enigmas = gameData?.game_enigmas || [];
+        const elW = element.width !== undefined ? (element.width / 100) * bgDimensions.width : undefined;
+        const elH = element.height !== undefined ? (element.height / 100) * bgDimensions.height : undefined;
+        const imgW = elW !== undefined ? elW * 0.5 : undefined;
+        const imgH = elH !== undefined ? elH * 0.5 : undefined;
+        return (
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, position: 'absolute' }}>
+            {enigmas.map((enigma) => {
+              const src = mediaFiles[enigma.good_answer_image] || '';
+              return (
+                <div
+                  key={enigma.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: imgW !== undefined ? `${imgW}px` : '50%',
+                    height: imgH !== undefined ? `${imgH}px` : '50%',
+                  }}
+                >
+                  <img
+                    src={src}
+                    alt={enigma.text}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       default:
         return <div key={`${element.id}-${index}`}>Unknown element type</div>;
     }

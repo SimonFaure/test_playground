@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
-import { getPatternFolders, getPatternFilesFromStorage, getDefaultPatternId, getGamePublic } from '../utils/patterns';
+import { getPatternOptions, getPatternFilesFromStorage, getDefaultPatternId, PatternOption } from '../utils/patterns';
 import { usbReaderService, USBPort } from '../services/usbReader';
 import { supabase } from '../lib/db';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -57,7 +57,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     delayBeforeReset: 10,
     usbPort: '',
   });
-  const [patternFolders, setPatternFolders] = useState<string[]>([]);
+  const [patternFolders, setPatternFolders] = useState<PatternOption[]>([]);
   const [defaultPattern, setDefaultPattern] = useState<string>('');
   const [usbPorts, setUsbPorts] = useState<USBPort[]>([]);
   const [savedUsbPort, setSavedUsbPort] = useState<string>('');
@@ -71,14 +71,13 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const loadData = async () => {
       if (!gameTypeName || !gameUniqid) return;
 
-      const [folders, storageFiles, defaultPatternId, gamePublic] = await Promise.all([
-        getPatternFolders(gameTypeName),
+      const [options, storageFiles, defaultPatternId] = await Promise.all([
+        getPatternOptions(gameTypeName),
         getPatternFilesFromStorage(gameTypeName),
         getDefaultPatternId(gameUniqid),
-        getGamePublic(gameUniqid),
       ]);
 
-      setPatternFolders(folders);
+      setPatternFolders(options);
 
       let resolvedPattern = '';
 
@@ -90,7 +89,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       }
 
       if (!resolvedPattern) {
-        resolvedPattern = gamePublic || folders[0] || '';
+        resolvedPattern = options[0]?.slug || '';
       }
 
       setDefaultPattern(resolvedPattern);
@@ -345,17 +344,12 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 required
               >
 
-                {
-                  patternFolders.length === 0 ? (
+                {patternFolders.length === 0 ? (
                   <option value="">Loading patterns...</option>
                 ) : (
-                  patternFolders.map((folder) => (
-                    <option
-                      key={folder}
-                      value={folder}
-                      selected={folder === defaultPattern}
-                    >
-                      {folder}
+                  patternFolders.map((option) => (
+                    <option key={option.slug} value={option.slug}>
+                      {option.name}
                     </option>
                   ))
                 )}

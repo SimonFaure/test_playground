@@ -2,10 +2,22 @@ import { supabase } from '../lib/db';
 
 const DEFAULT_PATTERN_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
+const DEFAULT_PATTERN_NAMES: Record<string, string> = {
+  ado_adultes: 'ADO / ADULTES',
+  kids: 'KIDS',
+  mini_kids: 'MINI KIDS',
+};
+
 export interface PatternFile {
   uniqid: string;
   slug: string;
   fileName: string;
+}
+
+export interface PatternOption {
+  slug: string;
+  name: string;
+  uniqid: string;
 }
 
 export async function getPatternFilesFromStorage(gameTypeName: string): Promise<PatternFile[]> {
@@ -64,6 +76,79 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
     console.warn('Error fetching pattern folders:', err);
     return DEFAULT_PATTERN_FOLDERS;
   }
+}
+
+async function readPatternName(gameTypeName: string, slug: string): Promise<string> {
+  try {
+    if (window.electron?.patterns?.readFile) {
+      const csv = await window.electron.patterns.readFile(gameTypeName, slug, 'pattern.csv');
+      const lines = csv.trim().split('\n');
+      if (lines.length >= 2) {
+        const headers = lines[0].split(',');
+        const nameIdx = headers.findIndex(h => h.trim() === 'name');
+        if (nameIdx !== -1) {
+          const vals = lines[1].split(',');
+          const raw = vals[nameIdx]?.trim().replace(/^"|"$/g, '');
+          if (raw) return raw;
+        }
+      }
+    } else {
+      const { data } = supabase.storage
+        .from('resources')
+        .getPublicUrl(`patterns/${gameTypeName}/pattern_${slug}.csv`);
+      const resp = await fetch(data.publicUrl);
+      if (resp.ok) {
+        const csv = await resp.text();
+        const lines = csv.trim().split('\n');
+        if (lines.length >= 2) {
+          const headers = lines[0].split(',');
+          const nameIdx = headers.findIndex(h => h.trim() === 'name');
+          if (nameIdx !== -1) {
+            const vals = lines[1].split(',');
+            const raw = vals[nameIdx]?.trim().replace(/^"|"$/g, '');
+            if (raw) return raw;
+          }
+        }
+      }
+    }
+  } catch {
+  }
+  return DEFAULT_PATTERN_NAMES[slug] || slug;
+}
+
+export async function getPatternOptions(gameTypeName: string): Promise<PatternOption[]> {
+  const storageFiles = await getPatternFilesFromStorage(gameTypeName);
+
+  const seenSlugs = new Set<string>();
+  const options: PatternOption[] = [];
+
+  for (const file of storageFiles) {
+    if (seenSlugs.has(file.slug)) continue;
+    seenSlugs.add(file.slug);
+    const name = await readPatternName(gameTypeName, file.slug);
+    options.push({ slug: file.slug, name, uniqid: file.uniqid });
+  }
+
+  for (const slug of DEFAULT_PATTERN_FOLDERS) {
+    if (seenSlugs.has(slug)) continue;
+    seenSlugs.add(slug);
+    const name = await readPatternName(gameTypeName, slug);
+    options.push({ slug, name, uniqid: '' });
+  }
+
+  if (window.electron?.patterns?.listFolders) {
+    try {
+      const folders: string[] = await window.electron.patterns.listFolders(gameTypeName);
+      for (const slug of folders) {
+        if (seenSlugs.has(slug)) continue;
+        seenSlugs.add(slug);
+        const name = await readPatternName(gameTypeName, slug);
+        options.push({ slug, name, uniqid: '' });
+      }
+    } catch {}
+  }
+
+  return options;
 }
 
 async function readGameDataFile(uniqid: string): Promise<any> {

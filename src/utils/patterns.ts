@@ -72,7 +72,7 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
   }
 }
 
-async function readPatternName(gameTypeName: string, slug: string): Promise<string> {
+async function readPatternName(gameTypeName: string, slug: string, uniqid?: string): Promise<string> {
   try {
     if (window.electron?.patterns?.readFile) {
       const csv = await window.electron.patterns.readFile(gameTypeName, slug, 'pattern.csv');
@@ -87,9 +87,10 @@ async function readPatternName(gameTypeName: string, slug: string): Promise<stri
         }
       }
     } else {
-      const { data } = supabase.storage
-        .from('resources')
-        .getPublicUrl(`patterns/${gameTypeName}/pattern_${slug}.csv`);
+      const filePath = uniqid
+        ? `patterns/${gameTypeName}/pattern_${uniqid}_${slug}.csv`
+        : `patterns/${gameTypeName}/pattern_${slug}.csv`;
+      const { data } = supabase.storage.from('resources').getPublicUrl(filePath);
       const resp = await fetch(data.publicUrl);
       if (resp.ok) {
         const csv = await resp.text();
@@ -119,7 +120,7 @@ export async function getPatternOptions(gameTypeName: string): Promise<PatternOp
   for (const file of storageFiles) {
     if (seenSlugs.has(file.slug)) continue;
     seenSlugs.add(file.slug);
-    const name = await readPatternName(gameTypeName, file.slug);
+    const name = await readPatternName(gameTypeName, file.slug, file.uniqid);
     options.push({ slug: file.slug, name, uniqid: file.uniqid });
   }
 

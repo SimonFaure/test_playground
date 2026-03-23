@@ -150,7 +150,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     : availableChips;
 
   const maxTeams = allChips.length > 0 ? allChips.length : undefined;
-  const totalMaxTeams = (availableChips.length + onDemandChips.length) || undefined;
+  const totalMaxTeams = maxTeams;
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');

@@ -151,6 +151,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
 
   const maxTeams = allChips.length > 0 ? allChips.length : undefined;
   const totalMaxTeams = maxTeams;
+  const maxFirstChipIndex = maxTeams !== undefined ? maxTeams - config.numberOfTeams : undefined;
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
@@ -365,7 +366,11 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 value={config.numberOfTeams}
                 onChange={(e) => {
                   const val = parseInt(e.target.value) || 1;
-                  setConfig({ ...config, numberOfTeams: maxTeams !== undefined ? Math.min(val, maxTeams) : val });
+                  const clampedTeams = maxTeams !== undefined ? Math.min(val, maxTeams) : val;
+                  const clampedFirst = maxTeams !== undefined
+                    ? Math.min(config.firstChipIndex, maxTeams - clampedTeams)
+                    : config.firstChipIndex;
+                  setConfig({ ...config, numberOfTeams: clampedTeams, firstChipIndex: clampedFirst });
                 }}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
@@ -383,8 +388,13 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 type="number"
                 id="firstChipIndex"
                 min="0"
+                {...(maxFirstChipIndex !== undefined ? { max: maxFirstChipIndex } : {})}
                 value={config.firstChipIndex}
-                onChange={(e) => setConfig({ ...config, firstChipIndex: parseInt(e.target.value) || 0 })}
+                onChange={(e) => {
+                  let val = parseInt(e.target.value) || 0;
+                  if (maxFirstChipIndex !== undefined) val = Math.min(val, maxFirstChipIndex);
+                  setConfig({ ...config, firstChipIndex: val });
+                }}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
@@ -491,10 +501,14 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                   checked={useOnDemandCards}
                   onChange={(e) => {
                     setUseOnDemandCards(e.target.checked);
-                    if (!e.target.checked && maxTeams !== undefined) {
+                    if (!e.target.checked) {
                       const newMax = availableChips.length;
-                      if (config.numberOfTeams > newMax && newMax > 0) {
-                        setConfig(prev => ({ ...prev, numberOfTeams: newMax }));
+                      if (newMax > 0) {
+                        setConfig(prev => {
+                          const clampedTeams = Math.min(prev.numberOfTeams, newMax);
+                          const clampedFirst = Math.min(prev.firstChipIndex, newMax - clampedTeams);
+                          return { ...prev, numberOfTeams: clampedTeams, firstChipIndex: clampedFirst };
+                        });
                       }
                     }
                   }}

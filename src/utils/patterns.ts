@@ -2,11 +2,41 @@ import { supabase } from '../lib/db';
 
 const DEFAULT_PATTERN_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
+export interface PatternFile {
+  uniqid: string;
+  slug: string;
+  fileName: string;
+}
+
+export async function getPatternFilesFromStorage(gameTypeName: string): Promise<PatternFile[]> {
+  try {
+    const { data, error } = await supabase.storage
+      .from('resources')
+      .list(`patterns/${gameTypeName}`, { limit: 1000 });
+
+    if (error || !data) return [];
+
+    const files: PatternFile[] = [];
+    for (const item of data) {
+      if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+      const baseName = item.name.replace(/\.(json|csv)$/, '');
+      const parts = baseName.split('_');
+      if (parts.length >= 3 && parts[0] === 'pattern') {
+        const uniqid = parts[1];
+        const slug = parts.slice(2).join('_');
+        files.push({ uniqid, slug, fileName: item.name });
+      }
+    }
+    return files;
+  } catch {
+    return [];
+  }
+}
+
 export async function getPatternFolders(gameTypeName: string): Promise<string[]> {
   if (window.electron?.patterns?.listFolders) {
     try {
       const folders = await window.electron.patterns.listFolders(gameTypeName);
-      console.log('Pattern folders found:', folders);
       return folders;
     } catch (error) {
       console.error('Error reading pattern folders:', error);
@@ -15,19 +45,18 @@ export async function getPatternFolders(gameTypeName: string): Promise<string[]>
   }
 
   try {
+    const storageFiles = await getPatternFilesFromStorage(gameTypeName);
+    const storageSlugs = storageFiles.map(f => f.slug);
+
     const { data: patterns, error } = await supabase
       .from('patterns')
       .select('slug')
       .eq('game_type', gameTypeName);
 
-    if (error) {
-      console.warn('Error fetching patterns from Supabase:', error);
-      return DEFAULT_PATTERN_FOLDERS;
-    }
+    const dbSlugs = error ? [] : (patterns || []).map((p: { slug: string }) => p.slug);
 
-    const uploadedSlugs = (patterns || []).map((p: { slug: string }) => p.slug);
     const merged = [...DEFAULT_PATTERN_FOLDERS];
-    for (const slug of uploadedSlugs) {
+    for (const slug of [...storageSlugs, ...dbSlugs]) {
       if (!merged.includes(slug)) merged.push(slug);
     }
     return merged;
@@ -68,15 +97,19 @@ export async function getGamePublic(uniqid: string): Promise<string | null> {
   try {
     const gameData = await readGameDataFile(uniqid);
     const gamePublic = gameData?.game_meta?.game_public;
-
-    if (gamePublic) {
-      console.log('Found game_public:', gamePublic);
-      return gamePublic;
-    }
-
-    return null;
+    return gamePublic || null;
   } catch (error) {
     console.error('Error reading game data:', error);
+    return null;
+  }
+}
+
+export async function getDefaultPatternId(uniqid: string): Promise<string | null> {
+  try {
+    const gameData = await readGameDataFile(uniqid);
+    return gameData?.scenario?.default_pattern_id || null;
+  } catch (error) {
+    console.error('Error reading default_pattern_id:', error);
     return null;
   }
 }

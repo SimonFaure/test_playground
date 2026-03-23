@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
-import { getPatternFolders, getGamePublic } from '../utils/patterns';
+import { getPatternFolders, getPatternFilesFromStorage, getDefaultPatternId, getGamePublic } from '../utils/patterns';
 import { usbReaderService, USBPort } from '../services/usbReader';
 import { supabase } from '../lib/db';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -71,14 +71,29 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const loadData = async () => {
       if (!gameTypeName || !gameUniqid) return;
 
-      const folders = await getPatternFolders(gameTypeName);
-      setPatternFolders(folders);
-      console.log(folders);
+      const [folders, storageFiles, defaultPatternId, gamePublic] = await Promise.all([
+        getPatternFolders(gameTypeName),
+        getPatternFilesFromStorage(gameTypeName),
+        getDefaultPatternId(gameUniqid),
+        getGamePublic(gameUniqid),
+      ]);
 
-      const gamePublic = await getGamePublic(gameUniqid);
-      console.log('game_public for game:', gameUniqid, '=', gamePublic);
-      const pattern = gamePublic || folders[0] || '';
-      setDefaultPattern(pattern);
+      setPatternFolders(folders);
+
+      let resolvedPattern = '';
+
+      if (defaultPatternId) {
+        const match = storageFiles.find(f => f.uniqid === defaultPatternId);
+        if (match) {
+          resolvedPattern = match.slug;
+        }
+      }
+
+      if (!resolvedPattern) {
+        resolvedPattern = gamePublic || folders[0] || '';
+      }
+
+      setDefaultPattern(resolvedPattern);
 
       if (usbReaderService.isElectron()) {
         try {

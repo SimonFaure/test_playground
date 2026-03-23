@@ -64,6 +64,9 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const [step, setStep] = useState<1 | 2>(1);
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableChips, setAvailableChips] = useState<SiPuce[]>([]);
+  const [onDemandChips, setOnDemandChips] = useState<SiPuce[]>([]);
+  const [hasOnDemandCards, setHasOnDemandCards] = useState(false);
+  const [useOnDemandCards, setUseOnDemandCards] = useState(false);
   const [usedChipIds, setUsedChipIds] = useState<Set<number>>(new Set());
   const [showUsbAlert, setShowUsbAlert] = useState(false);
 
@@ -142,6 +145,32 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     }
   }, [isOpen, defaultPattern, savedUsbPort]);
 
+  const allChips = useOnDemandCards
+    ? [...availableChips, ...onDemandChips]
+    : availableChips;
+
+  const maxTeams = allChips.length > 0 ? allChips.length : undefined;
+
+  const parseChipsCsv = (text: string): SiPuce[] => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const idIdx = headers.indexOf('id');
+    const numIdx = headers.indexOf('key_number');
+    const nameIdx = headers.indexOf('key_name');
+    const colorIdx = headers.indexOf('color');
+    const chips: SiPuce[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const id = parseInt(vals[idIdx]);
+      const key_number = parseInt(vals[numIdx]);
+      const key_name = vals[nameIdx] || '';
+      if (isNaN(id) || isNaN(key_number)) continue;
+      chips.push({ id, key_number, key_name, color: colorIdx !== -1 ? vals[colorIdx] || null : null, created_at: '', updated_at: '' });
+    }
+    return chips.sort((a, b) => a.key_number - b.key_number);
+  };
+
   useEffect(() => {
     const loadChips = async () => {
       if (!supabase) return;
@@ -152,44 +181,30 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
 
       if (listError || !files) return;
 
-      const csvFile = files.find(f => f.name && f.name.endsWith('.csv') && f.name !== '.emptyFolderPlaceholder');
-      if (!csvFile) return;
+      const csvFiles = files.filter(f => f.name && f.name.endsWith('.csv') && f.name !== '.emptyFolderPlaceholder');
 
-      const { data: blob, error: dlError } = await supabase.storage
-        .from('resources')
-        .download(`cards/${csvFile.name}`);
+      const regularFile = csvFiles.find(f => !f.name.startsWith('on_demand_'));
+      const onDemandFile = csvFiles.find(f => f.name.startsWith('on_demand_'));
 
-      if (dlError || !blob) return;
-
-      const text = await blob.text();
-      const lines = text.trim().split('\n');
-      if (lines.length < 2) return;
-
-      const headers = lines[0].split(',').map(h => h.trim());
-      const idIdx = headers.indexOf('id');
-      const numIdx = headers.indexOf('key_number');
-      const nameIdx = headers.indexOf('key_name');
-      const colorIdx = headers.indexOf('color');
-
-      const chips: SiPuce[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const id = parseInt(vals[idIdx]);
-        const key_number = parseInt(vals[numIdx]);
-        const key_name = vals[nameIdx] || '';
-        if (isNaN(id) || isNaN(key_number)) continue;
-        chips.push({
-          id,
-          key_number,
-          key_name,
-          color: colorIdx !== -1 ? vals[colorIdx] || null : null,
-          created_at: '',
-          updated_at: '',
-        });
+      if (regularFile) {
+        const { data: blob } = await supabase.storage.from('resources').download(`cards/${regularFile.name}`);
+        if (blob) {
+          const chips = parseChipsCsv(await blob.text());
+          setAvailableChips(chips);
+        }
       }
 
-      chips.sort((a, b) => a.key_number - b.key_number);
-      setAvailableChips(chips);
+      if (onDemandFile) {
+        const { data: blob } = await supabase.storage.from('resources').download(`cards/${onDemandFile.name}`);
+        if (blob) {
+          const chips = parseChipsCsv(await blob.text());
+          setOnDemandChips(chips);
+          setHasOnDemandCards(true);
+        }
+      } else {
+        setHasOnDemandCards(false);
+        setOnDemandChips([]);
+      }
     };
 
     const loadUsedChips = async () => {
@@ -238,7 +253,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const startIndex = config.firstChipIndex;
     const numberOfTeams = config.numberOfTeams;
 
-    const chipsForTeams = availableChips
+    const chipsForTeams = allChips
       .filter(chip => chip.key_number >= startIndex && chip.key_number < startIndex + numberOfTeams)
       .slice(0, numberOfTeams);
 
@@ -261,7 +276,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   };
 
   const updateTeamChip = (index: number, chipId: number) => {
-    const chip = availableChips.find(c => c.id === chipId);
+    const chip = allChips.find(c => c.id === chipId);
     if (!chip) return;
 
     setTeams(prev => {
@@ -335,16 +350,28 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             <div className="space-y-2">
               <label htmlFor="numberOfTeams" className="block text-sm font-medium text-slate-300">
                 Number of Teams
+                {maxTeams !== undefined && (
+                  <span className="ml-2 text-xs text-slate-400">
+                    (max {maxTeams})
+                  </span>
+                )}
               </label>
               <input
                 type="number"
                 id="numberOfTeams"
                 min="1"
+                max={maxTeams}
                 value={config.numberOfTeams}
-                onChange={(e) => setConfig({ ...config, numberOfTeams: parseInt(e.target.value) || 1 })}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1;
+                  setConfig({ ...config, numberOfTeams: maxTeams !== undefined ? Math.min(val, maxTeams) : val });
+                }}
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
+              {maxTeams !== undefined && config.numberOfTeams > maxTeams && (
+                <p className="text-xs text-red-400">Cannot exceed the number of available cards ({maxTeams})</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -455,6 +482,30 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
           </div>
 
           <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
+            {hasOnDemandCards && (
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-700">
+                <input
+                  type="checkbox"
+                  id="useOnDemandCards"
+                  checked={useOnDemandCards}
+                  onChange={(e) => {
+                    setUseOnDemandCards(e.target.checked);
+                    if (!e.target.checked && maxTeams !== undefined) {
+                      const newMax = availableChips.length;
+                      if (config.numberOfTeams > newMax && newMax > 0) {
+                        setConfig(prev => ({ ...prev, numberOfTeams: newMax }));
+                      }
+                    }
+                  }}
+                  className="w-5 h-5 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <label htmlFor="useOnDemandCards" className="text-sm font-medium text-slate-300">
+                  Use on-demand cards
+                  <span className="ml-2 text-xs text-slate-400">({onDemandChips.length} additional cards available)</span>
+                </label>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -537,7 +588,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           required
                         >
-                          {availableChips.map(chip => {
+                          {allChips.map(chip => {
                             const isUsedInCurrentGame = teams.some((t, i) => i !== index && t.chipId === chip.id);
                             const isUsedInOtherGame = usedChipIds.has(chip.id);
                             const isDisabled = isUsedInCurrentGame || isUsedInOtherGame;

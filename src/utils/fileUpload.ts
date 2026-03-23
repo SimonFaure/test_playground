@@ -136,7 +136,7 @@ async function handleJsonFile(file: File): Promise<UploadResult> {
 
     const patternPattern = /^pattern_[^.]+\.json$/;
     if (patternPattern.test(fileName)) {
-      const patternSlug = file.name.replace('pattern_', '').replace('.json', '');
+      const patternSlug = file.name.replace('.json', '');
       return {
         type: 'pattern',
         name: file.name,
@@ -174,7 +174,7 @@ async function handleCsvFile(file: File, fileName: string): Promise<UploadResult
     const text = await file.text();
 
     if (fileName.includes('pattern')) {
-      const patternSlug = file.name.replace('.csv', '').replace(/^pattern_?/, '') || file.name.replace('.csv', '');
+      const patternSlug = file.name.replace('.csv', '');
       return {
         type: 'pattern',
         name: file.name,
@@ -316,7 +316,8 @@ async function savePatternWeb(data: any): Promise<void> {
     }
   }
 
-  const storagePath = `patterns/${gameType}/${patternSlug}.${ext}`;
+  const storageFileName = fileName || `${patternSlug}.${ext}`;
+  const storagePath = `patterns/${gameType}/${storageFileName}`;
   const blob = new Blob([fileContent], { type: ext === 'json' ? 'application/json' : 'text/csv' });
 
   const { error: uploadError } = await supabase.storage

@@ -2,11 +2,6 @@ import { supabase } from '../lib/db';
 
 const DEFAULT_PATTERN_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
-const DEFAULT_PATTERN_NAMES: Record<string, string> = {
-  ado_adultes: 'ADO / ADULTES',
-  kids: 'KIDS',
-  mini_kids: 'MINI KIDS',
-};
 
 export interface PatternFile {
   uniqid: string;
@@ -113,7 +108,7 @@ async function readPatternName(gameTypeName: string, slug: string): Promise<stri
     }
   } catch {
   }
-  return DEFAULT_PATTERN_NAMES[slug] || slug;
+  return slug;
 }
 
 export async function getPatternOptions(gameTypeName: string): Promise<PatternOption[]> {
@@ -178,16 +173,6 @@ async function readGameDataFile(uniqid: string): Promise<any> {
   }
 }
 
-export async function getGamePublic(uniqid: string): Promise<string | null> {
-  try {
-    const gameData = await readGameDataFile(uniqid);
-    const gamePublic = gameData?.game_meta?.game_public;
-    return gamePublic || null;
-  } catch (error) {
-    console.error('Error reading game data:', error);
-    return null;
-  }
-}
 
 export async function getDefaultPatternId(uniqid: string): Promise<string | null> {
   try {

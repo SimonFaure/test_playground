@@ -392,7 +392,9 @@ async function saveLayoutElectron(data: any): Promise<void> {
 async function saveLayoutWeb(data: any): Promise<void> {
   const { layoutData, gameType, version, fileName, rawContent } = data;
 
-  const storagePath = `layouts/${fileName || `${gameType}_layout_${version || Date.now()}.json`}`;
+  const resolvedFileName = fileName || `${gameType}_layout_${version || Date.now()}.json`;
+  const resolvedGameType = gameType || resolvedFileName.split('_')[0];
+  const storagePath = `layouts/${resolvedGameType}/${resolvedFileName}`;
   const fileContent = rawContent || JSON.stringify(layoutData);
   const blob = new Blob([fileContent], { type: 'application/json' });
 
@@ -403,22 +405,6 @@ async function saveLayoutWeb(data: any): Promise<void> {
   if (uploadError) {
     console.error('Error uploading layout to storage:', uploadError);
     throw new Error(`Failed to upload layout: ${uploadError.message}`);
-  }
-
-  if (gameType && version) {
-    const { error: upsertError } = await supabase
-      .from('layouts')
-      .upsert({
-        game_type: gameType,
-        version,
-        name: fileName ? fileName.replace('.json', '') : `${gameType} ${version}`,
-        config: layoutData,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'game_type,version' });
-
-    if (upsertError) {
-      console.warn('Error upserting layout record:', upsertError);
-    }
   }
 
   console.log(`Layout saved to Supabase Storage at ${storagePath}`);

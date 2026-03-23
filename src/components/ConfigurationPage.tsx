@@ -1,11 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
-import { Settings, Usb, RefreshCw, Check, Globe, FolderOpen, Monitor, CreditCard, Upload } from 'lucide-react';
+import { Settings, Usb, RefreshCw, Check, Globe, FolderOpen, Monitor, CreditCard, Upload, BookOpen, Map, Layers, LayoutGrid as Layout } from 'lucide-react';
 import { usbReaderService } from '../services/usbReader';
 import { loadConfig, saveConfig, AppConfig } from '../utils/config';
 import { syncResourcesBeforeScenarios } from '../services/syncOrchestrator';
 import { detectFileType, saveUploadedFile, UploadResult } from '../utils/fileUpload';
 import { FolderBrowser } from './FolderBrowser';
 import { LayoutManagement } from './LayoutManagement';
+import { ScenariosManagement } from './ScenariosManagement';
+import { PatternsManagement } from './PatternsManagement';
+import { CardsManagement } from './CardsManagement';
 
 interface SerialPortInfo {
   path: string;
@@ -358,10 +361,34 @@ export function ConfigurationPage() {
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Layout Management</h3>
-            <p className="text-sm text-slate-400 mb-4">
-              Manage game layout configurations for TagQuest and Mystery games.
-            </p>
+            <div className="flex items-center gap-2 mb-5">
+              <BookOpen className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Scenarios Management</h3>
+            </div>
+            <ScenariosManagement />
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Map className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Patterns Management</h3>
+            </div>
+            <PatternsManagement />
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Layers className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Cards Management</h3>
+            </div>
+            <CardsManagement />
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Layout className="text-blue-400" size={20} />
+              <h3 className="text-lg font-semibold">Layout Management</h3>
+            </div>
             <LayoutManagement />
           </div>
 
@@ -800,10 +827,34 @@ export function ConfigurationPage() {
         <FolderBrowser isElectron={isElectron} />
 
         <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Layout Management</h3>
-          <p className="text-sm text-slate-400 mb-4">
-            Manage game layout configurations for TagQuest and Mystery games.
-          </p>
+          <div className="flex items-center gap-2 mb-5">
+            <BookOpen className="text-blue-400" size={20} />
+            <h3 className="text-lg font-semibold">Scenarios Management</h3>
+          </div>
+          <ScenariosManagement />
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Map className="text-blue-400" size={20} />
+            <h3 className="text-lg font-semibold">Patterns Management</h3>
+          </div>
+          <PatternsManagement />
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Layers className="text-blue-400" size={20} />
+            <h3 className="text-lg font-semibold">Cards Management</h3>
+          </div>
+          <CardsManagement />
+        </div>
+
+        <div className="bg-slate-800/50 rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Layout className="text-blue-400" size={20} />
+            <h3 className="text-lg font-semibold">Layout Management</h3>
+          </div>
           <LayoutManagement />
         </div>
 

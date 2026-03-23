@@ -13,27 +13,36 @@ export function LayoutManagement() {
   const [layouts, setLayouts] = useState<LayoutFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<LayoutFile | null>(null);
+  const [deletingGameType, setDeletingGameType] = useState<string | null>(null);
+  const [confirmDeleteGameType, setConfirmDeleteGameType] = useState<string | null>(null);
 
   useEffect(() => {
     loadLayouts();
   }, []);
 
-  const deleteLayout = async (file: LayoutFile) => {
-    setDeletingPath(file.path);
-    setConfirmDelete(null);
+  const deleteGameTypeFolder = async (gameType: string) => {
+    setDeletingGameType(gameType);
+    setConfirmDeleteGameType(null);
     try {
-      const { error: deleteError } = await supabase.storage
+      const { data: files, error: listError } = await supabase.storage
         .from('resources')
-        .remove([file.path]);
-      if (deleteError) throw deleteError;
-      setLayouts(prev => prev.filter(l => l.path !== file.path));
+        .list(`layouts/${gameType}`, { limit: 1000 });
+      if (listError) throw listError;
+
+      const paths = (files || []).map(f => `layouts/${gameType}/${f.name}`);
+      if (paths.length > 0) {
+        const { error: deleteError } = await supabase.storage
+          .from('resources')
+          .remove(paths);
+        if (deleteError) throw deleteError;
+      }
+
+      setLayouts(prev => prev.filter(l => l.gameType !== gameType));
     } catch (err) {
-      console.error('Error deleting layout:', err);
-      setError('Failed to delete layout');
+      console.error('Error deleting folder:', err);
+      setError('Failed to delete folder');
     } finally {
-      setDeletingPath(null);
+      setDeletingGameType(null);
     }
   };
 
@@ -104,22 +113,22 @@ export function LayoutManagement() {
 
   return (
     <div className="space-y-6">
-      {confirmDelete && (
+      {confirmDeleteGameType && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h3 className="text-lg font-semibold text-slate-100 mb-2">Delete Layout</h3>
+            <h3 className="text-lg font-semibold text-slate-100 mb-2">Delete Folder</h3>
             <p className="text-slate-400 text-sm mb-6">
-              Are you sure you want to delete <span className="text-slate-200 font-medium">{confirmDelete.name}</span>? This cannot be undone.
+              Are you sure you want to delete all layouts in <span className="text-slate-200 font-medium capitalize">{confirmDeleteGameType}</span>? This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => setConfirmDeleteGameType(null)}
                 className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-slate-100 hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => deleteLayout(confirmDelete)}
+                onClick={() => deleteGameTypeFolder(confirmDeleteGameType)}
                 className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
               >
                 Delete
@@ -136,8 +145,19 @@ export function LayoutManagement() {
       ) : (
         Object.entries(grouped).map(([gameType, files]) => (
           <div key={gameType} className="bg-slate-700/30 rounded-lg border border-slate-600">
-            <div className="px-6 py-4 border-b border-slate-600">
+            <div className="px-6 py-4 border-b border-slate-600 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-200 capitalize">{gameType} Layouts</h3>
+              <button
+                onClick={() => setConfirmDeleteGameType(gameType)}
+                disabled={deletingGameType === gameType}
+                className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                title="Delete folder"
+              >
+                {deletingGameType === gameType
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Trash2 className="w-4 h-4" />
+                }
+              </button>
             </div>
             <div className="divide-y divide-slate-600">
               {files.map((file) => (
@@ -151,16 +171,6 @@ export function LayoutManagement() {
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => setConfirmDelete(file)}
-                    disabled={deletingPath === file.path}
-                    className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                  >
-                    {deletingPath === file.path
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Trash2 className="w-4 h-4" />
-                    }
-                  </button>
                 </div>
               ))}
             </div>

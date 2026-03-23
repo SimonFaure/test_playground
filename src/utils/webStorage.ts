@@ -132,14 +132,39 @@ async function buildLayoutsFolder(): Promise<StorageNode> {
   };
 
   try {
-    const files = await listStorageFolder('layouts');
-    for (const file of files) {
-      if (file.name) {
+    const entries = await listStorageFolder('layouts');
+    for (const entry of entries) {
+      if (!entry.name || entry.name === '.emptyFolderPlaceholder') continue;
+
+      const isFolder = !entry.name.includes('.');
+      if (isFolder) {
+        const gameTypeFolder: StorageNode = {
+          name: entry.name,
+          path: `/layouts/${entry.name}`,
+          type: 'folder',
+          expanded: false,
+          children: []
+        };
+
+        const innerFiles = await listStorageFolder(`layouts/${entry.name}`);
+        for (const file of innerFiles) {
+          if (file.name && file.name !== '.emptyFolderPlaceholder') {
+            gameTypeFolder.children?.push({
+              name: file.name,
+              path: `/layouts/${entry.name}/${file.name}`,
+              type: 'file',
+              size: file.metadata?.size
+            });
+          }
+        }
+
+        layoutsFolder.children?.push(gameTypeFolder);
+      } else {
         layoutsFolder.children?.push({
-          name: file.name,
-          path: `/layouts/${file.name}`,
+          name: entry.name,
+          path: `/layouts/${entry.name}`,
           type: 'file',
-          size: file.metadata?.size
+          size: entry.metadata?.size
         });
       }
     }
@@ -347,12 +372,21 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
     }
 
     if (pathParts[0] === 'layouts') {
-      if (pathParts.length >= 2) {
-        const fileName = pathParts.slice(1).join('/');
+      if (pathParts.length === 2) {
+        const gameType = pathParts[1];
+        const allFilePaths = await listAllFilesRecursive(`layouts/${gameType}`);
+        if (allFilePaths.length > 0) {
+          const { error } = await supabase.storage.from('resources').remove(allFilePaths);
+          return !error;
+        }
+        return true;
+      }
+
+      if (pathParts.length >= 3) {
+        const filePath = pathParts.slice(1).join('/');
         const { error } = await supabase.storage
           .from('resources')
-          .remove([`layouts/${fileName}`]);
-
+          .remove([`layouts/${filePath}`]);
         return !error;
       }
     }

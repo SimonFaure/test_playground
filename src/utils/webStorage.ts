@@ -66,22 +66,17 @@ async function buildScenariosFolder(): Promise<StorageNode> {
   };
 
   try {
-    let uniqids: string[] = [];
-
     const { data: scenarios, error } = await supabase
       .from('scenarios')
       .select('uniqid, title');
 
-    if (!error && scenarios && scenarios.length > 0) {
-      uniqids = scenarios.map((s: any) => s.uniqid);
-    } else {
-      const storageFolders = await listStorageFolder('scenarios');
-      uniqids = storageFolders
-        .filter(f => f.name && f.name !== '.emptyFolderPlaceholder')
-        .map(f => f.name);
+    if (error || !scenarios || scenarios.length === 0) {
+      return scenariosFolder;
     }
 
-    for (const uniqid of uniqids) {
+    for (const scenario of scenarios) {
+      const uniqid = scenario.uniqid;
+
       const gameFolder: StorageNode = {
         name: uniqid,
         path: `/scenarios/${uniqid}`,
@@ -90,23 +85,14 @@ async function buildScenariosFolder(): Promise<StorageNode> {
         children: []
       };
 
-      const [rootFiles, imageFiles, soundFiles, videoFiles] = await Promise.all([
-        listStorageFolder(`scenarios/${uniqid}`),
-        listStorageFolder(`scenarios/${uniqid}/images`),
-        listStorageFolder(`scenarios/${uniqid}/sounds`),
-        listStorageFolder(`scenarios/${uniqid}/videos`)
-      ]);
+      const { data: mediaRows } = await supabase
+        .from('scenario_media')
+        .select('filename, media_type')
+        .eq('scenario_uniqid', uniqid);
 
-      for (const file of rootFiles) {
-        if (file.name && !['images', 'sounds', 'videos'].includes(file.name)) {
-          gameFolder.children?.push({
-            name: file.name,
-            path: `/scenarios/${uniqid}/${file.name}`,
-            type: 'file',
-            size: file.metadata?.size
-          });
-        }
-      }
+      const imageFiles = (mediaRows || []).filter(m => m.media_type === 'image');
+      const soundFiles = (mediaRows || []).filter(m => m.media_type === 'sound');
+      const videoFiles = (mediaRows || []).filter(m => m.media_type === 'video');
 
       const mediaSubfolders = [
         { name: 'images', files: imageFiles },
@@ -119,14 +105,13 @@ async function buildScenariosFolder(): Promise<StorageNode> {
         if (files.length > 0) {
           const subFolder: StorageNode = {
             name,
-            path: `/scenarios/${uniqid}/${name}`,
+            path: `/scenarios/${uniqid}/media/${name}`,
             type: 'folder',
             expanded: false,
             children: files.map(f => ({
-              name: f.name,
-              path: `/scenarios/${uniqid}/${name}/${f.name}`,
-              type: 'file' as const,
-              size: f.metadata?.size
+              name: f.filename,
+              path: `/scenarios/${uniqid}/media/${name}/${f.filename}`,
+              type: 'file' as const
             }))
           };
           mediaChildren.push(subFolder);
@@ -347,46 +332,53 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
       const uniqid = pathParts[1];
 
       if (pathParts.length === 2) {
-        await supabase
-          .from('scenarios')
-          .delete()
-          .eq('uniqid', uniqid);
-
-        const allFilePaths = await listAllFilesRecursive(`scenarios/${uniqid}`);
-        if (allFilePaths.length > 0) {
-          for (let i = 0; i < allFilePaths.length; i += 100) {
-            await supabase.storage.from('resources').remove(allFilePaths.slice(i, i + 100));
-          }
-        }
-
+        await supabase.from('scenario_media').delete().eq('scenario_uniqid', uniqid);
+        await supabase.from('scenarios').delete().eq('uniqid', uniqid);
         return true;
       }
 
       if (pathParts.length >= 3) {
-        const storagePath = pathParts.slice(1).join('/');
-
-        if (pathParts[2] === 'media' && pathParts.length === 3) {
-          const allFilePaths = await listAllFilesRecursive(`scenarios/${uniqid}/media`);
-          if (allFilePaths.length > 0) {
-            await supabase.storage.from('resources').remove(allFilePaths);
+        if (pathParts[2] === 'media') {
+          if (pathParts.length === 3) {
+            const { error } = await supabase
+              .from('scenario_media')
+              .delete()
+              .eq('scenario_uniqid', uniqid);
+            return !error;
           }
-          return true;
+
+          if (pathParts.length === 4) {
+            const mediaTypeMap: Record<string, string> = { images: 'image', sounds: 'sound', videos: 'video' };
+            const mediaType = mediaTypeMap[pathParts[3]];
+            if (mediaType) {
+              const { error } = await supabase
+                .from('scenario_media')
+                .delete()
+                .eq('scenario_uniqid', uniqid)
+                .eq('media_type', mediaType);
+              return !error;
+            }
+            return false;
+          }
+
+          if (pathParts.length >= 5) {
+            const mediaTypeMap: Record<string, string> = { images: 'image', sounds: 'sound', videos: 'video' };
+            const mediaType = mediaTypeMap[pathParts[3]];
+            const filename = pathParts.slice(4).join('/');
+            if (mediaType && filename) {
+              const { error } = await supabase
+                .from('scenario_media')
+                .delete()
+                .eq('scenario_uniqid', uniqid)
+                .eq('media_type', mediaType)
+                .eq('filename', filename);
+              return !error;
+            }
+            return false;
+          }
         }
 
-        const isFolder = !pathParts[pathParts.length - 1].includes('.');
-        if (isFolder) {
-          const allFilePaths = await listAllFilesRecursive(`scenarios/${storagePath}`);
-          if (allFilePaths.length > 0) {
-            await supabase.storage.from('resources').remove(allFilePaths);
-          }
-          return true;
-        }
-
-        const { error } = await supabase.storage
-          .from('resources')
-          .remove([`scenarios/${storagePath}`]);
-
-        return !error;
+        return false;
       }
     }
 

@@ -56,6 +56,39 @@ async function listAllFilesRecursive(prefix: string): Promise<string[]> {
   return filePaths;
 }
 
+async function buildStorageTree(prefix: string, path: string): Promise<StorageNode[]> {
+  const items = await listStorageFolder(prefix);
+  const nodes: StorageNode[] = [];
+
+  for (const item of items) {
+    if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+
+    const itemPath = `${path}/${item.name}`;
+    const storagePath = `${prefix}/${item.name}`;
+    const isFolder = !item.name.includes('.');
+
+    if (isFolder) {
+      const children = await buildStorageTree(storagePath, itemPath);
+      nodes.push({
+        name: item.name,
+        path: itemPath,
+        type: 'folder',
+        expanded: false,
+        children
+      });
+    } else {
+      nodes.push({
+        name: item.name,
+        path: itemPath,
+        type: 'file',
+        size: item.metadata?.size
+      });
+    }
+  }
+
+  return nodes;
+}
+
 async function buildScenariosFolder(): Promise<StorageNode> {
   const scenariosFolder: StorageNode = {
     name: 'Scenarios',
@@ -66,70 +99,21 @@ async function buildScenariosFolder(): Promise<StorageNode> {
   };
 
   try {
-    const { data: scenarios, error } = await supabase
-      .from('scenarios')
-      .select('uniqid, title');
+    const scenarioEntries = await listStorageFolder('scenarios');
 
-    if (error || !scenarios || scenarios.length === 0) {
-      return scenariosFolder;
-    }
+    for (const entry of scenarioEntries) {
+      if (!entry.name || entry.name === '.emptyFolderPlaceholder') continue;
 
-    for (const scenario of scenarios) {
-      const uniqid = scenario.uniqid;
+      const uniqid = entry.name;
+      const children = await buildStorageTree(`scenarios/${uniqid}`, `/scenarios/${uniqid}`);
 
-      const gameFolder: StorageNode = {
+      scenariosFolder.children?.push({
         name: uniqid,
         path: `/scenarios/${uniqid}`,
         type: 'folder',
         expanded: false,
-        children: []
-      };
-
-      const { data: mediaRows } = await supabase
-        .from('scenario_media')
-        .select('filename, media_type')
-        .eq('scenario_uniqid', uniqid);
-
-      const imageFiles = (mediaRows || []).filter(m => m.media_type === 'image');
-      const soundFiles = (mediaRows || []).filter(m => m.media_type === 'sound');
-      const videoFiles = (mediaRows || []).filter(m => m.media_type === 'video');
-
-      const mediaSubfolders = [
-        { name: 'images', files: imageFiles },
-        { name: 'sounds', files: soundFiles },
-        { name: 'videos', files: videoFiles }
-      ];
-
-      const mediaChildren: StorageNode[] = [];
-      for (const { name, files } of mediaSubfolders) {
-        if (files.length > 0) {
-          const subFolder: StorageNode = {
-            name,
-            path: `/scenarios/${uniqid}/media/${name}`,
-            type: 'folder',
-            expanded: false,
-            children: files.map(f => ({
-              name: f.filename,
-              path: `/scenarios/${uniqid}/media/${name}/${f.filename}`,
-              type: 'file' as const
-            }))
-          };
-          mediaChildren.push(subFolder);
-        }
-      }
-
-      if (mediaChildren.length > 0) {
-        const mediaFolder: StorageNode = {
-          name: 'media',
-          path: `/scenarios/${uniqid}/media`,
-          type: 'folder',
-          expanded: false,
-          children: mediaChildren
-        };
-        gameFolder.children?.push(mediaFolder);
-      }
-
-      scenariosFolder.children?.push(gameFolder);
+        children
+      });
     }
   } catch (error) {
     console.error('Error building scenarios folder:', error);
@@ -332,53 +316,33 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
       const uniqid = pathParts[1];
 
       if (pathParts.length === 2) {
-        await supabase.from('scenario_media').delete().eq('scenario_uniqid', uniqid);
-        await supabase.from('scenarios').delete().eq('uniqid', uniqid);
+        const allFilePaths = await listAllFilesRecursive(`scenarios/${uniqid}`);
+        if (allFilePaths.length > 0) {
+          for (let i = 0; i < allFilePaths.length; i += 100) {
+            await supabase.storage.from('resources').remove(allFilePaths.slice(i, i + 100));
+          }
+        }
         return true;
       }
 
       if (pathParts.length >= 3) {
-        if (pathParts[2] === 'media') {
-          if (pathParts.length === 3) {
-            const { error } = await supabase
-              .from('scenario_media')
-              .delete()
-              .eq('scenario_uniqid', uniqid);
-            return !error;
-          }
+        const storagePath = pathParts.slice(1).join('/');
+        const lastPart = pathParts[pathParts.length - 1];
+        const isFolder = !lastPart.includes('.');
 
-          if (pathParts.length === 4) {
-            const mediaTypeMap: Record<string, string> = { images: 'image', sounds: 'sound', videos: 'video' };
-            const mediaType = mediaTypeMap[pathParts[3]];
-            if (mediaType) {
-              const { error } = await supabase
-                .from('scenario_media')
-                .delete()
-                .eq('scenario_uniqid', uniqid)
-                .eq('media_type', mediaType);
-              return !error;
-            }
-            return false;
+        if (isFolder) {
+          const allFilePaths = await listAllFilesRecursive(`scenarios/${storagePath}`);
+          if (allFilePaths.length > 0) {
+            await supabase.storage.from('resources').remove(allFilePaths);
           }
-
-          if (pathParts.length >= 5) {
-            const mediaTypeMap: Record<string, string> = { images: 'image', sounds: 'sound', videos: 'video' };
-            const mediaType = mediaTypeMap[pathParts[3]];
-            const filename = pathParts.slice(4).join('/');
-            if (mediaType && filename) {
-              const { error } = await supabase
-                .from('scenario_media')
-                .delete()
-                .eq('scenario_uniqid', uniqid)
-                .eq('media_type', mediaType)
-                .eq('filename', filename);
-              return !error;
-            }
-            return false;
-          }
+          return true;
         }
 
-        return false;
+        const { error } = await supabase.storage
+          .from('resources')
+          .remove([`scenarios/${storagePath}`]);
+
+        return !error;
       }
     }
 

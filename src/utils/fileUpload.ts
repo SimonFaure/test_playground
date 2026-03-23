@@ -181,7 +181,7 @@ async function handleCsvFile(file: File, fileName: string): Promise<UploadResult
         data: { csvContent: text, patternSlug, fileName: file.name },
         isValid: true
       };
-    } else if (fileName.includes('card') || fileName.includes('client')) {
+    } else if (fileName.startsWith('on_demand_') || fileName.includes('card') || fileName.includes('client')) {
       return {
         type: 'cards',
         name: file.name,
@@ -201,7 +201,7 @@ async function handleCsvFile(file: File, fileName: string): Promise<UploadResult
         name: file.name,
         data: { csvContent: text },
         isValid: false,
-        error: 'Cannot determine CSV file type. Filename should contain "pattern", "card"/"client", or "layout".'
+        error: 'Cannot determine CSV file type. Filename should contain "pattern", "card"/"client", start with "on_demand_", or contain "layout".'
       };
     }
   } catch (error) {
@@ -345,8 +345,7 @@ async function savePatternWeb(data: any): Promise<void> {
 }
 
 async function saveCards(data: any): Promise<void> {
-  console.log('Cards save not yet implemented:', data);
-  throw new Error('Cards upload is not yet implemented');
+  await saveCardsWeb(data);
 }
 
 async function saveCardsWeb(data: any): Promise<void> {

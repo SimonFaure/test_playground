@@ -308,7 +308,7 @@ export function ConfigurationPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Upload className="text-blue-400" size={24} />
-                <h2 className="text-xl font-semibold">Upload Scenarios</h2>
+                <h2 className="text-xl font-semibold">Upload Files</h2>
               </div>
             </div>
 
@@ -332,7 +332,7 @@ export function ConfigurationPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-semibold text-white mb-2">
-                    {isUploading ? 'Uploading...' : isDragging ? 'Drop file here' : 'Upload Scenario Files'}
+                    {isUploading ? 'Uploading...' : isDragging ? 'Drop file here' : 'Upload Files'}
                   </div>
                   <div className="text-sm text-slate-400">
                     {isDragging ? 'Release to upload' : 'Click to select files or drag and drop'}
@@ -355,7 +355,7 @@ export function ConfigurationPage() {
                 <li><span className="font-mono text-blue-400">.json</span> - Layout files (format: {'{game_type}_layout_{version}.json'})</li>
                 <li><span className="font-mono text-blue-400">.json</span> - Pattern files (format: {'pattern_{pattern_slug}.json'})</li>
                 <li><span className="font-mono text-blue-400">.csv</span> - Pattern CSV files (filename contains "pattern")</li>
-                <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
+                <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card", "client", or starts with "on_demand_")</li>
               </ul>
             </div>
           </div>
@@ -819,7 +819,7 @@ export function ConfigurationPage() {
               <li><span className="font-mono text-blue-400">.json</span> - Layout files (format: {'{game_type}_layout_{version}.json'})</li>
               <li><span className="font-mono text-blue-400">.json</span> - Pattern files (format: {'pattern_{pattern_slug}.json'})</li>
               <li><span className="font-mono text-blue-400">.csv</span> - Pattern CSV files (filename contains "pattern")</li>
-              <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card" or "client")</li>
+              <li><span className="font-mono text-blue-400">.csv</span> - Cards files (filename contains "card", "client", or starts with "on_demand_")</li>
             </ul>
           </div>
         </div>

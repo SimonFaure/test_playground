@@ -37,6 +37,25 @@ async function listStorageFolder(prefix: string): Promise<{ name: string; metada
   return data;
 }
 
+async function listAllFilesRecursive(prefix: string): Promise<string[]> {
+  const items = await listStorageFolder(prefix);
+  const filePaths: string[] = [];
+
+  for (const item of items) {
+    if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+    const fullPath = `${prefix}/${item.name}`;
+    const isFolder = !item.name.includes('.');
+    if (isFolder) {
+      const nested = await listAllFilesRecursive(fullPath);
+      filePaths.push(...nested);
+    } else {
+      filePaths.push(fullPath);
+    }
+  }
+
+  return filePaths;
+}
+
 async function buildScenariosFolder(): Promise<StorageNode> {
   const scenariosFolder: StorageNode = {
     name: 'Scenarios',
@@ -328,24 +347,15 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
       const uniqid = pathParts[1];
 
       if (pathParts.length === 2) {
-        const { error } = await supabase
+        await supabase
           .from('scenarios')
           .delete()
           .eq('uniqid', uniqid);
 
-        if (error) {
-          console.error('Error deleting scenario:', error);
-          return false;
-        }
-
-        const { data: allFiles } = await supabase.storage
-          .from('resources')
-          .list(`scenarios/${uniqid}`, { limit: 1000 });
-
-        if (allFiles) {
-          const filePaths = allFiles.map(f => `scenarios/${uniqid}/${f.name}`);
-          if (filePaths.length > 0) {
-            await supabase.storage.from('resources').remove(filePaths);
+        const allFilePaths = await listAllFilesRecursive(`scenarios/${uniqid}`);
+        if (allFilePaths.length > 0) {
+          for (let i = 0; i < allFilePaths.length; i += 100) {
+            await supabase.storage.from('resources').remove(allFilePaths.slice(i, i + 100));
           }
         }
 
@@ -356,13 +366,20 @@ export async function deleteWebStorageItem(path: string): Promise<boolean> {
         const storagePath = pathParts.slice(1).join('/');
 
         if (pathParts[2] === 'media' && pathParts.length === 3) {
-          const { error } = await supabase
-            .from('scenario_media')
-            .delete()
-            .eq('scenario_uniqid', uniqid);
+          const allFilePaths = await listAllFilesRecursive(`scenarios/${uniqid}/media`);
+          if (allFilePaths.length > 0) {
+            await supabase.storage.from('resources').remove(allFilePaths);
+          }
+          return true;
+        }
 
-          if (error) console.error('Error deleting all media:', error);
-          return !error;
+        const isFolder = !pathParts[pathParts.length - 1].includes('.');
+        if (isFolder) {
+          const allFilePaths = await listAllFilesRecursive(`scenarios/${storagePath}`);
+          if (allFilePaths.length > 0) {
+            await supabase.storage.from('resources').remove(allFilePaths);
+          }
+          return true;
         }
 
         const { error } = await supabase.storage

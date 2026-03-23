@@ -2,7 +2,6 @@ import { supabase } from '../lib/db';
 
 const DEFAULT_PATTERN_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
-
 export interface PatternFile {
   uniqid: string;
   slug: string;
@@ -122,13 +121,6 @@ export async function getPatternOptions(gameTypeName: string): Promise<PatternOp
     seenSlugs.add(file.slug);
     const name = await readPatternName(gameTypeName, file.slug);
     options.push({ slug: file.slug, name, uniqid: file.uniqid });
-  }
-
-  for (const slug of DEFAULT_PATTERN_FOLDERS) {
-    if (seenSlugs.has(slug)) continue;
-    seenSlugs.add(slug);
-    const name = await readPatternName(gameTypeName, slug);
-    options.push({ slug, name, uniqid: '' });
   }
 
   if (window.electron?.patterns?.listFolders) {

@@ -144,22 +144,52 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
 
   useEffect(() => {
     const loadChips = async () => {
-      if (!supabase) {
-        console.error('Supabase client not initialized');
-        return;
+      if (!supabase) return;
+
+      const { data: files, error: listError } = await supabase.storage
+        .from('resources')
+        .list('cards', { limit: 100 });
+
+      if (listError || !files) return;
+
+      const csvFile = files.find(f => f.name && f.name.endsWith('.csv') && f.name !== '.emptyFolderPlaceholder');
+      if (!csvFile) return;
+
+      const { data: blob, error: dlError } = await supabase.storage
+        .from('resources')
+        .download(`cards/${csvFile.name}`);
+
+      if (dlError || !blob) return;
+
+      const text = await blob.text();
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return;
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const idIdx = headers.indexOf('id');
+      const numIdx = headers.indexOf('key_number');
+      const nameIdx = headers.indexOf('key_name');
+      const colorIdx = headers.indexOf('color');
+
+      const chips: SiPuce[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const id = parseInt(vals[idIdx]);
+        const key_number = parseInt(vals[numIdx]);
+        const key_name = vals[nameIdx] || '';
+        if (isNaN(id) || isNaN(key_number)) continue;
+        chips.push({
+          id,
+          key_number,
+          key_name,
+          color: colorIdx !== -1 ? vals[colorIdx] || null : null,
+          created_at: '',
+          updated_at: '',
+        });
       }
 
-      const { data, error } = await supabase
-        .from('si_puces')
-        .select('*')
-        .order('key_number', { ascending: true });
-
-      if (error) {
-        console.error('Error loading chips:', error);
-        return;
-      }
-
-      setAvailableChips(data || []);
+      chips.sort((a, b) => a.key_number - b.key_number);
+      setAvailableChips(chips);
     };
 
     const loadUsedChips = async () => {
@@ -410,7 +440,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
 
             <div className="space-y-2">
               <label htmlFor="enigmaImageDisplayDuration" className="block text-sm font-medium text-slate-300">
-                Enigma Image Display Duration (seconds)
+                Image Display Duration (seconds)
               </label>
               <input
                 type="number"

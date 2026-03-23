@@ -218,17 +218,23 @@ export function GameList() {
   };
 
   const getScenarioImageFromStorage = async (uniqid: string, gameData: any): Promise<string | null> => {
-    const mediaImages = gameData?.game_media_images;
+    const mediaImages = gameData?.game_data?.game_media_images;
     const rawFileName: string | undefined = mediaImages?.game_visual || mediaImages?.background_image;
+
+    console.log(`[GameList][${uniqid}] game_media_images:`, mediaImages);
+    console.log(`[GameList][${uniqid}] game_visual file:`, rawFileName);
 
     if (rawFileName) {
       const fileName = rawFileName.startsWith('media/') ? rawFileName.slice('media/'.length) : rawFileName;
+      console.log(`[GameList][${uniqid}] resolved storage path: scenarios/${uniqid}/media/${fileName}`);
       const { data } = supabase.storage
         .from('resources')
         .getPublicUrl(`scenarios/${uniqid}/media/${fileName}`);
+      console.log(`[GameList][${uniqid}] public URL:`, data.publicUrl);
       return data.publicUrl;
     }
 
+    console.warn(`[GameList][${uniqid}] No game_visual or background_image found`);
     return null;
   };
 

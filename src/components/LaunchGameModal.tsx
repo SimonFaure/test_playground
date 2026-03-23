@@ -483,7 +483,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
           </div>
 
           <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
-            {onDemandChips.length > 0 && (
+            {hasOnDemandCards && (
               <div className="flex items-center gap-3 pb-3 border-b border-slate-700">
                 <input
                   type="checkbox"

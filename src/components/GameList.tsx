@@ -161,7 +161,7 @@ export function GameList() {
         });
       }
 
-      const imageUrl = await getScenarioImageFromStorage(uniqid);
+      const imageUrl = await getScenarioImageFromStorage(uniqid, gameData);
 
       scenariosList.push({
         id: uniqid,
@@ -217,28 +217,16 @@ export function GameList() {
     return null;
   };
 
-  const getScenarioImageFromStorage = async (uniqid: string): Promise<string | null> => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    const imageFolders = ['images', ''];
+  const getScenarioImageFromStorage = async (uniqid: string, gameData: any): Promise<string | null> => {
+    const mediaImages = gameData?.game_media_images;
+    const rawFileName: string | undefined = mediaImages?.game_visual || mediaImages?.background_image;
 
-    for (const folder of imageFolders) {
-      const path = folder ? `scenarios/${uniqid}/${folder}` : `scenarios/${uniqid}`;
-      const { data: files } = await supabase.storage.from('resources').list(path, { limit: 50 });
-      if (!files) continue;
-
-      const imageFile = files.find(f =>
-        imageExtensions.some(ext => f.name.toLowerCase().endsWith(`.${ext}`)) &&
-        f.name.toLowerCase().includes('instruction')
-      ) || files.find(f =>
-        imageExtensions.some(ext => f.name.toLowerCase().endsWith(`.${ext}`))
-      );
-
-      if (imageFile) {
-        const { data } = supabase.storage
-          .from('resources')
-          .getPublicUrl(`${path}/${imageFile.name}`);
-        return data.publicUrl;
-      }
+    if (rawFileName) {
+      const fileName = rawFileName.startsWith('media/') ? rawFileName.slice('media/'.length) : rawFileName;
+      const { data } = supabase.storage
+        .from('resources')
+        .getPublicUrl(`scenarios/${uniqid}/media/${fileName}`);
+      return data.publicUrl;
     }
 
     return null;

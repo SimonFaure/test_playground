@@ -155,7 +155,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const idIdx = headers.indexOf('id');
     const numIdx = headers.indexOf('key_number');
     const nameIdx = headers.indexOf('key_name');

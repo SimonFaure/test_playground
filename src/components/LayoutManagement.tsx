@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, Loader2, FileJson } from 'lucide-react';
+import { AlertCircle, Loader2, FileJson, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface LayoutFile {
@@ -13,10 +13,29 @@ export function LayoutManagement() {
   const [layouts, setLayouts] = useState<LayoutFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<LayoutFile | null>(null);
 
   useEffect(() => {
     loadLayouts();
   }, []);
+
+  const deleteLayout = async (file: LayoutFile) => {
+    setDeletingPath(file.path);
+    setConfirmDelete(null);
+    try {
+      const { error: deleteError } = await supabase.storage
+        .from('resources')
+        .remove([file.path]);
+      if (deleteError) throw deleteError;
+      setLayouts(prev => prev.filter(l => l.path !== file.path));
+    } catch (err) {
+      console.error('Error deleting layout:', err);
+      setError('Failed to delete layout');
+    } finally {
+      setDeletingPath(null);
+    }
+  };
 
   const loadLayouts = async () => {
     setLoading(true);
@@ -85,6 +104,30 @@ export function LayoutManagement() {
 
   return (
     <div className="space-y-6">
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-100 mb-2">Delete Layout</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Are you sure you want to delete <span className="text-slate-200 font-medium">{confirmDelete.name}</span>? This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-slate-100 hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteLayout(confirmDelete)}
+                className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {Object.keys(grouped).length === 0 ? (
         <div className="text-center py-12 text-slate-400">
           <p className="text-lg mb-2">No layouts found</p>
@@ -108,6 +151,16 @@ export function LayoutManagement() {
                       </p>
                     )}
                   </div>
+                  <button
+                    onClick={() => setConfirmDelete(file)}
+                    disabled={deletingPath === file.path}
+                    className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    {deletingPath === file.path
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-4 h-4" />
+                    }
+                  </button>
                 </div>
               ))}
             </div>

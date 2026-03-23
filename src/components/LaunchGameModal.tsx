@@ -150,6 +150,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     : availableChips;
 
   const maxTeams = allChips.length > 0 ? allChips.length : undefined;
+  const totalMaxTeams = (availableChips.length + onDemandChips.length) || undefined;
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
@@ -350,9 +351,9 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             <div className="space-y-2">
               <label htmlFor="numberOfTeams" className="block text-sm font-medium text-slate-300">
                 Number of Teams
-                {maxTeams !== undefined && (
+                {totalMaxTeams !== undefined && (
                   <span className="ml-2 text-xs text-slate-400">
-                    (max {maxTeams})
+                    (max {totalMaxTeams})
                   </span>
                 )}
               </label>
@@ -482,7 +483,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
           </div>
 
           <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
-            {hasOnDemandCards && (
+            {onDemandChips.length > 0 && (
               <div className="flex items-center gap-3 pb-3 border-b border-slate-700">
                 <input
                   type="checkbox"

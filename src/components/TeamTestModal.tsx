@@ -115,8 +115,9 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
           const rawQuests: any[] = gdj?.game_data?.quests || gdj?.quests || gdj?.game_quests || [];
 
+          const stripMedia = (name: string) => name.replace(/^media[/\\]/i, '').replace(/^media[/\\]/i, '');
           const mediaImages: Array<{ id: string; file_name: string }> = gdj?.game_media_images || [];
-          const mediaMap = new Map(mediaImages.map(m => [String(m.id), m.file_name.replace(/^media\//, '')]));
+          const mediaMap = new Map(mediaImages.map(m => [String(m.id), stripMedia(m.file_name)]));
 
           const parsedQuests: Quest[] = rawQuests.map((q: any, idx: number) => {
             const images: QuestImage[] = [];
@@ -601,9 +602,10 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                             {quest.images.map(img => {
                               const checked = selectedImages.has(img.key);
                               const isMain = img.label === 'Main';
+                              const safeKey = img.key.replace(/^media[/\\]/i, '').replace(/^media[/\\]/i, '');
                               const { data: urlData } = supabase.storage
                                 .from('resources')
-                                .getPublicUrl(`scenarios/${gameUniqid}/media/${img.key}`);
+                                .getPublicUrl(`scenarios/${gameUniqid}/media/${safeKey}`);
                               return (
                                 <button
                                   key={img.key}

@@ -243,9 +243,10 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       const patternUniqid = metaRows?.find(m => m.meta_name === 'pattern')?.meta_value || '';
       appendLog(`[Pattern Check] Pattern uniqid: "${patternUniqid}"`);
 
-      appendLog(`[Pattern Check] Scanning storage: patterns/mystery/`);
+      const gameTypeLower = gameType?.toLowerCase() || 'mystery';
+      appendLog(`[Pattern Check] Scanning storage: patterns/${gameTypeLower}/`);
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
-      const storageFiles = await getPatternFilesFromStorage('mystery');
+      const storageFiles = await getPatternFilesFromStorage(gameTypeLower);
       appendLog(`[Pattern Check] Files found: ${storageFiles.length > 0 ? storageFiles.map(f => f.fileName).join(', ') : '(none)'}`);
 
       const match = storageFiles.find(f => f.uniqid === patternUniqid);
@@ -279,12 +280,13 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
     try {
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
-      const storageFiles = await getPatternFilesFromStorage('mystery');
+      const gameTypeLower = gameType?.toLowerCase() || 'mystery';
+      const storageFiles = await getPatternFilesFromStorage(gameTypeLower);
       const match = storageFiles.find(f => f.uniqid === patternUniqid);
       if (match) {
-        const items = await fetchPatternJson(`patterns/mystery/${match.fileName}`);
+        const items = await fetchPatternJson(match.storagePath);
         if (items) {
-          appendLog(`Pattern file: patterns/mystery/${match.fileName}`);
+          appendLog(`Pattern file: ${match.storagePath}`);
           return items;
         }
       }

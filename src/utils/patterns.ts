@@ -238,16 +238,6 @@ async function readPatternFileFromStorage(gameTypeName: string, patternName: str
     }
   }
 
-  for (const ext of extensions) {
-    const storagePath = `patterns/${gameTypeName}/${patternName}.${ext}`;
-    const { data } = supabase.storage.from('resources').getPublicUrl(storagePath);
-
-    const response = await fetch(data.publicUrl);
-    if (response.ok) {
-      return await response.text();
-    }
-  }
-
   const localResponse = await fetch(`/data/patterns/${gameTypeName}/${patternName}/${filename}`);
   if (!localResponse.ok) {
     throw new Error(`Pattern file not found: ${gameTypeName}/${patternName}/${filename}`);

@@ -255,9 +255,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const startIndex = config.firstChipIndex;
     const numberOfTeams = config.numberOfTeams;
 
-    const chipsForTeams = allChips
-      .filter(chip => chip.key_number >= startIndex && chip.key_number < startIndex + numberOfTeams)
-      .slice(0, numberOfTeams);
+    const combinedChips = [...availableChips, ...onDemandChips];
+    const chipsForTeams = combinedChips.slice(startIndex, startIndex + numberOfTeams);
 
     const newTeams: Team[] = chipsForTeams.map(chip => ({
       chipId: chip.id,

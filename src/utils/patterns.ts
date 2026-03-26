@@ -28,33 +28,25 @@ function parsePatternFileName(fileName: string): { uniqid: string; slug: string 
 }
 
 export async function getPatternFilesFromStorage(gameTypeName: string): Promise<PatternFile[]> {
+  const folderPath = `patterns/${gameTypeName}`;
+  const { data, error } = await supabase.storage
+    .from('resources')
+    .list(folderPath, { limit: 1000 });
+
+  if (error) {
+    console.error(`Storage list error for ${folderPath}:`, error);
+    return [];
+  }
+  if (!data) return [];
+
   const files: PatternFile[] = [];
-
-  const scanFolder = async (folderPath: string) => {
-    const { data, error } = await supabase.storage
-      .from('resources')
-      .list(folderPath, { limit: 1000 });
-
-    if (error) {
-      console.error(`Storage list error for ${folderPath}:`, error);
-      return;
+  for (const item of data) {
+    if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+    const parsed = parsePatternFileName(item.name);
+    if (parsed) {
+      files.push({ uniqid: parsed.uniqid, slug: parsed.slug, fileName: item.name, storagePath: `${folderPath}/${item.name}` });
     }
-    if (!data) return;
-
-    for (const item of data) {
-      if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
-      if (item.id === null) {
-        await scanFolder(`${folderPath}/${item.name}`);
-      } else {
-        const parsed = parsePatternFileName(item.name);
-        if (parsed) {
-          files.push({ uniqid: parsed.uniqid, slug: parsed.slug, fileName: item.name, storagePath: `${folderPath}/${item.name}` });
-        }
-      }
-    }
-  };
-
-  await scanFolder(`patterns/${gameTypeName}`);
+  }
   return files;
 }
 

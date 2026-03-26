@@ -74,6 +74,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
   const [loadingQuests, setLoadingQuests] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [gameUniqid, setGameUniqid] = useState<string | null>(null);
+  const [endChip, setEndChip] = useState(true);
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
 
@@ -219,7 +220,8 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
   const buildTagQuestMockCard = (
     teamKeyId: string,
     selectedImageKeys: Set<string>,
-    patternEnigmas: import('../utils/patterns').PatternEnigma[]
+    patternEnigmas: import('../utils/patterns').PatternEnigma[],
+    withEnd: boolean
   ): any => {
     const now = Math.floor(Date.now() / 1000);
     const enigmaByIndex: Record<string, import('../utils/patterns').PatternEnigma> = {};
@@ -242,7 +244,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
       nbPunch: punches.length,
       start: { code: '255', time: now - 600 },
       check: null,
-      end: { code: '254', time: now },
+      end: withEnd ? { code: '254', time: now } : null,
       punches,
     };
   };
@@ -312,7 +314,9 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
           const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
           await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
 
-          const mockCard = buildTagQuestMockCard(team.key_id, selectedImages, tqPatternEnigmas);
+          const mockCard = buildTagQuestMockCard(team.key_id, selectedImages, tqPatternEnigmas, endChip);
+
+          appendLog(`Punch: ${JSON.stringify(mockCard)}`);
 
           await supabase.from('launched_game_raw_data').insert({
             launched_game_id: gameId,
@@ -650,6 +654,17 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                   <span>{selectedImages.size} image{selectedImages.size !== 1 ? 's' : ''} selected</span>
                   <span className="text-xs font-medium">Score: {selectedImages.size * 10} pts</span>
                 </div>
+
+                <label className="mt-3 flex items-center gap-2.5 cursor-pointer select-none">
+                  <button
+                    type="button"
+                    onClick={() => setEndChip(v => !v)}
+                    className={`flex items-center justify-center w-4 h-4 rounded border transition ${endChip ? 'bg-amber-500 border-amber-500' : 'bg-transparent border-slate-500'}`}
+                  >
+                    {endChip && <CheckCircle size={10} className="text-slate-900" />}
+                  </button>
+                  <span className="text-sm text-slate-300">End chip</span>
+                </label>
               </div>
             ) : (
               <div>

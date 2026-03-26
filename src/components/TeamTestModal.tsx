@@ -42,6 +42,7 @@ interface QuestImage {
 }
 
 interface Quest {
+  index: number;
   number: string;
   text: string;
   images: QuestImage[];
@@ -67,6 +68,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loadingQuests, setLoadingQuests] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [gameUniqid, setGameUniqid] = useState<string | null>(null);
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
 
@@ -87,6 +89,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       setGameType(launchedGame.game_type);
 
       if (launchedGame.game_type?.toLowerCase() === 'tagquest' && launchedGame.game_uniqid) {
+        setGameUniqid(launchedGame.game_uniqid);
         setLoadingQuests(true);
         const { data: scenario } = await supabase
           .from('scenarios')
@@ -110,12 +113,13 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
           const rawQuests: any[] = gdj?.game_data?.quests || gdj?.quests || gdj?.game_quests || [];
 
-          const parsedQuests: Quest[] = rawQuests.map((q: any) => {
+          const parsedQuests: Quest[] = rawQuests.map((q: any, idx: number) => {
             const images: QuestImage[] = [];
+            if (q.main_image) images.push({ key: q.main_image, label: 'Main' });
             for (let i = 1; i <= 4; i++) {
               if (q[`image_${i}`]) images.push({ key: q[`image_${i}`], label: `Image ${i}` });
             }
-            return { number: q.number ?? '', text: q.text ?? `Quest ${q.number}`, images };
+            return { index: idx + 1, number: q.number ?? '', text: q.text ?? '', images };
           });
 
           setQuests(parsedQuests);
@@ -503,13 +507,13 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                   <div className="space-y-3">
                     {quests.map(quest => {
                       const questKeys = quest.images.map(i => i.key);
-                      const questAllSelected = questKeys.every(k => selectedImages.has(k));
+                      const questAllSelected = questKeys.length > 0 && questKeys.every(k => selectedImages.has(k));
                       const questSomeSelected = questKeys.some(k => selectedImages.has(k));
                       return (
-                        <div key={quest.number} className="bg-slate-700/40 rounded-lg border border-slate-600 overflow-hidden">
+                        <div key={quest.index} className="bg-slate-700/40 rounded-lg border border-slate-600 overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-600/60">
                             <span className="text-sm font-medium text-white">
-                              Quest {quest.number}
+                              Quest {quest.index}
                             </span>
                             <button
                               onClick={() => toggleQuestAll(quest)}
@@ -524,18 +528,36 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                           <div className="p-2 flex flex-wrap gap-2">
                             {quest.images.map(img => {
                               const checked = selectedImages.has(img.key);
+                              const { data: urlData } = supabase.storage
+                                .from('resources')
+                                .getPublicUrl(`scenarios/${gameUniqid}/images/${img.key}`);
                               return (
                                 <button
                                   key={img.key}
                                   onClick={() => toggleImage(img.key)}
-                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition ${
+                                  className={`relative flex flex-col items-center gap-1 rounded-lg border-2 overflow-hidden transition ${
                                     checked
-                                      ? 'bg-amber-600/30 border-amber-500 text-amber-300'
-                                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white'
+                                      ? 'border-amber-500 ring-1 ring-amber-500/50'
+                                      : 'border-slate-600 hover:border-slate-400'
                                   }`}
+                                  style={{ width: 80 }}
                                 >
-                                  {checked ? <CheckCircle size={11} /> : <ImageIcon size={11} />}
-                                  {img.label}
+                                  <div className="w-full bg-slate-800" style={{ height: 60 }}>
+                                    <img
+                                      src={urlData.publicUrl}
+                                      alt={img.label}
+                                      className="w-full h-full object-cover"
+                                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                  </div>
+                                  <span className={`text-[10px] font-medium pb-1 px-1 truncate w-full text-center ${checked ? 'text-amber-300' : 'text-slate-400'}`}>
+                                    {img.label}
+                                  </span>
+                                  {checked && (
+                                    <div className="absolute top-1 right-1 bg-amber-500 rounded-full p-0.5">
+                                      <CheckCircle size={9} className="text-slate-900" />
+                                    </div>
+                                  )}
                                 </button>
                               );
                             })}

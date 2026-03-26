@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square } from 'lucide-react';
+import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square, FileSearch } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { loadPatternEnigmas } from '../utils/patterns';
 
@@ -70,6 +70,9 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [gameUniqid, setGameUniqid] = useState<string | null>(null);
   const [endChip, setEndChip] = useState(false);
+
+  const [patternCheckResult, setPatternCheckResult] = useState<{ found: boolean; slug: string; path?: string } | null>(null);
+  const [checkingPattern, setCheckingPattern] = useState(false);
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
 
@@ -217,6 +220,31 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     assignment_type: string;
     station_key_number: number;
   }
+
+  const checkPatternFile = async () => {
+    setCheckingPattern(true);
+    setPatternCheckResult(null);
+    try {
+      const { data: metaRows } = await supabase
+        .from('launched_game_meta')
+        .select('meta_name, meta_value')
+        .eq('launched_game_id', gameId);
+
+      const patternSlug = metaRows?.find(m => m.meta_name === 'pattern')?.meta_value || 'ado_adultes';
+      const { getPatternFilesFromStorage } = await import('../utils/patterns');
+      const storageFiles = await getPatternFilesFromStorage('mystery');
+      const match = storageFiles.find(f => f.slug === patternSlug);
+      if (match) {
+        setPatternCheckResult({ found: true, slug: patternSlug, path: match.storagePath });
+      } else {
+        setPatternCheckResult({ found: false, slug: patternSlug });
+      }
+    } catch (e) {
+      setPatternCheckResult({ found: false, slug: '?' });
+    } finally {
+      setCheckingPattern(false);
+    }
+  };
 
   const loadPatternItems = async (patternSlug: string): Promise<PatternItem[]> => {
     const fetchPatternJson = async (storagePath: string): Promise<PatternItem[] | null> => {
@@ -717,6 +745,46 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                 {percentError && <p className="text-red-400 text-xs mt-1">{percentError}</p>}
               </div>
             )}
+
+            <div className="space-y-2">
+              <button
+                onClick={checkPatternFile}
+                disabled={checkingPattern || testRunning}
+                className="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 rounded-lg font-medium flex items-center justify-center gap-2 transition text-sm border border-slate-600"
+              >
+                {checkingPattern ? (
+                  <>
+                    <Loader size={15} className="animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <FileSearch size={15} />
+                    Check Pattern File
+                  </>
+                )}
+              </button>
+
+              {patternCheckResult && (
+                <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-xs ${
+                  patternCheckResult.found
+                    ? 'bg-green-900/25 border border-green-800/40 text-green-300'
+                    : 'bg-red-900/25 border border-red-800/40 text-red-300'
+                }`}>
+                  {patternCheckResult.found
+                    ? <CheckCircle size={14} className="shrink-0 mt-0.5 text-green-400" />
+                    : <AlertCircle size={14} className="shrink-0 mt-0.5 text-red-400" />
+                  }
+                  <div className="min-w-0">
+                    <span className="font-semibold">{patternCheckResult.slug}</span>
+                    {patternCheckResult.found
+                      ? <p className="text-green-400/80 mt-0.5 font-mono break-all">{patternCheckResult.path}</p>
+                      : <p className="mt-0.5">Pattern file not found in storage</p>
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={runTest}

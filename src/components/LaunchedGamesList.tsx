@@ -430,10 +430,16 @@ export function LaunchedGamesList() {
     let filtered = teams;
 
     if (teamSearch) {
-      filtered = filtered.filter(team =>
-        team.team_name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-        team.team_number.toString().includes(teamSearch)
-      );
+      const q = teamSearch.toLowerCase();
+      filtered = filtered.filter(team => {
+        if (
+          team.team_name.toLowerCase().includes(q) ||
+          team.key_id.toString().includes(q)
+        ) return true;
+        const configTeam = selectedGameTeamsConfig.find(t => t.chipId === team.key_id || t.name === team.team_name);
+        if (configTeam?.teammates?.some(m => m.name.toLowerCase().includes(q))) return true;
+        return false;
+      });
     }
 
     const sorted = [...filtered].sort((a, b) => {

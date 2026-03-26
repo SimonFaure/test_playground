@@ -655,7 +655,7 @@ export function LaunchedGamesList() {
                           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                           <input
                             type="text"
-                            placeholder="Search teams..."
+                            placeholder="Search by name or chip #..."
                             value={teamSearch}
                             onChange={(e) => setTeamSearch(e.target.value)}
                             className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500"

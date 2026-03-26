@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square, ChevronDown, Search } from 'lucide-react';
+import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { loadPatternEnigmas } from '../utils/patterns';
 
@@ -81,7 +81,6 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamMember>(team);
   const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
-  const [teamSearch, setTeamSearch] = useState('');
 
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
@@ -533,60 +532,31 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
           </button>
 
           {teamDropdownOpen && teamMembers.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-10">
-              <div className="p-2 border-b border-slate-700">
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={teamSearch}
-                    onChange={e => setTeamSearch(e.target.value)}
-                    placeholder="Search teams..."
-                    autoFocus
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="max-h-44 overflow-y-auto">
-                {teamMembers
-                  .filter(m =>
-                    m.team_name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                    m.team_number.toString().includes(teamSearch) ||
-                    m.key_id.toString().includes(teamSearch)
-                  )
-                  .map(member => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTeam(member);
-                        setTeamDropdownOpen(false);
-                        setTeamSearch('');
-                        setTestResult(null);
-                        setTestLog([]);
-                      }}
-                      className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-700/60 transition text-left ${
-                        member.id === selectedTeam.id ? 'bg-blue-900/20' : ''
-                      }`}
-                    >
-                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${member.id === selectedTeam.id ? 'bg-blue-400' : 'bg-slate-600'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${member.id === selectedTeam.id ? 'text-blue-300' : 'text-white'}`}>
-                          {member.team_name}
-                        </p>
-                        <p className="text-slate-400 text-xs">Team {member.team_number} · Chip #{member.key_id}</p>
-                      </div>
-                      {member.id === selectedTeam.id && <CheckCircle size={14} className="text-blue-400 shrink-0" />}
-                    </button>
-                  ))}
-                {teamMembers.filter(m =>
-                  m.team_name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                  m.team_number.toString().includes(teamSearch) ||
-                  m.key_id.toString().includes(teamSearch)
-                ).length === 0 && (
-                  <p className="px-4 py-3 text-slate-400 text-sm">No teams found.</p>
-                )}
-              </div>
+            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
+              {teamMembers.map(member => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTeam(member);
+                    setTeamDropdownOpen(false);
+                    setTestResult(null);
+                    setTestLog([]);
+                  }}
+                  className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-700/60 transition text-left ${
+                    member.id === selectedTeam.id ? 'bg-blue-900/20' : ''
+                  }`}
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${member.id === selectedTeam.id ? 'bg-blue-400' : 'bg-slate-600'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${member.id === selectedTeam.id ? 'text-blue-300' : 'text-white'}`}>
+                      {member.team_name}
+                    </p>
+                    <p className="text-slate-400 text-xs">Team {member.team_number} · Chip #{member.key_id}</p>
+                  </div>
+                  {member.id === selectedTeam.id && <CheckCircle size={14} className="text-blue-400 shrink-0" />}
+                </button>
+              ))}
             </div>
           )}
         </div>

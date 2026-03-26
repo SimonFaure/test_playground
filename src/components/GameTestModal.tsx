@@ -100,7 +100,19 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
           .maybeSingle();
 
         if (scenario) {
-          const gdj = scenario.game_data_json;
+          let gdj = scenario.game_data_json;
+
+          if (!gdj) {
+            const { data: gameDataFile } = await supabase.storage
+              .from('resources')
+              .download(`scenarios/${launchedGame.game_uniqid}/game-data.json`);
+
+            if (gameDataFile) {
+              const text = await gameDataFile.text();
+              gdj = JSON.parse(text);
+            }
+          }
+
           const rawQuests: any[] = gdj?.game_data?.quests || gdj?.quests || gdj?.game_quests || [];
 
           const parsedQuests: Quest[] = rawQuests.map((q: any) => {

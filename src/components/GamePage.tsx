@@ -201,6 +201,10 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
     return new Date(ts).toLocaleTimeString();
   };
 
+  const handleGameEnd = useCallback(() => {
+    setShowLeaderboard(true);
+  }, []);
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-[100] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -208,10 +212,6 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
       </div>
     );
   }
-
-  const handleGameEnd = useCallback(() => {
-    setShowLeaderboard(true);
-  }, []);
 
   const renderGame = () => {
     if (showLeaderboard) {

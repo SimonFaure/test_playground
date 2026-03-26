@@ -231,19 +231,6 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       return null;
     };
 
-    const candidates = [
-      `patterns/mystery/${patternSlug}.json`,
-      `patterns/mystery/pattern_${patternSlug}.json`,
-    ];
-
-    for (const path of candidates) {
-      const items = await fetchPatternJson(path);
-      if (items) {
-        appendLog(`Pattern file: ${path}`);
-        return items;
-      }
-    }
-
     try {
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');

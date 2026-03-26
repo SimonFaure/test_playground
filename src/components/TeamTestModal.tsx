@@ -199,8 +199,9 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       const mainImg = quest.images.find(i => i.label === 'Main');
       const otherKeys = quest.images.filter(i => i.label !== 'Main').map(i => i.key);
       const allOthersSelected = otherKeys.length > 0 && otherKeys.every(k => next.has(k));
-      if (mainImg && !allOthersSelected) {
-        next.delete(mainImg.key);
+      if (mainImg) {
+        if (allOthersSelected) next.add(mainImg.key);
+        else next.delete(mainImg.key);
       }
       return next;
     });

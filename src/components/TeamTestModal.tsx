@@ -224,22 +224,40 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const checkPatternFile = async () => {
     setCheckingPattern(true);
     setPatternCheckResult(null);
+    setTestLog([]);
+    appendLog('[Pattern Check] Starting...');
     try {
-      const { data: metaRows } = await supabase
+      appendLog(`[Pattern Check] Querying meta for game id: ${gameId}`);
+      const { data: metaRows, error: metaError } = await supabase
         .from('launched_game_meta')
         .select('meta_name, meta_value')
         .eq('launched_game_id', gameId);
 
+      if (metaError) {
+        appendLog(`[Pattern Check] Meta query error: ${metaError.message}`);
+      }
+
+      const allMeta = metaRows?.map(m => `${m.meta_name}=${m.meta_value}`).join(', ') || '(none)';
+      appendLog(`[Pattern Check] Meta rows: ${allMeta}`);
+
       const patternSlug = metaRows?.find(m => m.meta_name === 'pattern')?.meta_value || 'ado_adultes';
+      appendLog(`[Pattern Check] Pattern slug: "${patternSlug}"`);
+
+      appendLog(`[Pattern Check] Scanning storage: patterns/mystery/`);
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');
+      appendLog(`[Pattern Check] Files found: ${storageFiles.length > 0 ? storageFiles.map(f => f.fileName).join(', ') : '(none)'}`);
+
       const match = storageFiles.find(f => f.slug === patternSlug);
       if (match) {
+        appendLog(`[Pattern Check] FOUND — ${match.storagePath}`);
         setPatternCheckResult({ found: true, slug: patternSlug, path: match.storagePath });
       } else {
+        appendLog(`[Pattern Check] NOT FOUND — no file matched slug "${patternSlug}"`);
         setPatternCheckResult({ found: false, slug: patternSlug });
       }
-    } catch (e) {
+    } catch (e: any) {
+      appendLog(`[Pattern Check] Unexpected error: ${e?.message || String(e)}`);
       setPatternCheckResult({ found: false, slug: '?' });
     } finally {
       setCheckingPattern(false);

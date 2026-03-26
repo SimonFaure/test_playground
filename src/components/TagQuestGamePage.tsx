@@ -178,29 +178,20 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
 
           const mediaByFilename: Record<string, string> = {};
 
-          const { data: csvFile } = await supabase.storage
+          const { data: storageMediaFiles } = await supabase.storage
             .from('resources')
-            .download(`scenarios/${gameUniqid}/csv/game_media_images.csv`);
+            .list(`scenarios/${gameUniqid}/media`, { limit: 1000 });
 
-          if (csvFile) {
-            const csvText = await csvFile.text();
-            const lines = csvText.split('\n');
-            for (let i = 1; i < lines.length; i++) {
-              const line = lines[i].trim();
-              if (!line) continue;
-              const values = line.split(',');
-              const id = values[0];
-              const uuid = values[3];
-              const fileName = values[6];
-              if (id && uuid && fileName) {
+          if (storageMediaFiles) {
+            for (const file of storageMediaFiles) {
+              if (file.name) {
                 const { data: urlData } = supabase.storage
                   .from('resources')
-                  .getPublicUrl(`scenarios/${gameUniqid}/media/${uuid}/${fileName}`);
+                  .getPublicUrl(`scenarios/${gameUniqid}/media/${file.name}`);
                 const url = urlData.publicUrl;
-                mediaByFilename[id] = url;
-                mediaByFilename[fileName] = url;
-                mediaByFilename[`media/${fileName}`] = url;
-                mediaByFilename[`media/${uuid}/${fileName}`] = url;
+                const baseName = file.name.startsWith('media/') ? file.name.slice('media/'.length) : file.name;
+                mediaByFilename[baseName] = url;
+                mediaByFilename[`media/${baseName}`] = url;
               }
             }
           }

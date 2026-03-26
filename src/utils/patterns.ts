@@ -15,28 +15,29 @@ export interface PatternOption {
 }
 
 export async function getPatternFilesFromStorage(gameTypeName: string): Promise<PatternFile[]> {
-  try {
-    const { data, error } = await supabase.storage
-      .from('resources')
-      .list(`patterns/${gameTypeName}`, { limit: 1000 });
+  const { data, error } = await supabase.storage
+    .from('resources')
+    .list(`patterns/${gameTypeName}`, { limit: 1000 });
 
-    if (error || !data) return [];
-
-    const files: PatternFile[] = [];
-    for (const item of data) {
-      if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
-      const baseName = item.name.replace(/\.(json|csv)$/, '');
-      const parts = baseName.split('_');
-      if (parts.length >= 3 && parts[0] === 'pattern') {
-        const uniqid = parts[1];
-        const slug = parts.slice(2).join('_');
-        files.push({ uniqid, slug, fileName: item.name });
-      }
-    }
-    return files;
-  } catch {
+  if (error) {
+    console.error('Storage list error for patterns:', error);
     return [];
   }
+  if (!data) return [];
+
+  const files: PatternFile[] = [];
+  for (const item of data) {
+    if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+    const baseName = item.name.replace(/\.(json|csv)$/, '');
+    const underscoreIdx = baseName.indexOf('_');
+    const secondUnderscoreIdx = baseName.indexOf('_', underscoreIdx + 1);
+    if (underscoreIdx !== -1 && secondUnderscoreIdx !== -1 && baseName.startsWith('pattern_')) {
+      const uniqid = baseName.slice(underscoreIdx + 1, secondUnderscoreIdx);
+      const slug = baseName.slice(secondUnderscoreIdx + 1);
+      files.push({ uniqid, slug, fileName: item.name });
+    }
+  }
+  return files;
 }
 
 export async function getPatternFolders(gameTypeName: string): Promise<string[]> {

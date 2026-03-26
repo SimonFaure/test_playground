@@ -239,7 +239,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
     try {
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');
-      appendLog(`Storage files found: ${storageFiles.map(f => f.fileName).join(', ') || 'none'}`);
+      appendLog(`Storage files found: ${storageFiles.map(f => `${f.slug}(${f.fileName})`).join(', ') || 'none'}`);
       const match = storageFiles.find(f => f.slug === patternSlug);
       if (match) {
         const items = await fetchPatternJson(`patterns/mystery/${match.fileName}`);
@@ -247,6 +247,9 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
           appendLog(`Pattern file: patterns/mystery/${match.fileName}`);
           return items;
         }
+        appendLog(`JSON parse failed for: patterns/mystery/${match.fileName}`);
+      } else {
+        appendLog(`No file matched slug "${patternSlug}" among: ${storageFiles.map(f => f.slug).join(', ')}`);
       }
     } catch (e) {
       appendLog(`Storage scan error: ${e}`);

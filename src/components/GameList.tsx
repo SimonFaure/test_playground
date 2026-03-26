@@ -380,6 +380,10 @@ export function GameList() {
             { meta_name: 'delayBeforeReset', meta_value: config.delayBeforeReset.toString() },
           ];
 
+          if (config.victoryType) {
+            metaEntries.push({ meta_name: 'victoryType', meta_value: config.victoryType });
+          }
+
           if (config.usbPort) {
             metaEntries.push({ meta_name: 'usbPort', meta_value: config.usbPort });
           }

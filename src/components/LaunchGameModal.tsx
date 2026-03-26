@@ -26,6 +26,7 @@ export interface GameConfig {
   colorblindMode: boolean;
   autoResetTeam: boolean;
   delayBeforeReset: number;
+  victoryType?: 'speed' | 'score';
   usbPort?: string;
   teams?: Team[];
 }
@@ -55,6 +56,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     colorblindMode: false,
     autoResetTeam: false,
     delayBeforeReset: 10,
+    victoryType: 'speed',
     usbPort: '',
   });
   const [patternFolders, setPatternFolders] = useState<PatternOption[]>([]);
@@ -138,6 +140,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         colorblindMode: false,
         autoResetTeam: false,
         delayBeforeReset: 10,
+        victoryType: 'speed',
         usbPort: savedUsbPort,
       });
       setStep(1);
@@ -490,6 +493,54 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
               />
             </div>
           </div>
+
+          {gameTypeName === 'tagquest' && (
+            <div className="space-y-3 p-4 bg-slate-800/50 rounded-lg">
+              <label className="block text-sm font-medium text-slate-300">
+                Victory Type
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, victoryType: 'speed' })}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                    config.victoryType === 'speed'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                  }`}
+                >
+                  <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'speed' ? 'text-orange-400' : 'text-slate-300'}`}>
+                    Rapidite
+                  </div>
+                  <div className="text-xs text-slate-400 leading-snug">
+                    La premiere equipe a avoir recolte toutes les images gagne. Classement par heure de derniere image collectee.
+                  </div>
+                  {config.victoryType === 'speed' && (
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, victoryType: 'score' })}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                    config.victoryType === 'score'
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                  }`}
+                >
+                  <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'score' ? 'text-blue-400' : 'text-slate-300'}`}>
+                    Score
+                  </div>
+                  <div className="text-xs text-slate-400 leading-snug">
+                    Chaque image vaut des points (avec combos et malus). Classement au nombre de points recoltes.
+                  </div>
+                  {config.victoryType === 'score' && (
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
             {hasOnDemandCards && (

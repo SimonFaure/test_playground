@@ -139,11 +139,13 @@ export function LaunchedGameConfigModal({ gameId, gameName, onClose, onSave }: L
       colorblindMode: 'Colorblind Mode',
       autoResetTeam: 'Auto Reset Team',
       delayBeforeReset: 'Delay Before Reset (seconds)',
+      victoryType: 'Victory Type',
     };
     return labels[metaName] || metaName;
   };
 
-  const getFieldType = (metaName: string): 'text' | 'number' | 'checkbox' => {
+  const getFieldType = (metaName: string): 'text' | 'number' | 'checkbox' | 'victoryType' => {
+    if (metaName === 'victoryType') return 'victoryType';
     if (metaName === 'colorblindMode' || metaName === 'autoResetTeam') {
       return 'checkbox';
     }
@@ -196,7 +198,29 @@ export function LaunchedGameConfigModal({ gameId, gameName, onClose, onSave }: L
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     {getFieldLabel(field.meta_name)}
                   </label>
-                  {fieldType === 'checkbox' ? (
+                  {fieldType === 'victoryType' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['speed', 'score'] as const).map((vt) => (
+                        <button
+                          key={vt}
+                          type="button"
+                          onClick={() => handleValueChange(field.meta_name, vt)}
+                          className={`relative p-3 rounded-lg border-2 text-left transition-all ${
+                            value === vt
+                              ? vt === 'speed' ? 'border-orange-500 bg-orange-500/10' : 'border-blue-500 bg-blue-500/10'
+                              : 'border-slate-600 bg-slate-700 hover:border-slate-500'
+                          }`}
+                        >
+                          <div className={`font-semibold text-sm ${value === vt ? (vt === 'speed' ? 'text-orange-400' : 'text-blue-400') : 'text-slate-300'}`}>
+                            {vt === 'speed' ? 'Rapidite' : 'Score'}
+                          </div>
+                          {value === vt && (
+                            <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${vt === 'speed' ? 'bg-orange-500' : 'bg-blue-500'}`} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : fieldType === 'checkbox' ? (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"

@@ -91,6 +91,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
   const [bgDimensions, setBgDimensions] = useState<{ width: number; height: number } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [launchedGameInfo, setLaunchedGameInfo] = useState<{ start_time: string | null; duration: number | null } | null>(null);
+  const [victoryType, setVictoryType] = useState<'speed' | 'score'>(config.victoryType || 'speed');
   const bgImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -270,7 +271,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       const interval = setInterval(loadTeams, 2000);
       return () => clearInterval(interval);
     }
-  }, [launchedGameId]);
+  }, [launchedGameId, victoryType]);
 
   useEffect(() => {
     if (!launchedGameId) return;
@@ -287,7 +288,21 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       }
     };
 
+    const fetchVictoryType = async () => {
+      const { data } = await supabase
+        .from('launched_game_meta')
+        .select('meta_value')
+        .eq('launched_game_id', launchedGameId)
+        .eq('meta_name', 'victoryType')
+        .maybeSingle();
+
+      if (data?.meta_value === 'score' || data?.meta_value === 'speed') {
+        setVictoryType(data.meta_value);
+      }
+    };
+
     fetchLaunchedGame();
+    fetchVictoryType();
   }, [launchedGameId]);
 
   useEffect(() => {
@@ -312,11 +327,22 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     const { data, error } = await supabase
       .from('teams')
       .select('id, team_name, score, start_time, end_time')
-      .eq('launched_game_id', launchedGameId)
-      .order('score', { ascending: false });
+      .eq('launched_game_id', launchedGameId);
 
     if (!error && data) {
-      setTeams(data);
+      const sorted = [...data].sort((a, b) => {
+        if (victoryType === 'speed') {
+          if (a.end_time && b.end_time) return a.end_time - b.end_time;
+          if (a.end_time) return -1;
+          if (b.end_time) return 1;
+          if (a.start_time && b.start_time) return a.start_time - b.start_time;
+          if (a.start_time) return -1;
+          if (b.start_time) return 1;
+          return 0;
+        }
+        return (b.score ?? 0) - (a.score ?? 0);
+      });
+      setTeams(sorted);
     }
   };
 
@@ -724,9 +750,18 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
         )}
 
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-6">
-          <div className="flex items-center gap-3 text-white mb-4">
-            <Trophy className="w-6 h-6" />
-            <h2 className="text-2xl font-bold">Leaderboard</h2>
+          <div className="flex items-center justify-between text-white mb-4">
+            <div className="flex items-center gap-3">
+              <Trophy className="w-6 h-6" />
+              <h2 className="text-2xl font-bold">Leaderboard</h2>
+            </div>
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              victoryType === 'speed'
+                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
+                : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+            }`}>
+              {victoryType === 'speed' ? 'Rapidite' : 'Score'}
+            </span>
           </div>
 
           <div className="space-y-3">
@@ -751,7 +786,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                       <div className="text-white font-semibold text-lg">{team.team_name}</div>
                       <div className="text-white/60 text-sm">
                         {team.start_time && team.end_time ? (
-                          <>Time: {formatTime(team.end_time - team.start_time)}</>
+                          <>Finished &mdash; {formatTime(team.end_time - team.start_time)}</>
                         ) : team.start_time ? (
                           <>In progress...</>
                         ) : (
@@ -760,8 +795,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
                       </div>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-white">
-                    {team.score} pts
+                  <div className="text-right">
+                    {victoryType === 'score' ? (
+                      <div className="text-2xl font-bold text-white">{team.score} pts</div>
+                    ) : (
+                      team.end_time ? (
+                        <div className="text-lg font-bold text-orange-400">{formatTime(team.end_time - (team.start_time ?? team.end_time))}</div>
+                      ) : (
+                        <div className="text-sm text-white/40">&mdash;</div>
+                      )
+                    )}
                   </div>
                 </div>
               ))

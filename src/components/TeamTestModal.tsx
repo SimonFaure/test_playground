@@ -166,16 +166,11 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     });
   };
 
-  const toggleQuestAll = (quest: Quest) => {
+  const selectQuestAll = (quest: Quest) => {
     const allKeys = quest.images.map(i => i.key);
-    const allSelected = allKeys.every(k => selectedImages.has(k));
     setSelectedImages(prev => {
       const next = new Set(prev);
-      if (allSelected) {
-        allKeys.forEach(k => next.delete(k));
-      } else {
-        allKeys.forEach(k => next.add(k));
-      }
+      allKeys.forEach(k => next.add(k));
       return next;
     });
   };
@@ -216,9 +211,26 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     };
   };
 
-  const buildTagQuestMockCard = (teamKeyId: string, imageKeys: string[]): any => {
+  const buildTagQuestMockCard = (
+    teamKeyId: string,
+    selectedImageKeys: Set<string>,
+    patternEnigmas: import('../utils/patterns').PatternEnigma[]
+  ): any => {
     const now = Math.floor(Date.now() / 1000);
-    const punches = imageKeys.map(code => ({ code, time: now }));
+    const enigmaByIndex: Record<string, import('../utils/patterns').PatternEnigma> = {};
+    patternEnigmas.forEach(e => { enigmaByIndex[e.enigma_id] = e; });
+
+    const punches: Array<{ code: string; time: number }> = [];
+    for (const quest of quests) {
+      const questImageKeys = quest.images.map(i => i.key);
+      const anySelected = questImageKeys.some(k => selectedImageKeys.has(k));
+      if (!anySelected) continue;
+      const enigma = enigmaByIndex[String(quest.index)];
+      if (enigma && enigma.good_answers.length > 0) {
+        punches.push({ code: enigma.good_answers[0], time: now });
+      }
+    }
+
     return {
       id: teamKeyId,
       series: 0,
@@ -258,13 +270,25 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       appendLog(`Processing: ${team.team_name}`);
 
       if (gameType?.toLowerCase() === 'tagquest') {
-        const imageKeys = Array.from(selectedImages);
-        appendLog(`Selected ${imageKeys.length} image(s) across ${quests.length} quest(s)`);
+        appendLog(`Selected ${selectedImages.size} image(s) across ${quests.length} quest(s)`);
+
+        const { data: metaDataTQ } = await supabase
+          .from('launched_game_meta')
+          .select('meta_name, meta_value')
+          .eq('launched_game_id', gameId);
+
+        const metaMapTQ: Record<string, string> = {};
+        metaDataTQ?.forEach(m => { metaMapTQ[m.meta_name] = m.meta_value || ''; });
+        const tqPatternName = metaMapTQ.pattern || 'ado_adultes';
+
+        appendLog(`Loading pattern: ${tqPatternName}`);
+        const tqPatternEnigmas = await loadPatternEnigmas('mystery', tqPatternName);
+        appendLog(`Loaded ${tqPatternEnigmas.length} enigmas from pattern`);
 
         const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
         await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
 
-        const mockCard = buildTagQuestMockCard(team.key_id.toString(), imageKeys);
+        const mockCard = buildTagQuestMockCard(team.key_id.toString(), selectedImages, tqPatternEnigmas);
 
         await supabase.from('launched_game_raw_data').insert({
           launched_game_id: gameId,
@@ -272,7 +296,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
           raw_data: mockCard,
         });
 
-        const totalScore = imageKeys.length * 10;
+        const totalScore = mockCard.nbPunch * 10;
         const endTime = Math.floor(Date.now() / 1000);
 
         const { error: endErr } = await supabase
@@ -480,18 +504,11 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
             {gameType?.toLowerCase() === 'tagquest' ? (
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center mb-3">
                   <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <ImageIcon size={15} className="text-amber-400" />
                     Quest Images Found
                   </label>
-                  <button
-                    onClick={toggleSelectAll}
-                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
-                  >
-                    {allSelected ? <CheckSquare size={14} className="text-amber-400" /> : <Square size={14} />}
-                    {allSelected ? 'Deselect all' : 'Select all'}
-                  </button>
                 </div>
 
                 {loadingQuests ? (
@@ -516,7 +533,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                               Quest {quest.index}
                             </span>
                             <button
-                              onClick={() => toggleQuestAll(quest)}
+                              onClick={() => selectQuestAll(quest)}
                               className={`flex items-center gap-1 text-xs transition ${
                                 questAllSelected ? 'text-amber-400' : questSomeSelected ? 'text-amber-400/60' : 'text-slate-400 hover:text-white'
                               }`}
@@ -528,13 +545,14 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                           <div className="p-2 flex flex-wrap gap-2">
                             {quest.images.map(img => {
                               const checked = selectedImages.has(img.key);
+                              const isMain = img.label === 'Main';
                               const { data: urlData } = supabase.storage
                                 .from('resources')
                                 .getPublicUrl(`scenarios/${gameUniqid}/images/${img.key}`);
                               return (
                                 <button
                                   key={img.key}
-                                  onClick={() => toggleImage(img.key)}
+                                  onClick={() => isMain ? selectQuestAll(quest) : toggleImage(img.key)}
                                   className={`relative flex flex-col items-center gap-1 rounded-lg border-2 overflow-hidden transition ${
                                     checked
                                       ? 'border-amber-500 ring-1 ring-amber-500/50'

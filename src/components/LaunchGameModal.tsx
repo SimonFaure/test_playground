@@ -66,8 +66,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     colorblindMode: false,
     autoResetTeam: false,
     delayBeforeReset: 10,
-    victoryType: 'speed',
-    playMode: 'solo',
+    victoryType: 'score',
+    playMode: 'team',
     teammatesPerTeam: 2,
     testMode: false,
     usbPort: '',
@@ -153,8 +153,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         colorblindMode: false,
         autoResetTeam: false,
         delayBeforeReset: 10,
-        victoryType: 'speed',
-        playMode: 'solo',
+        victoryType: 'score',
+        playMode: 'team',
         teammatesPerTeam: 2,
         testMode: false,
         usbPort: savedUsbPort,
@@ -590,25 +590,6 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setConfig({ ...config, victoryType: 'speed' })}
-                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
-                      config.victoryType === 'speed'
-                        ? 'border-orange-500 bg-orange-500/10'
-                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                    }`}
-                  >
-                    <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'speed' ? 'text-orange-400' : 'text-slate-300'}`}>
-                      Rapidite
-                    </div>
-                    <div className="text-xs text-slate-400 leading-snug">
-                      La premiere equipe a avoir recolte toutes les images gagne. Classement par heure de derniere image collectee.
-                    </div>
-                    {config.victoryType === 'speed' && (
-                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setConfig({ ...config, victoryType: 'score' })}
                     className={`relative p-4 rounded-lg border-2 text-left transition-all ${
                       config.victoryType === 'score'
@@ -626,6 +607,25 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                       <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
                     )}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, victoryType: 'speed' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.victoryType === 'speed'
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'speed' ? 'text-orange-400' : 'text-slate-300'}`}>
+                      Rapidite
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      La premiere equipe a avoir recolte toutes les images gagne. Classement par heure de derniere image collectee.
+                    </div>
+                    {config.victoryType === 'speed' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -634,25 +634,6 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                   Play Mode
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setConfig({ ...config, playMode: 'solo' })}
-                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
-                      config.playMode === 'solo'
-                        ? 'border-teal-500 bg-teal-500/10'
-                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                    }`}
-                  >
-                    <div className={`font-semibold text-sm mb-1 ${config.playMode === 'solo' ? 'text-teal-400' : 'text-slate-300'}`}>
-                      Solo
-                    </div>
-                    <div className="text-xs text-slate-400 leading-snug">
-                      Each chip corresponds to one team. One chip per player.
-                    </div>
-                    {config.playMode === 'solo' && (
-                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-teal-500" />
-                    )}
-                  </button>
                   <button
                     type="button"
                     onClick={() => setConfig({ ...config, playMode: 'team' })}
@@ -669,6 +650,25 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                       Several chips correspond to one team. Multiple players share a team.
                     </div>
                     {config.playMode === 'team' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-teal-500" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, playMode: 'solo' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.playMode === 'solo'
+                        ? 'border-teal-500 bg-teal-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.playMode === 'solo' ? 'text-teal-400' : 'text-slate-300'}`}>
+                      Solo
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      Each chip corresponds to one team. One chip per player.
+                    </div>
+                    {config.playMode === 'solo' && (
                       <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-teal-500" />
                     )}
                   </button>

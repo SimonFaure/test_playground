@@ -236,34 +236,29 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
       return null;
     };
 
+    const candidates = [
+      `patterns/mystery/${patternSlug}.json`,
+      `patterns/mystery/pattern_${patternSlug}.json`,
+    ];
+
+    for (const path of candidates) {
+      const items = await fetchPatternJson(path);
+      if (items) {
+        appendLog(`Pattern file: ${path}`);
+        return items;
+      }
+    }
+
     try {
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');
-
-      const bySlug = storageFiles.find(f => f.slug === patternSlug);
-      if (bySlug) {
-        const items = await fetchPatternJson(`patterns/mystery/${bySlug.fileName}`);
+      const match = storageFiles.find(f => f.slug === patternSlug);
+      if (match) {
+        const items = await fetchPatternJson(`patterns/mystery/${match.fileName}`);
         if (items) {
-          appendLog(`Pattern file: patterns/mystery/${bySlug.fileName}`);
+          appendLog(`Pattern file: patterns/mystery/${match.fileName}`);
           return items;
         }
-      }
-
-      const byFullSlug = storageFiles.find(
-        f => `${f.uniqid}_${f.slug}` === patternSlug || f.fileName.replace(/\.(json|csv)$/, '') === `pattern_${patternSlug}`
-      );
-      if (byFullSlug) {
-        const items = await fetchPatternJson(`patterns/mystery/${byFullSlug.fileName}`);
-        if (items) {
-          appendLog(`Pattern file: patterns/mystery/${byFullSlug.fileName}`);
-          return items;
-        }
-      }
-
-      const directItems = await fetchPatternJson(`patterns/mystery/pattern_${patternSlug}.json`);
-      if (directItems) {
-        appendLog(`Pattern file: patterns/mystery/pattern_${patternSlug}.json`);
-        return directItems;
       }
     } catch {}
 

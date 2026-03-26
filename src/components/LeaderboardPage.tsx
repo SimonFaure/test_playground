@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Trophy, ArrowLeft, Clock, Zap, Star, Medal } from 'lucide-react';
+import { Trophy, ArrowLeft, Clock, Zap, Star, Medal, Users } from 'lucide-react';
 import { supabase } from '../lib/db';
-import { GameConfig } from './LaunchGameModal';
+import { GameConfig, Team as ConfigTeam } from './LaunchGameModal';
 
 interface LeaderboardPageProps {
   launchedGameId: number | null;
@@ -17,6 +17,7 @@ interface TeamResult {
   score: number;
   start_time: number | null;
   end_time: number | null;
+  key_id: number;
 }
 
 function formatDuration(seconds: number): string {
@@ -48,6 +49,8 @@ function RankIcon({ index }: { index: number }) {
 
 export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: LeaderboardPageProps) {
   const [teams, setTeams] = useState<TeamResult[]>([]);
+  const [teamsConfig, setTeamsConfig] = useState<ConfigTeam[]>(config.teams || []);
+  const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
 
@@ -57,13 +60,31 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
     const load = async () => {
       if (!launchedGameId) return;
 
-      const { data } = await supabase
-        .from('teams')
-        .select('id, team_number, team_name, score, start_time, end_time')
-        .eq('launched_game_id', launchedGameId);
+      const [teamsRes, metaRes] = await Promise.all([
+        supabase
+          .from('teams')
+          .select('id, team_number, team_name, score, start_time, end_time, key_id')
+          .eq('launched_game_id', launchedGameId),
+        supabase
+          .from('launched_game_meta')
+          .select('meta_name, meta_value')
+          .eq('launched_game_id', launchedGameId)
+          .in('meta_name', ['playMode', 'teamsConfig', 'victoryType']),
+      ]);
 
-      if (data) {
-        const sorted = [...data].sort((a, b) => {
+      if (metaRes.data) {
+        const map: Record<string, string> = {};
+        metaRes.data.forEach(row => { map[row.meta_name] = row.meta_value || ''; });
+        if (map.playMode === 'solo' || map.playMode === 'team') {
+          setPlayMode(map.playMode);
+        }
+        if (map.teamsConfig) {
+          try { setTeamsConfig(JSON.parse(map.teamsConfig)); } catch {}
+        }
+      }
+
+      if (teamsRes.data) {
+        const sorted = [...teamsRes.data].sort((a, b) => {
           if (victoryType === 'speed') {
             if (a.end_time && b.end_time) return a.end_time - b.end_time;
             if (a.end_time) return -1;
@@ -104,7 +125,13 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
             Back to games
           </button>
 
-          <div className="flex items-center gap-2 text-slate-400 text-sm">
+          <div className="flex items-center gap-3 text-slate-400 text-sm">
+            {playMode === 'team' && (
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-500/15 border border-teal-500/30 text-teal-400 text-xs font-semibold uppercase tracking-wide">
+                <Users size={12} />
+                Team mode
+              </span>
+            )}
             {victoryType === 'speed' ? (
               <>
                 <Zap size={15} className="text-orange-400" />
@@ -142,58 +169,77 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
                     ? team.end_time - team.start_time
                     : null;
 
+                const configTeam = teamsConfig.find(
+                  t => t.chipId === team.key_id || t.name === team.team_name
+                );
+                const teammates = playMode === 'team' ? (configTeam?.teammates ?? []) : [];
+
                 return (
                   <div
                     key={team.id}
-                    className={`flex items-center gap-4 px-5 py-4 rounded-xl border ${getRankBg(index)}`}
+                    className={`rounded-xl border ${getRankBg(index)} px-5 pt-4 pb-4`}
                     style={{
                       opacity: visible ? 1 : 0,
                       transform: visible ? 'translateX(0)' : 'translateX(-16px)',
                       transition: `opacity 0.4s ease ${index * 0.07}s, transform 0.4s ease ${index * 0.07}s`,
                     }}
                   >
-                    <div className="flex items-center justify-center w-8 shrink-0">
-                      <RankIcon index={index} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className={`font-bold text-lg leading-tight ${getRankColor(index)}`}>
-                        {team.team_name}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center w-8 shrink-0">
+                        <RankIcon index={index} />
                       </div>
-                      <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
-                        {team.end_time ? (
-                          <>
-                            <Clock size={11} />
-                            Finished
-                          </>
-                        ) : team.start_time ? (
-                          'In progress'
+
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-bold text-lg leading-tight ${getRankColor(index)}`}>
+                          {team.team_name}
+                        </div>
+                        <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
+                          {team.end_time ? (
+                            <>
+                              <Clock size={11} />
+                              Finished
+                            </>
+                          ) : team.start_time ? (
+                            'In progress'
+                          ) : (
+                            'Did not start'
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        {victoryType === 'score' ? (
+                          <div className="text-xl font-bold text-white">
+                            {team.score}
+                            <span className="text-slate-400 text-sm font-normal ml-1">pts</span>
+                          </div>
+                        ) : duration !== null ? (
+                          <div className={`text-xl font-bold ${getRankColor(index)}`}>
+                            {formatDuration(duration)}
+                          </div>
                         ) : (
-                          'Did not start'
+                          <div className="text-slate-500 text-sm">&mdash;</div>
+                        )}
+
+                        {victoryType === 'speed' && team.score > 0 && (
+                          <div className="text-slate-500 text-xs mt-0.5">
+                            {team.score} pts
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      {victoryType === 'score' ? (
-                        <div className="text-xl font-bold text-white">
-                          {team.score}
-                          <span className="text-slate-400 text-sm font-normal ml-1">pts</span>
-                        </div>
-                      ) : duration !== null ? (
-                        <div className={`text-xl font-bold ${getRankColor(index)}`}>
-                          {formatDuration(duration)}
-                        </div>
-                      ) : (
-                        <div className="text-slate-500 text-sm">&mdash;</div>
-                      )}
-
-                      {victoryType === 'speed' && team.score > 0 && (
-                        <div className="text-slate-500 text-xs mt-0.5">
-                          {team.score} pts
-                        </div>
-                      )}
-                    </div>
+                    {teammates.length > 1 && (
+                      <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2">
+                        {teammates.map((mate, mi) => (
+                          <span key={mi} className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full text-xs text-slate-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                            {mate.name}
+                            <span className="text-slate-600">#{mate.chipNumber}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

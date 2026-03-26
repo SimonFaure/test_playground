@@ -392,6 +392,18 @@ export function GameList() {
             metaEntries.push({ meta_name: 'testMode', meta_value: 'true' });
           }
 
+          if (config.playMode) {
+            metaEntries.push({ meta_name: 'playMode', meta_value: config.playMode });
+          }
+
+          if (config.teammatesPerTeam !== undefined) {
+            metaEntries.push({ meta_name: 'teammatesPerTeam', meta_value: config.teammatesPerTeam.toString() });
+          }
+
+          if (config.teams && config.teams.length > 0) {
+            metaEntries.push({ meta_name: 'teamsConfig', meta_value: JSON.stringify(config.teams) });
+          }
+
           const metaData = metaEntries.map(entry => ({
             ...entry,
             launched_game_id: launchedGame.id,

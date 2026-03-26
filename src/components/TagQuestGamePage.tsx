@@ -51,6 +51,7 @@ interface TeamScore {
   score: number;
   start_time: number | null;
   end_time: number | null;
+  key_id: number;
 }
 
 interface LayoutElement {
@@ -94,6 +95,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [countdown, setCountdown] = useState<number | null>(null);
   const [launchedGameInfo, setLaunchedGameInfo] = useState<{ start_time: string | null; duration: number | null } | null>(null);
   const [victoryType, setVictoryType] = useState<'speed' | 'score'>(config.victoryType || 'speed');
+  const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
+  const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
   const bgImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -290,21 +293,33 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       }
     };
 
-    const fetchVictoryType = async () => {
+    const fetchMeta = async () => {
       const { data } = await supabase
         .from('launched_game_meta')
-        .select('meta_value')
+        .select('meta_name, meta_value')
         .eq('launched_game_id', launchedGameId)
-        .eq('meta_name', 'victoryType')
-        .maybeSingle();
+        .in('meta_name', ['victoryType', 'playMode', 'teamsConfig']);
 
-      if (data?.meta_value === 'score' || data?.meta_value === 'speed') {
-        setVictoryType(data.meta_value);
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(row => { map[row.meta_name] = row.meta_value || ''; });
+
+        if (map.victoryType === 'score' || map.victoryType === 'speed') {
+          setVictoryType(map.victoryType);
+        }
+        if (map.playMode === 'solo' || map.playMode === 'team') {
+          setPlayMode(map.playMode);
+        }
+        if (map.teamsConfig) {
+          try {
+            setTeamsConfig(JSON.parse(map.teamsConfig));
+          } catch {}
+        }
       }
     };
 
     fetchLaunchedGame();
-    fetchVictoryType();
+    fetchMeta();
   }, [launchedGameId]);
 
   useEffect(() => {
@@ -328,7 +343,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
     const { data, error } = await supabase
       .from('teams')
-      .select('id, team_name, score, start_time, end_time')
+      .select('id, team_name, score, start_time, end_time, key_id')
       .eq('launched_game_id', launchedGameId);
 
     if (!error && data) {
@@ -793,46 +808,65 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             {teams.length === 0 ? (
               <p className="text-white/60 text-center py-8">No teams have started yet</p>
             ) : (
-              teams.map((team, index) => (
-                <div
-                  key={team.id}
-                  className="bg-white/5 rounded-lg p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`text-2xl font-bold ${
-                      index === 0 ? 'text-yellow-400' :
-                      index === 1 ? 'text-gray-300' :
-                      index === 2 ? 'text-amber-600' :
-                      'text-white/60'
-                    }`}>
-                      #{index + 1}
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold text-lg">{team.team_name}</div>
-                      <div className="text-white/60 text-sm">
-                        {team.start_time && team.end_time ? (
-                          <>Finished &mdash; {formatTime(team.end_time - team.start_time)}</>
-                        ) : team.start_time ? (
-                          <>In progress...</>
+              teams.map((team, index) => {
+                const configTeam = teamsConfig.find(
+                  t => t.chipId === team.key_id || t.name === team.team_name
+                );
+                const teammates = playMode === 'team' ? (configTeam?.teammates ?? []) : [];
+                return (
+                  <div
+                    key={team.id}
+                    className="bg-white/5 rounded-lg p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`text-2xl font-bold ${
+                          index === 0 ? 'text-yellow-400' :
+                          index === 1 ? 'text-gray-300' :
+                          index === 2 ? 'text-amber-600' :
+                          'text-white/60'
+                        }`}>
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="text-white font-semibold text-lg">{team.team_name}</div>
+                          <div className="text-white/60 text-sm">
+                            {team.start_time && team.end_time ? (
+                              <>Finished &mdash; {formatTime(team.end_time - team.start_time)}</>
+                            ) : team.start_time ? (
+                              <>In progress...</>
+                            ) : (
+                              <>Not started</>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {victoryType === 'score' ? (
+                          <div className="text-2xl font-bold text-white">{team.score} pts</div>
                         ) : (
-                          <>Not started</>
+                          team.end_time ? (
+                            <div className="text-lg font-bold text-orange-400">{formatTime(team.end_time - (team.start_time ?? team.end_time))}</div>
+                          ) : (
+                            <div className="text-sm text-white/40">&mdash;</div>
+                          )
                         )}
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    {victoryType === 'score' ? (
-                      <div className="text-2xl font-bold text-white">{team.score} pts</div>
-                    ) : (
-                      team.end_time ? (
-                        <div className="text-lg font-bold text-orange-400">{formatTime(team.end_time - (team.start_time ?? team.end_time))}</div>
-                      ) : (
-                        <div className="text-sm text-white/40">&mdash;</div>
-                      )
+                    {teammates.length > 1 && (
+                      <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2">
+                        {teammates.map((mate, mi) => (
+                          <span key={mi} className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full text-xs text-white/70">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block" />
+                            {mate.name}
+                            <span className="text-white/30">#{mate.chipNumber}</span>
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

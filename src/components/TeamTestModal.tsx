@@ -112,7 +112,6 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
           const parsedQuests: Quest[] = rawQuests.map((q: any) => {
             const images: QuestImage[] = [];
-            if (q.main_image) images.push({ key: q.main_image, label: 'Main image' });
             for (let i = 1; i <= 4; i++) {
               if (q[`image_${i}`]) images.push({ key: q[`image_${i}`], label: `Image ${i}` });
             }

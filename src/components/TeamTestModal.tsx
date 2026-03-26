@@ -212,24 +212,71 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     };
   };
 
+  interface PatternItem {
+    item_index: number;
+    assignment_type: string;
+    station_key_number: number;
+  }
+
+  const loadPatternItems = async (patternSlug: string): Promise<PatternItem[]> => {
+    const { data: patternRow } = await supabase
+      .from('patterns')
+      .select('id')
+      .eq('slug', patternSlug)
+      .eq('game_type', 'mystery')
+      .maybeSingle();
+
+    if (patternRow?.id) {
+      const { data: items } = await supabase
+        .from('tagquest_pattern_items')
+        .select('item_index, assignment_type, station_key_number')
+        .eq('pattern_id', patternRow.id);
+      if (items && items.length > 0) return items;
+    }
+
+    try {
+      const storageFiles = await (await import('../utils/patterns')).getPatternFilesFromStorage('mystery');
+      const file = storageFiles.find(f => f.slug === patternSlug);
+      if (file) {
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(`patterns/mystery/${file.fileName}`);
+        const resp = await fetch(urlData.publicUrl);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json?.pattern_data)) return json.pattern_data;
+        }
+      }
+    } catch {}
+    return [];
+  };
+
   const buildTagQuestMockCard = (
     teamKeyId: string,
     selectedImageKeys: Set<string>,
-    patternEnigmas: import('../utils/patterns').PatternEnigma[],
+    patternItems: PatternItem[],
     withEnd: boolean
   ): any => {
     const now = Math.floor(Date.now() / 1000);
-    const enigmaByIndex: Record<string, import('../utils/patterns').PatternEnigma> = {};
-    patternEnigmas.forEach(e => { enigmaByIndex[e.enigma_id] = e; });
+
+    const itemMap: Record<string, number> = {};
+    patternItems.forEach(p => {
+      itemMap[`${p.item_index}:${p.assignment_type}`] = p.station_key_number;
+    });
 
     const punches: Array<{ code: string; time: number }> = [];
     for (const quest of quests) {
-      const questImageKeys = quest.images.map(i => i.key);
-      const anySelected = questImageKeys.some(k => selectedImageKeys.has(k));
-      if (!anySelected) continue;
-      const enigma = enigmaByIndex[String(quest.index)];
-      if (enigma && enigma.good_answers.length > 0) {
-        punches.push({ code: enigma.good_answers[0], time: now });
+      for (const img of quest.images) {
+        if (!selectedImageKeys.has(img.key)) continue;
+        if (img.label === 'Main') continue;
+        const imgIndexMatch = img.label.match(/^Image\s+(\d+)$/i);
+        if (!imgIndexMatch) continue;
+        const imgIndex = parseInt(imgIndexMatch[1], 10);
+        const assignmentType = `image_${imgIndex}`;
+        const stationKey = itemMap[`${quest.index}:${assignmentType}`];
+        if (stationKey !== undefined) {
+          punches.push({ code: String(stationKey), time: now });
+        }
       }
     }
 
@@ -283,14 +330,14 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
         metaDataTQ?.forEach(m => { metaMapTQ[m.meta_name] = m.meta_value || ''; });
         const tqPatternName = metaMapTQ.pattern || 'ado_adultes';
 
-        appendLog(`Loading pattern: ${tqPatternName}`);
-        const tqPatternEnigmas = await loadPatternEnigmas('mystery', tqPatternName);
-        appendLog(`Loaded ${tqPatternEnigmas.length} enigmas from pattern`);
+        appendLog(`Loading pattern items: ${tqPatternName}`);
+        const tqPatternItems = await loadPatternItems(tqPatternName);
+        appendLog(`Loaded ${tqPatternItems.length} pattern item(s)`);
 
         const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
         await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
 
-        const mockCard = buildTagQuestMockCard(team.key_id.toString(), selectedImages, tqPatternEnigmas, endChip);
+        const mockCard = buildTagQuestMockCard(team.key_id.toString(), selectedImages, tqPatternItems, endChip);
 
         appendLog(`Punch: ${JSON.stringify(mockCard)}`);
 

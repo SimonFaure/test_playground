@@ -224,8 +224,19 @@ function parseCSV(csvContent: string): any[] {
   return result;
 }
 
-async function readPatternFileFromStorage(gameTypeName: string, patternName: string, filename: string): Promise<string> {
+async function readPatternFileFromStorage(gameTypeName: string, patternName: string, filename: string, patternUniqid?: string): Promise<string> {
   const extensions = ['csv', 'json'];
+
+  if (patternUniqid) {
+    for (const ext of extensions) {
+      const storagePath = `patterns/${gameTypeName}/pattern_${patternUniqid}_${patternName}.${ext}`;
+      const { data } = supabase.storage.from('resources').getPublicUrl(storagePath);
+      const response = await fetch(data.publicUrl);
+      if (response.ok) {
+        return await response.text();
+      }
+    }
+  }
 
   for (const ext of extensions) {
     const storagePath = `patterns/${gameTypeName}/${patternName}.${ext}`;
@@ -244,7 +255,16 @@ async function readPatternFileFromStorage(gameTypeName: string, patternName: str
   return await localResponse.text();
 }
 
-export async function loadPatternEnigmas(gameTypeName: string, patternName: string): Promise<PatternEnigma[]> {
+export async function loadPatternEnigmasByUniqid(gameTypeName: string, patternUniqid: string): Promise<PatternEnigma[]> {
+  const storageFiles = await getPatternFilesFromStorage(gameTypeName);
+  const match = storageFiles.find(f => f.uniqid === patternUniqid);
+  if (match) {
+    return loadPatternEnigmas(gameTypeName, match.slug, match.uniqid);
+  }
+  return [];
+}
+
+export async function loadPatternEnigmas(gameTypeName: string, patternName: string, patternUniqid?: string): Promise<PatternEnigma[]> {
   try {
     if (window.electron?.patterns?.readFile) {
       const csvContent = await window.electron.patterns.readFile(gameTypeName, patternName, 'patterns_survival_balises.csv');
@@ -282,7 +302,7 @@ export async function loadPatternEnigmas(gameTypeName: string, patternName: stri
       });
     }
 
-    const csvContent = await readPatternFileFromStorage(gameTypeName, patternName, 'patterns_survival_balises.csv');
+    const csvContent = await readPatternFileFromStorage(gameTypeName, patternName, 'patterns_survival_balises.csv', patternUniqid);
     const parsed = parseCSV(csvContent);
 
     return parsed.map((row: any) => {

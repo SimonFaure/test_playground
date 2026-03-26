@@ -102,12 +102,12 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       if (defaultPatternId) {
         const match = storageFiles.find(f => f.uniqid === defaultPatternId);
         if (match) {
-          resolvedPattern = match.slug;
+          resolvedPattern = match.uniqid;
         }
       }
 
       if (!resolvedPattern) {
-        resolvedPattern = options[0]?.slug || '';
+        resolvedPattern = options[0]?.uniqid || '';
       }
 
       setDefaultPattern(resolvedPattern);
@@ -505,7 +505,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                   <option value="">Loading patterns...</option>
                 ) : (
                   patternFolders.map((option) => (
-                    <option key={option.slug} value={option.slug}>
+                    <option key={option.uniqid || option.slug} value={option.uniqid}>
                       {option.name}
                     </option>
                   ))

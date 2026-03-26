@@ -240,21 +240,21 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       const allMeta = metaRows?.map(m => `${m.meta_name}=${m.meta_value}`).join(', ') || '(none)';
       appendLog(`[Pattern Check] Meta rows: ${allMeta}`);
 
-      const patternSlug = metaRows?.find(m => m.meta_name === 'pattern')?.meta_value || 'ado_adultes';
-      appendLog(`[Pattern Check] Pattern slug: "${patternSlug}"`);
+      const patternUniqid = metaRows?.find(m => m.meta_name === 'pattern')?.meta_value || '';
+      appendLog(`[Pattern Check] Pattern uniqid: "${patternUniqid}"`);
 
       appendLog(`[Pattern Check] Scanning storage: patterns/mystery/`);
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');
       appendLog(`[Pattern Check] Files found: ${storageFiles.length > 0 ? storageFiles.map(f => f.fileName).join(', ') : '(none)'}`);
 
-      const match = storageFiles.find(f => f.slug === patternSlug);
+      const match = storageFiles.find(f => f.uniqid === patternUniqid);
       if (match) {
         appendLog(`[Pattern Check] FOUND — ${match.storagePath}`);
-        setPatternCheckResult({ found: true, slug: patternSlug, path: match.storagePath });
+        setPatternCheckResult({ found: true, slug: match.slug, path: match.storagePath });
       } else {
-        appendLog(`[Pattern Check] NOT FOUND — no file matched slug "${patternSlug}"`);
-        setPatternCheckResult({ found: false, slug: patternSlug });
+        appendLog(`[Pattern Check] NOT FOUND — no file matched uniqid "${patternUniqid}"`);
+        setPatternCheckResult({ found: false, slug: patternUniqid });
       }
     } catch (e: any) {
       appendLog(`[Pattern Check] Unexpected error: ${e?.message || String(e)}`);
@@ -264,7 +264,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     }
   };
 
-  const loadPatternItems = async (patternSlug: string): Promise<PatternItem[]> => {
+  const loadPatternItems = async (patternUniqid: string): Promise<PatternItem[]> => {
     const fetchPatternJson = async (storagePath: string): Promise<PatternItem[] | null> => {
       try {
         const { data: urlData } = supabase.storage.from('resources').getPublicUrl(storagePath);
@@ -280,7 +280,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
     try {
       const { getPatternFilesFromStorage } = await import('../utils/patterns');
       const storageFiles = await getPatternFilesFromStorage('mystery');
-      const match = storageFiles.find(f => f.slug === patternSlug);
+      const match = storageFiles.find(f => f.uniqid === patternUniqid);
       if (match) {
         const items = await fetchPatternJson(`patterns/mystery/${match.fileName}`);
         if (items) {
@@ -290,7 +290,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       }
     } catch {}
 
-    appendLog(`No pattern items found for slug: ${patternSlug}`);
+    appendLog(`No pattern items found for uniqid: ${patternUniqid}`);
     return [];
   };
 
@@ -371,10 +371,10 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
         const metaMapTQ: Record<string, string> = {};
         metaDataTQ?.forEach(m => { metaMapTQ[m.meta_name] = m.meta_value || ''; });
-        const tqPatternName = metaMapTQ.pattern || 'ado_adultes';
+        const tqPatternUniqid = metaMapTQ.pattern || '';
 
-        appendLog(`Loading pattern items: ${tqPatternName}`);
-        const tqPatternItems = await loadPatternItems(tqPatternName);
+        appendLog(`Loading pattern items: ${tqPatternUniqid}`);
+        const tqPatternItems = await loadPatternItems(tqPatternUniqid);
         appendLog(`Loaded ${tqPatternItems.length} pattern item(s)`);
 
         const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
@@ -421,10 +421,11 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
       const metaMap: Record<string, string> = {};
       metaData?.forEach(m => { metaMap[m.meta_name] = m.meta_value || ''; });
-      const patternName = metaMap.pattern || 'ado_adultes';
+      const patternUniqid = metaMap.pattern || '';
 
-      appendLog(`Loading pattern: ${patternName}`);
-      const patternEnigmas = await loadPatternEnigmas('mystery', patternName);
+      appendLog(`Loading pattern: ${patternUniqid}`);
+      const { loadPatternEnigmasByUniqid } = await import('../utils/patterns');
+      const patternEnigmas = await loadPatternEnigmasByUniqid('mystery', patternUniqid);
 
       if (patternEnigmas.length === 0) {
         appendLog('Warning: No pattern enigmas loaded (pattern file may not be available here)');

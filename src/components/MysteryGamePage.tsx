@@ -4,7 +4,7 @@ import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
-import { loadPatternEnigmas, PatternEnigma } from '../utils/patterns';
+import { loadPatternEnigmasByUniqid, PatternEnigma } from '../utils/patterns';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import '../mystery.css';
 
@@ -325,7 +325,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack, on
       } else if (!team.end_time) {
         const endTime = Math.floor(Date.now() / 1000);
 
-        const patternEnigmas = await loadPatternEnigmas('mystery', config.pattern);
+        const patternEnigmas = await loadPatternEnigmasByUniqid('mystery', config.pattern);
         console.log('Loaded pattern enigmas:', patternEnigmas);
 
         const cardPunchCodes = card.punches.map(p => p.code.toString());

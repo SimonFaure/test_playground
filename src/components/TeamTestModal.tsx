@@ -687,44 +687,70 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                               All
                             </button>
                           </div>
-                          <div className="p-2 flex flex-wrap gap-2">
-                            {quest.images.map(img => {
-                              const checked = selectedImages.has(img.key);
-                              const isMain = img.label === 'Main';
-                              const safeKey = img.key.replace(/^media[/\\]/i, '').replace(/^media[/\\]/i, '');
-                              const { data: urlData } = supabase.storage
-                                .from('resources')
-                                .getPublicUrl(`scenarios/${gameUniqid}/media/${safeKey}`);
+                          <div className="p-2 flex gap-2">
+                            {(() => {
+                              const mainImg = quest.images.find(i => i.label === 'Main');
+                              const otherImgs = quest.images.filter(i => i.label !== 'Main');
+                              const renderImg = (img: typeof quest.images[0], large = false) => {
+                                const checked = selectedImages.has(img.key);
+                                const isMain = img.label === 'Main';
+                                const safeKey = img.key.replace(/^media[/\\]/i, '').replace(/^media[/\\]/i, '');
+                                const { data: urlData } = supabase.storage
+                                  .from('resources')
+                                  .getPublicUrl(`scenarios/${gameUniqid}/media/${safeKey}`);
+                                return (
+                                  <button
+                                    key={img.key}
+                                    onClick={() => isMain ? selectQuestAll(quest) : toggleImage(img.key)}
+                                    className={`relative flex flex-col items-center gap-1 rounded-lg border-2 overflow-hidden transition ${
+                                      checked
+                                        ? 'border-amber-500 ring-1 ring-amber-500/50'
+                                        : 'border-slate-600 hover:border-slate-400'
+                                    } ${large ? 'w-full h-full' : ''}`}
+                                  >
+                                    <div className={`w-full bg-slate-800 ${large ? 'flex-1' : ''}`} style={large ? { height: 148 } : { height: 60 }}>
+                                      <img
+                                        src={urlData.publicUrl}
+                                        alt={img.label}
+                                        className="w-full h-full object-cover"
+                                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                      />
+                                    </div>
+                                    <span className={`text-[10px] font-medium pb-1 px-1 truncate w-full text-center ${checked ? 'text-amber-300' : 'text-slate-400'}`}>
+                                      {img.label}
+                                    </span>
+                                    {checked && (
+                                      <div className="absolute top-1 right-1 bg-amber-500 rounded-full p-0.5">
+                                        <CheckCircle size={9} className="text-slate-900" />
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              };
                               return (
-                                <button
-                                  key={img.key}
-                                  onClick={() => isMain ? selectQuestAll(quest) : toggleImage(img.key)}
-                                  className={`relative flex flex-col items-center gap-1 rounded-lg border-2 overflow-hidden transition ${
-                                    checked
-                                      ? 'border-amber-500 ring-1 ring-amber-500/50'
-                                      : 'border-slate-600 hover:border-slate-400'
-                                  }`}
-                                  style={{ width: 80 }}
-                                >
-                                  <div className="w-full bg-slate-800" style={{ height: 60 }}>
-                                    <img
-                                      src={urlData.publicUrl}
-                                      alt={img.label}
-                                      className="w-full h-full object-cover"
-                                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                    />
-                                  </div>
-                                  <span className={`text-[10px] font-medium pb-1 px-1 truncate w-full text-center ${checked ? 'text-amber-300' : 'text-slate-400'}`}>
-                                    {img.label}
-                                  </span>
-                                  {checked && (
-                                    <div className="absolute top-1 right-1 bg-amber-500 rounded-full p-0.5">
-                                      <CheckCircle size={9} className="text-slate-900" />
+                                <>
+                                  {otherImgs.length > 0 && (
+                                    <div className="grid grid-cols-2 gap-1.5 flex-1" style={{ minWidth: 0 }}>
+                                      {otherImgs.map(img => (
+                                        <div key={img.key} style={{ width: 80 }}>
+                                          {renderImg(img, false)}
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
-                                </button>
+                                  {mainImg && (
+                                    <div className="shrink-0" style={{ width: 140 }}>
+                                      {renderImg(mainImg, true)}
+                                    </div>
+                                  )}
+                                  {!mainImg && quest.images.filter(i => i.label === 'Main').length === 0 && quest.images.map(img => (
+                                    <div key={img.key} style={{ width: 80 }}>
+                                      {renderImg(img, false)}
+                                    </div>
+                                  ))}
+                                </>
                               );
-                            })}
+                            })()}
                           </div>
                         </div>
                       );

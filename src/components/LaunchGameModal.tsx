@@ -29,6 +29,7 @@ export interface GameConfig {
   victoryType?: 'speed' | 'score';
   playMode?: 'solo' | 'team';
   teammatesPerTeam?: number;
+  testMode?: boolean;
   usbPort?: string;
   teams?: Team[];
 }
@@ -61,6 +62,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     victoryType: 'speed',
     playMode: 'solo',
     teammatesPerTeam: 2,
+    testMode: false,
     usbPort: '',
   });
   const [patternFolders, setPatternFolders] = useState<PatternOption[]>([]);
@@ -147,6 +149,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         victoryType: 'speed',
         playMode: 'solo',
         teammatesPerTeam: 2,
+        testMode: false,
         usbPort: savedUsbPort,
       });
       setStep(1);
@@ -390,11 +393,14 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 type="number"
                 id="numberOfTeams"
                 min="1"
-                max={maxTeams}
+                max={config.testMode ? Math.min(maxTeams ?? 5, 5) : maxTeams}
                 value={config.numberOfTeams}
                 onChange={(e) => {
                   const val = parseInt(e.target.value) || 1;
-                  const clampedTeams = maxTeams !== undefined ? Math.min(val, maxTeams) : val;
+                  const effectiveMax = config.testMode
+                    ? Math.min(maxTeams ?? 5, 5)
+                    : maxTeams;
+                  const clampedTeams = effectiveMax !== undefined ? Math.min(val, effectiveMax) : val;
                   const clampedFirst = maxTeams !== undefined
                     ? Math.min(config.firstChipIndex, maxTeams - clampedTeams)
                     : config.firstChipIndex;
@@ -713,6 +719,27 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
                 />
               </div>
             )}
+
+            <div className="flex items-center gap-3 pt-1 border-t border-slate-700/60">
+              <input
+                type="checkbox"
+                id="testMode"
+                checked={config.testMode ?? false}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setConfig(prev => ({
+                    ...prev,
+                    testMode: enabled,
+                    numberOfTeams: enabled ? Math.min(prev.numberOfTeams, 5) : prev.numberOfTeams,
+                  }));
+                }}
+                className="w-5 h-5 bg-slate-700 border-slate-600 rounded text-amber-600 focus:ring-2 focus:ring-amber-500"
+              />
+              <label htmlFor="testMode" className="text-sm font-medium text-amber-400">
+                Test Mode
+                <span className="ml-2 text-xs text-slate-400 font-normal">(limits teams to 5, shows test banner)</span>
+              </label>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-700">

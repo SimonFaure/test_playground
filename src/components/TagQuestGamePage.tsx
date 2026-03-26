@@ -741,6 +741,14 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
       </button>
 
       <div className="max-w-6xl mx-auto">
+        {config.testMode && (
+          <div className="flex items-center justify-center gap-3 mb-6 px-4 py-3 bg-amber-500/20 border border-amber-500/50 rounded-lg">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-amber-400 font-semibold text-sm tracking-wide uppercase">Test Mode — Max 5 Teams</span>
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          </div>
+        )}
+
         <h1 className="text-4xl font-bold text-white mb-8 text-center">{gameData.game.title}</h1>
 
         {gameMessage && (

@@ -388,6 +388,10 @@ export function GameList() {
             metaEntries.push({ meta_name: 'usbPort', meta_value: config.usbPort });
           }
 
+          if (config.testMode) {
+            metaEntries.push({ meta_name: 'testMode', meta_value: 'true' });
+          }
+
           const metaData = metaEntries.map(entry => ({
             ...entry,
             launched_game_id: launchedGame.id,

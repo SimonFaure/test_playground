@@ -568,9 +568,6 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-600/60">
                             <span className="text-sm font-medium text-white">
                               Quest {quest.number}
-                              {quest.text && quest.text !== `Quest ${quest.number}` && (
-                                <span className="text-slate-400 font-normal ml-1.5 text-xs">— {quest.text}</span>
-                              )}
                             </span>
                             <button
                               onClick={() => toggleQuestAll(quest)}

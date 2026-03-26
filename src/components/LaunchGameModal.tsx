@@ -34,10 +34,17 @@ export interface GameConfig {
   teams?: Team[];
 }
 
+export interface Teammate {
+  chipId: number;
+  chipNumber: number;
+  name: string;
+}
+
 export interface Team {
   chipId: number;
   chipNumber: number;
   name: string;
+  teammates?: Teammate[];
 }
 
 export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTypeName, onLaunch }: LaunchGameModalProps) {
@@ -278,12 +285,19 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     if (isTeamMode) {
       const newTeams: Team[] = [];
       for (let i = 0; i < numberOfTeams; i++) {
-        const firstChipForTeam = combinedChips[startIndex + i * chipsPerTeam];
-        if (!firstChipForTeam) break;
+        const teamChips = combinedChips.slice(startIndex + i * chipsPerTeam, startIndex + i * chipsPerTeam + chipsPerTeam);
+        if (teamChips.length === 0) break;
+        const firstChip = teamChips[0];
+        const teammates: Teammate[] = teamChips.map(chip => ({
+          chipId: chip.id,
+          chipNumber: chip.key_number,
+          name: chip.key_name,
+        }));
         newTeams.push({
-          chipId: firstChipForTeam.id,
-          chipNumber: firstChipForTeam.key_number,
-          name: firstChipForTeam.key_name,
+          chipId: firstChip.id,
+          chipNumber: firstChip.key_number,
+          name: firstChip.key_name,
+          teammates,
         });
       }
       setTeams(newTeams);
@@ -322,6 +336,47 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
       };
       return updated;
     });
+  };
+
+  const updateTeammateName = (teamIndex: number, teammateIndex: number, newName: string) => {
+    setTeams(prev => {
+      const updated = [...prev];
+      const team = { ...updated[teamIndex] };
+      const mates = [...(team.teammates ?? [])];
+      mates[teammateIndex] = { ...mates[teammateIndex], name: newName };
+      team.teammates = mates;
+      if (teammateIndex === 0) {
+        team.name = newName;
+        team.chipId = mates[0].chipId;
+        team.chipNumber = mates[0].chipNumber;
+      }
+      updated[teamIndex] = team;
+      return updated;
+    });
+  };
+
+  const updateTeammateChip = (teamIndex: number, teammateIndex: number, chipId: number) => {
+    const chip = allChips.find(c => c.id === chipId);
+    if (!chip) return;
+    setTeams(prev => {
+      const updated = [...prev];
+      const team = { ...updated[teamIndex] };
+      const mates = [...(team.teammates ?? [])];
+      mates[teammateIndex] = { ...mates[teammateIndex], chipId: chip.id, chipNumber: chip.key_number };
+      team.teammates = mates;
+      if (teammateIndex === 0) {
+        team.chipId = chip.id;
+        team.chipNumber = chip.key_number;
+      }
+      updated[teamIndex] = team;
+      return updated;
+    });
+  };
+
+  const allUsedTeammateChipIds = (): Set<number> => {
+    const ids = new Set<number>();
+    teams.forEach(t => (t.teammates ?? []).forEach(m => ids.add(m.chipId)));
+    return ids;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -765,46 +820,109 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             <>
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold text-white border-b border-slate-700 pb-2">Configure Teams</h3>
-                <div className="space-y-3">
-                  {teams.map((team, index) => (
-                    <div key={index} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {index + 1}
+                <div className="space-y-4">
+                  {teams.map((team, teamIndex) => {
+                    const usedInGame = allUsedTeammateChipIds();
+
+                    if (isTeamMode && team.teammates && team.teammates.length > 0) {
+                      return (
+                        <div key={teamIndex} className="bg-slate-800/50 rounded-xl border border-slate-700/60 overflow-hidden">
+                          <div className="flex items-center gap-3 px-4 py-3 bg-slate-700/40 border-b border-slate-700/60">
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                              {teamIndex + 1}
+                            </div>
+                            <input
+                              type="text"
+                              value={team.name}
+                              onChange={(e) => updateTeamName(teamIndex, e.target.value)}
+                              className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Team name"
+                              required
+                            />
+                          </div>
+                          <div className="divide-y divide-slate-700/40">
+                            {team.teammates.map((mate, mateIndex) => {
+                              return (
+                                <div key={mateIndex} className="flex items-center gap-3 px-4 py-3">
+                                  <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-slate-300 text-xs font-medium flex-shrink-0">
+                                    {mateIndex + 1}
+                                  </div>
+                                  <div className="flex-shrink-0 min-w-[180px]">
+                                    <select
+                                      value={mate.chipId}
+                                      onChange={(e) => updateTeammateChip(teamIndex, mateIndex, parseInt(e.target.value))}
+                                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      required
+                                    >
+                                      {allChips.map(chip => {
+                                        const isUsedHere = usedInGame.has(chip.id) && chip.id !== mate.chipId;
+                                        const isUsedInOtherGame = usedChipIds.has(chip.id);
+                                        const isDisabled = isUsedHere || isUsedInOtherGame;
+                                        return (
+                                          <option key={chip.id} value={chip.id} disabled={isDisabled}>
+                                            Chip #{chip.key_number} - {chip.key_name}{isDisabled ? ' (In use)' : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </div>
+                                  <div className="flex-1">
+                                    <input
+                                      type="text"
+                                      value={mate.name}
+                                      onChange={(e) => updateTeammateName(teamIndex, mateIndex, e.target.value)}
+                                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      placeholder={`Teammate ${mateIndex + 1} name`}
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={teamIndex} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-lg">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {teamIndex + 1}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 min-w-[200px]">
+                          <select
+                            value={team.chipId}
+                            onChange={(e) => updateTeamChip(teamIndex, parseInt(e.target.value))}
+                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          >
+                            {allChips.map(chip => {
+                              const isUsedInCurrentGame = teams.some((t, i) => i !== teamIndex && t.chipId === chip.id);
+                              const isUsedInOtherGame = usedChipIds.has(chip.id);
+                              const isDisabled = isUsedInCurrentGame || isUsedInOtherGame;
+                              return (
+                                <option key={chip.id} value={chip.id} disabled={isDisabled}>
+                                  Chip #{chip.key_number} - {chip.key_name}{isDisabled ? ' (In use)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={team.name}
+                            onChange={(e) => updateTeamName(teamIndex, e.target.value)}
+                            className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Team name"
+                            required
+                          />
                         </div>
                       </div>
-                      <div className="flex-shrink-0 min-w-[200px]">
-                        <select
-                          value={team.chipId}
-                          onChange={(e) => updateTeamChip(index, parseInt(e.target.value))}
-                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        >
-                          {allChips.map(chip => {
-                            const isUsedInCurrentGame = teams.some((t, i) => i !== index && t.chipId === chip.id);
-                            const isUsedInOtherGame = usedChipIds.has(chip.id);
-                            const isDisabled = isUsedInCurrentGame || isUsedInOtherGame;
-
-                            return (
-                              <option key={chip.id} value={chip.id} disabled={isDisabled}>
-                                Chip #{chip.key_number} - {chip.key_name}{isDisabled ? ' (In use)' : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          value={team.name}
-                          onChange={(e) => updateTeamName(index, e.target.value)}
-                          className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Team name"
-                          required
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

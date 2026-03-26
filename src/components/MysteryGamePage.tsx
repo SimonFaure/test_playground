@@ -637,6 +637,13 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
             <p className="text-slate-400 text-sm">{config.name}</p>
           </div>
         </div>
+        {config.testMode && (
+          <div className="flex items-center justify-center gap-3 px-4 py-2 bg-amber-500/20 border-t border-amber-500/30">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-amber-400 font-semibold text-sm tracking-wide uppercase">Test Mode — Max 5 Teams</span>
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          </div>
+        )}
       </header>
 
       {!gameStarted && (

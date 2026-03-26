@@ -5,6 +5,7 @@ import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
+import { TeamTestModal } from './TeamTestModal';
 import type { GameConfig } from './LaunchGameModal';
 
 interface LaunchedGame {
@@ -76,6 +77,7 @@ export function LaunchedGamesList() {
   const [configGameName, setConfigGameName] = useState<string>('');
   const [testGameId, setTestGameId] = useState<number | null>(null);
   const [testGameName, setTestGameName] = useState<string>('');
+  const [testTeam, setTestTeam] = useState<{ gameId: number; gameName: string; team: Team } | null>(null);
 
   useEffect(() => {
     loadGames();
@@ -794,13 +796,28 @@ export function LaunchedGamesList() {
                                 <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
                                 <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
                               </div>
-                              <button
-                                onClick={() => handleEditTeam(team)}
-                                className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium"
-                                title="Edit team details"
-                              >
-                                Edit
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditTeam(team)}
+                                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium"
+                                  title="Edit team details"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const game = games.find(g => g.id === selectedGameId);
+                                    if (game) {
+                                      setTestTeam({ gameId: game.id, gameName: game.name, team });
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-sm font-medium flex items-center gap-1.5"
+                                  title="Test this team"
+                                >
+                                  <FlaskConical size={14} />
+                                  Test
+                                </button>
+                              </div>
                             </>
                           )}
                           </div>
@@ -987,6 +1004,18 @@ export function LaunchedGamesList() {
           onClose={() => {
             setTestGameId(null);
             setTestGameName('');
+          }}
+        />
+      )}
+
+      {testTeam !== null && (
+        <TeamTestModal
+          gameId={testTeam.gameId}
+          gameName={testTeam.gameName}
+          team={testTeam.team}
+          onClose={() => {
+            setTestTeam(null);
+            if (selectedGameId !== null) loadTeams(selectedGameId);
           }}
         />
       )}

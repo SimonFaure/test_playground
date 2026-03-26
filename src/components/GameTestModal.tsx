@@ -120,11 +120,15 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
 
           const rawQuests: any[] = gdj?.game_data?.quests || gdj?.quests || gdj?.game_quests || [];
 
+          const mediaImages: Array<{ id: string; file_name: string }> = gdj?.game_media_images || [];
+          const mediaMap = new Map(mediaImages.map(m => [String(m.id), m.file_name.replace(/^media\//, '')]));
+
           const parsedQuests: Quest[] = rawQuests.map((q: any, idx: number) => {
             const images: QuestImage[] = [];
-            if (q.main_image) images.push({ key: q.main_image, label: 'Main' });
+            const resolve = (id: string) => mediaMap.get(String(id)) ?? id;
+            if (q.main_image) images.push({ key: resolve(q.main_image), label: 'Main' });
             for (let i = 1; i <= 4; i++) {
-              if (q[`image_${i}`]) images.push({ key: q[`image_${i}`], label: `Image ${i}` });
+              if (q[`image_${i}`]) images.push({ key: resolve(q[`image_${i}`]), label: `Image ${i}` });
             }
             return { index: idx + 1, number: q.number ?? '', text: q.text ?? '', images };
           });
@@ -663,7 +667,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                               const isMain = img.label === 'Main';
                               const { data: urlData } = supabase.storage
                                 .from('resources')
-                                .getPublicUrl(`scenarios/${gameUniqid}/images/${img.key}`);
+                                .getPublicUrl(`scenarios/${gameUniqid}/media/${img.key}`);
                               return (
                                 <button
                                   key={img.key}

@@ -181,8 +181,13 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
   const selectQuestAll = (quest: Quest) => {
     const allKeys = quest.images.map(i => i.key);
     setSelectedImages(prev => {
+      const allSelected = allKeys.every(k => prev.has(k));
       const next = new Set(prev);
-      allKeys.forEach(k => next.add(k));
+      if (allSelected) {
+        allKeys.forEach(k => next.delete(k));
+      } else {
+        allKeys.forEach(k => next.add(k));
+      }
       return next;
     });
   };

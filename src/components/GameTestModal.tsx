@@ -169,11 +169,20 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
     setTestLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
-  const toggleImage = (key: string) => {
+  const toggleImage = (key: string, quest: Quest) => {
     setSelectedImages(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      const mainImg = quest.images.find(i => i.label === 'Main');
+      const otherKeys = quest.images.filter(i => i.label !== 'Main').map(i => i.key);
+      const allOthersSelected = otherKeys.length > 0 && otherKeys.every(k => next.has(k));
+      if (mainImg && !allOthersSelected) {
+        next.delete(mainImg.key);
+      }
       return next;
     });
   };
@@ -681,7 +690,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                                 return (
                                   <button
                                     key={img.key}
-                                    onClick={() => isMain ? selectQuestAll(quest) : toggleImage(img.key)}
+                                    onClick={() => isMain ? selectQuestAll(quest) : toggleImage(img.key, quest)}
                                     className={`relative flex flex-col items-center gap-1 rounded-lg border-2 overflow-hidden transition ${
                                       checked
                                         ? 'border-amber-500 ring-1 ring-amber-500/50'
@@ -710,9 +719,9 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                               return (
                                 <>
                                   {otherImgs.length > 0 && (
-                                    <div className="grid grid-cols-2 gap-1.5 flex-1" style={{ minWidth: 0 }}>
+                                    <div className="grid grid-cols-2 gap-1.5" style={{ width: 168 }}>
                                       {otherImgs.map(img => (
-                                        <div key={img.key} style={{ width: 80 }}>
+                                        <div key={img.key}>
                                           {renderImg(img, false)}
                                         </div>
                                       ))}

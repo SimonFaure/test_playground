@@ -91,7 +91,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
     if (launchedGame) {
       setGameType(launchedGame.game_type);
 
-      if (launchedGame.game_type === 'tagquest' && launchedGame.game_uniqid) {
+      if (launchedGame.game_type?.toLowerCase() === 'tagquest' && launchedGame.game_uniqid) {
         setLoadingQuests(true);
         const { data: scenario } = await supabase
           .from('scenarios')
@@ -256,7 +256,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
       const teamsToTest = teams.slice(0, testConfig.numberOfTeams);
       appendLog(`Simulating ${teamsToTest.length} team(s)`);
 
-      if (gameType === 'tagquest') {
+      if (gameType?.toLowerCase() === 'tagquest') {
         const imageKeys = Array.from(selectedImages);
         appendLog(`Selected ${imageKeys.length} image(s) across ${quests.length} quest(s)`);
 
@@ -521,7 +521,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
               />
             </div>
 
-            {gameType === 'tagquest' ? (
+            {gameType?.toLowerCase() === 'tagquest' ? (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-medium text-slate-300 flex items-center gap-2">

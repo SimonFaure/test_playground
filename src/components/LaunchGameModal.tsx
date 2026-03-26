@@ -494,7 +494,7 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             </div>
           </div>
 
-          {gameTypeName === 'tagquest' && (
+          {gameTypeName.toLowerCase() === 'tagquest' && (
             <div className="space-y-3 p-4 bg-slate-800/50 rounded-lg">
               <label className="block text-sm font-medium text-slate-300">
                 Victory Type

@@ -160,16 +160,16 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
       const { data: launchedGame } = await supabase
         .from('launched_games')
-        .select('scenario_uniqid')
+        .select('game_uniqid')
         .eq('id', gameId)
         .maybeSingle();
 
       let enigmasForScoring: any[] = [];
-      if (launchedGame?.scenario_uniqid) {
+      if (launchedGame?.game_uniqid) {
         const { data: scenarioData } = await supabase
           .from('scenarios')
           .select('game_data_json')
-          .eq('uniqid', launchedGame.scenario_uniqid)
+          .eq('uniqid', launchedGame.game_uniqid)
           .maybeSingle();
 
         enigmasForScoring =

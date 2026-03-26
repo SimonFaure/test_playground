@@ -6,7 +6,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
 import { TeamTestModal } from './TeamTestModal';
-import type { GameConfig } from './LaunchGameModal';
+import type { GameConfig, Team as ConfigTeam } from './LaunchGameModal';
 
 interface LaunchedGame {
   id: number;
@@ -78,6 +78,8 @@ export function LaunchedGamesList() {
   const [testGameId, setTestGameId] = useState<number | null>(null);
   const [testGameName, setTestGameName] = useState<string>('');
   const [testTeam, setTestTeam] = useState<{ gameId: number; gameName: string; team: Team } | null>(null);
+  const [selectedGamePlayMode, setSelectedGamePlayMode] = useState<'solo' | 'team' | null>(null);
+  const [selectedGameTeamsConfig, setSelectedGameTeamsConfig] = useState<ConfigTeam[]>([]);
 
   useEffect(() => {
     loadGames();
@@ -94,6 +96,25 @@ export function LaunchedGamesList() {
       loadTeams(selectedGameId);
       setTeamSearch('');
       setMinimizedTeams(new Set());
+      setSelectedGamePlayMode(null);
+      setSelectedGameTeamsConfig([]);
+      supabase
+        .from('launched_game_meta')
+        .select('meta_name, meta_value')
+        .eq('launched_game_id', selectedGameId)
+        .in('meta_name', ['playMode', 'teamsConfig'])
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, string> = {};
+            data.forEach(row => { map[row.meta_name] = row.meta_value || ''; });
+            if (map.playMode === 'solo' || map.playMode === 'team') {
+              setSelectedGamePlayMode(map.playMode);
+            }
+            if (map.teamsConfig) {
+              try { setSelectedGameTeamsConfig(JSON.parse(map.teamsConfig)); } catch {}
+            }
+          }
+        });
     }
   }, [selectedGameId]);
 
@@ -671,6 +692,14 @@ export function LaunchedGamesList() {
                       {getFilteredAndSortedTeams().map((team, index) => {
                         const isMinimized = minimizedTeams.has(team.id);
                         const ranking = index + 1;
+                        const selectedGame = games.find(g => g.id === selectedGameId);
+                        const isTagQuest = selectedGame?.game_type === 'tagquest' ||
+                          gameDataMap[selectedGame?.game_uniqid ?? '']?.game?.type === 'tagquest';
+                        const showTeammates = isTagQuest && selectedGamePlayMode === 'team';
+                        const configTeam = showTeammates
+                          ? selectedGameTeamsConfig.find(t => t.chipId === team.key_id || t.name === team.team_name)
+                          : undefined;
+                        const teammates = configTeam?.teammates ?? [];
 
                         return (
                         <div
@@ -679,26 +708,32 @@ export function LaunchedGamesList() {
                         >
                           {isMinimized ? (
                             <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-700/50 transition" onClick={() => toggleMinimizeTeam(team.id)}>
-                              <div className="flex items-center gap-3 flex-1">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <span className="text-slate-400 text-sm font-medium">#{ranking}</span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   {team.end_time ? (
-                                    <CheckCircle size={16} className="text-green-500" />
+                                    <CheckCircle size={16} className="text-green-500 shrink-0" />
                                   ) : team.start_time ? (
-                                    <Play size={16} className="text-blue-500" />
+                                    <Play size={16} className="text-blue-500 shrink-0" />
                                   ) : (
-                                    <Clock size={16} className="text-slate-500" />
+                                    <Clock size={16} className="text-slate-500 shrink-0" />
                                   )}
-                                  <span className="text-white font-semibold">{team.team_name}</span>
+                                  <span className="text-white font-semibold truncate">{team.team_name}</span>
                                 </div>
-                                <span className="text-slate-400 text-sm ml-auto mr-4">
+                                {showTeammates && teammates.length > 1 && (
+                                  <span className="flex items-center gap-1 text-teal-400 text-xs shrink-0">
+                                    <Users size={12} />
+                                    {teammates.length}
+                                  </span>
+                                )}
+                                <span className="text-slate-400 text-sm ml-auto mr-4 shrink-0">
                                   Score: <span className="text-white font-medium">{team.score}</span>
                                 </span>
-                                <span className="text-slate-400 text-sm">
+                                <span className="text-slate-400 text-sm shrink-0">
                                   Chip #{team.key_id}
                                 </span>
                               </div>
-                              <button className="p-1 hover:bg-slate-600 rounded transition" title="Expand team details">
+                              <button className="p-1 hover:bg-slate-600 rounded transition ml-2 shrink-0" title="Expand team details">
                                 <Maximize2 size={16} className="text-slate-400" />
                               </button>
                             </div>
@@ -800,6 +835,23 @@ export function LaunchedGamesList() {
                                 <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
                                 <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
                               </div>
+                              {showTeammates && teammates.length > 1 && (
+                                <div className="mb-3 pt-2 border-t border-slate-700">
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
+                                    <Users size={12} />
+                                    <span className="font-medium uppercase tracking-wide">Teammates</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {teammates.map((mate, mi) => (
+                                      <span key={mi} className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 rounded-full text-xs text-slate-300">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                                        {mate.name}
+                                        <span className="text-slate-500">#{mate.chipNumber}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleEditTeam(team)}

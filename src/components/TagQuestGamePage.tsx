@@ -150,10 +150,20 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
           }
 
           if (scenarioData) {
-            const gdj = scenarioData.game_data_json;
+            let gdj = scenarioData.game_data_json;
+
+            if (!gdj) {
+              const { data: gameDataFile } = await supabase.storage
+                .from('resources')
+                .download(`scenarios/${gameUniqid}/game-data.json`);
+
+              if (gameDataFile) {
+                const text = await gameDataFile.text();
+                gdj = JSON.parse(text);
+              }
+            }
+
             const quests = gdj?.game_data?.quests || gdj?.quests || [];
-            console.log("scenarioData");
-            console.log(scenarioData);
             setGameData({
               game: {
                 id: scenarioData.id.toString(),
@@ -166,22 +176,32 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
             });
           }
 
-          const { data: allMedia } = await supabase
-            .from('scenario_media')
-            .select('filename, data, media_type')
-            .eq('scenario_uniqid', gameUniqid);
-
           const mediaByFilename: Record<string, string> = {};
-          if (allMedia) {
-            for (const m of allMedia) {
-              const mimeType = m.filename.endsWith('.jpg') || m.filename.endsWith('.jpeg')
-                ? 'image/jpeg'
-                : m.filename.endsWith('.png')
-                ? 'image/png'
-                : 'image/png';
-              const dataUrl = `data:${mimeType};base64,${m.data}`;
-              mediaByFilename[m.filename] = dataUrl;
-              mediaByFilename[`media/${m.filename}`] = dataUrl;
+
+          const { data: csvFile } = await supabase.storage
+            .from('resources')
+            .download(`scenarios/${gameUniqid}/csv/game_media_images.csv`);
+
+          if (csvFile) {
+            const csvText = await csvFile.text();
+            const lines = csvText.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+              const values = line.split(',');
+              const id = values[0];
+              const uuid = values[3];
+              const fileName = values[6];
+              if (id && uuid && fileName) {
+                const { data: urlData } = supabase.storage
+                  .from('resources')
+                  .getPublicUrl(`scenarios/${gameUniqid}/media/${uuid}/${fileName}`);
+                const url = urlData.publicUrl;
+                mediaByFilename[id] = url;
+                mediaByFilename[fileName] = url;
+                mediaByFilename[`media/${fileName}`] = url;
+                mediaByFilename[`media/${uuid}/${fileName}`] = url;
+              }
             }
           }
 

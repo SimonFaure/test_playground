@@ -27,6 +27,8 @@ export interface GameConfig {
   autoResetTeam: boolean;
   delayBeforeReset: number;
   victoryType?: 'speed' | 'score';
+  playMode?: 'solo' | 'team';
+  teammatesPerTeam?: number;
   usbPort?: string;
   teams?: Team[];
 }
@@ -57,6 +59,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     autoResetTeam: false,
     delayBeforeReset: 10,
     victoryType: 'speed',
+    playMode: 'solo',
+    teammatesPerTeam: 2,
     usbPort: '',
   });
   const [patternFolders, setPatternFolders] = useState<PatternOption[]>([]);
@@ -141,6 +145,8 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
         autoResetTeam: false,
         delayBeforeReset: 10,
         victoryType: 'speed',
+        playMode: 'solo',
+        teammatesPerTeam: 2,
         usbPort: savedUsbPort,
       });
       setStep(1);
@@ -152,9 +158,15 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     ? [...availableChips, ...onDemandChips]
     : availableChips;
 
-  const maxTeams = allChips.length > 0 ? allChips.length : undefined;
+  const isTagQuest = gameTypeName.toLowerCase() === 'tagquest';
+  const isTeamMode = isTagQuest && config.playMode === 'team';
+  const chipsPerTeam = isTeamMode ? (config.teammatesPerTeam ?? 2) : 1;
+  const totalChipsNeeded = config.numberOfTeams * chipsPerTeam;
+  const maxTeams = allChips.length > 0 ? Math.floor(allChips.length / chipsPerTeam) : undefined;
   const totalMaxTeams = maxTeams;
-  const maxFirstChipIndex = maxTeams !== undefined ? maxTeams - config.numberOfTeams : undefined;
+  const maxFirstChipIndex = allChips.length > 0
+    ? Math.max(0, allChips.length - totalChipsNeeded)
+    : undefined;
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
@@ -259,15 +271,29 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
     const numberOfTeams = config.numberOfTeams;
 
     const combinedChips = [...availableChips, ...onDemandChips];
-    const chipsForTeams = combinedChips.slice(startIndex, startIndex + numberOfTeams);
 
-    const newTeams: Team[] = chipsForTeams.map(chip => ({
-      chipId: chip.id,
-      chipNumber: chip.key_number,
-      name: chip.key_name,
-    }));
+    if (isTeamMode) {
+      const newTeams: Team[] = [];
+      for (let i = 0; i < numberOfTeams; i++) {
+        const firstChipForTeam = combinedChips[startIndex + i * chipsPerTeam];
+        if (!firstChipForTeam) break;
+        newTeams.push({
+          chipId: firstChipForTeam.id,
+          chipNumber: firstChipForTeam.key_number,
+          name: firstChipForTeam.key_name,
+        });
+      }
+      setTeams(newTeams);
+    } else {
+      const chipsForTeams = combinedChips.slice(startIndex, startIndex + numberOfTeams);
+      const newTeams: Team[] = chipsForTeams.map(chip => ({
+        chipId: chip.id,
+        chipNumber: chip.key_number,
+        name: chip.key_name,
+      }));
+      setTeams(newTeams);
+    }
 
-    setTeams(newTeams);
     setStep(2);
   };
 
@@ -494,52 +520,126 @@ export function LaunchGameModal({ isOpen, onClose, gameTitle, gameUniqid, gameTy
             </div>
           </div>
 
-          {gameTypeName.toLowerCase() === 'tagquest' && (
-            <div className="space-y-3 p-4 bg-slate-800/50 rounded-lg">
-              <label className="block text-sm font-medium text-slate-300">
-                Victory Type
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setConfig({ ...config, victoryType: 'speed' })}
-                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
-                    config.victoryType === 'speed'
-                      ? 'border-orange-500 bg-orange-500/10'
-                      : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                  }`}
-                >
-                  <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'speed' ? 'text-orange-400' : 'text-slate-300'}`}>
-                    Rapidite
-                  </div>
-                  <div className="text-xs text-slate-400 leading-snug">
-                    La premiere equipe a avoir recolte toutes les images gagne. Classement par heure de derniere image collectee.
-                  </div>
-                  {config.victoryType === 'speed' && (
-                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfig({ ...config, victoryType: 'score' })}
-                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
-                    config.victoryType === 'score'
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                  }`}
-                >
-                  <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'score' ? 'text-blue-400' : 'text-slate-300'}`}>
-                    Score
-                  </div>
-                  <div className="text-xs text-slate-400 leading-snug">
-                    Chaque image vaut des points (avec combos et malus). Classement au nombre de points recoltes.
-                  </div>
-                  {config.victoryType === 'score' && (
-                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
-                  )}
-                </button>
+          {isTagQuest && (
+            <>
+              <div className="space-y-3 p-4 bg-slate-800/50 rounded-lg">
+                <label className="block text-sm font-medium text-slate-300">
+                  Victory Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, victoryType: 'speed' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.victoryType === 'speed'
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'speed' ? 'text-orange-400' : 'text-slate-300'}`}>
+                      Rapidite
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      La premiere equipe a avoir recolte toutes les images gagne. Classement par heure de derniere image collectee.
+                    </div>
+                    {config.victoryType === 'speed' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, victoryType: 'score' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.victoryType === 'score'
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.victoryType === 'score' ? 'text-blue-400' : 'text-slate-300'}`}>
+                      Score
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      Chaque image vaut des points (avec combos et malus). Classement au nombre de points recoltes.
+                    </div>
+                    {config.victoryType === 'score' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
+
+              <div className="space-y-3 p-4 bg-slate-800/50 rounded-lg">
+                <label className="block text-sm font-medium text-slate-300">
+                  Play Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, playMode: 'solo' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.playMode === 'solo'
+                        ? 'border-teal-500 bg-teal-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.playMode === 'solo' ? 'text-teal-400' : 'text-slate-300'}`}>
+                      Solo
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      Each chip corresponds to one team. One chip per player.
+                    </div>
+                    {config.playMode === 'solo' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-teal-500" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, playMode: 'team' })}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      config.playMode === 'team'
+                        ? 'border-teal-500 bg-teal-500/10'
+                        : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className={`font-semibold text-sm mb-1 ${config.playMode === 'team' ? 'text-teal-400' : 'text-slate-300'}`}>
+                      Team
+                    </div>
+                    <div className="text-xs text-slate-400 leading-snug">
+                      Several chips correspond to one team. Multiple players share a team.
+                    </div>
+                    {config.playMode === 'team' && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-teal-500" />
+                    )}
+                  </button>
+                </div>
+
+                {isTeamMode && (
+                  <div className="mt-3 space-y-2">
+                    <label htmlFor="teammatesPerTeam" className="block text-sm font-medium text-slate-300">
+                      Teammates per Team
+                      {allChips.length > 0 && (
+                        <span className="ml-2 text-xs text-slate-400">
+                          ({totalChipsNeeded} chips needed, {allChips.length} available)
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      id="teammatesPerTeam"
+                      min="2"
+                      value={config.teammatesPerTeam ?? 2}
+                      onChange={(e) => {
+                        const val = Math.max(2, parseInt(e.target.value) || 2);
+                        const newMax = allChips.length > 0 ? Math.floor(allChips.length / val) : undefined;
+                        const clampedTeams = newMax !== undefined ? Math.min(config.numberOfTeams, newMax) : config.numberOfTeams;
+                        setConfig({ ...config, teammatesPerTeam: val, numberOfTeams: clampedTeams });
+                      }}
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">

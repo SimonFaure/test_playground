@@ -643,12 +643,25 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                   </div>
                 )}
 
-                <div className={`mt-3 flex items-center justify-between text-sm px-3 py-2 rounded-lg ${
-                  selectedImages.size > 0 ? 'bg-amber-900/25 text-amber-400' : 'bg-slate-700/50 text-slate-400'
-                }`}>
-                  <span>{selectedImages.size} image{selectedImages.size !== 1 ? 's' : ''} selected</span>
-                  <span className="text-xs font-medium">Score: {selectedImages.size * 10} pts</span>
-                </div>
+                {(() => {
+                  const answerCount = quests.flatMap(q => q.images.filter(i => i.label !== 'Main')).filter(i => selectedImages.has(i.key)).length;
+                  const completeCount = quests.filter(q => {
+                    const answers = q.images.filter(i => i.label !== 'Main');
+                    return answers.length > 0 && answers.every(i => selectedImages.has(i.key));
+                  }).length;
+                  const hasAny = answerCount > 0 || completeCount > 0;
+                  return (
+                    <div className={`mt-3 flex items-center justify-between text-sm px-3 py-2 rounded-lg ${
+                      hasAny ? 'bg-amber-900/25 text-amber-400' : 'bg-slate-700/50 text-slate-400'
+                    }`}>
+                      <span>
+                        {answerCount} image{answerCount !== 1 ? 's' : ''} selected
+                        {completeCount > 0 && <span className="ml-2 opacity-75">· {completeCount} complete</span>}
+                      </span>
+                      <span className="text-xs font-medium">Score: {answerCount * 10} pts</span>
+                    </div>
+                  );
+                })()}
 
                 <label className="mt-3 flex items-center gap-2.5 cursor-pointer select-none">
                   <button

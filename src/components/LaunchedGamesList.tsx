@@ -396,6 +396,10 @@ export function LaunchedGamesList() {
       colorblindMode: metaMap.colorblindMode === 'true',
       autoResetTeam: metaMap.autoResetTeam === 'true',
       delayBeforeReset: parseInt(metaMap.delayBeforeReset || '2'),
+      testMode: metaMap.testMode === 'true',
+      victoryType: (metaMap.victoryType as 'speed' | 'score') || undefined,
+      playMode: (metaMap.playMode as 'solo' | 'team') || undefined,
+      usbPort: metaMap.usbPort || undefined,
     };
 
     setPlayingGame({ config, uniqid: game.game_uniqid, launchedGameId: game.id });

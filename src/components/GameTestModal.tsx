@@ -74,7 +74,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
   const [loadingQuests, setLoadingQuests] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [gameUniqid, setGameUniqid] = useState<string | null>(null);
-  const [endChip, setEndChip] = useState(true);
+  const [endChip, setEndChip] = useState(false);
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
 
@@ -224,35 +224,50 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
   }
 
   const loadPatternItems = async (patternSlug: string): Promise<PatternItem[]> => {
-    const { data: patternRow } = await supabase
-      .from('patterns')
-      .select('id')
-      .eq('slug', patternSlug)
-      .eq('game_type', 'mystery')
-      .maybeSingle();
-
-    if (patternRow?.id) {
-      const { data: items } = await supabase
-        .from('tagquest_pattern_items')
-        .select('item_index, assignment_type, station_key_number')
-        .eq('pattern_id', patternRow.id);
-      if (items && items.length > 0) return items;
-    }
-
-    try {
-      const storageFiles = await (await import('../utils/patterns')).getPatternFilesFromStorage('mystery');
-      const file = storageFiles.find(f => f.slug === patternSlug);
-      if (file) {
-        const { data: urlData } = supabase.storage
-          .from('resources')
-          .getPublicUrl(`patterns/mystery/${file.fileName}`);
+    const fetchPatternJson = async (storagePath: string): Promise<PatternItem[] | null> => {
+      try {
+        const { data: urlData } = supabase.storage.from('resources').getPublicUrl(storagePath);
         const resp = await fetch(urlData.publicUrl);
         if (resp.ok) {
           const json = await resp.json();
           if (Array.isArray(json?.pattern_data)) return json.pattern_data;
         }
+      } catch {}
+      return null;
+    };
+
+    try {
+      const { getPatternFilesFromStorage } = await import('../utils/patterns');
+      const storageFiles = await getPatternFilesFromStorage('mystery');
+
+      const bySlug = storageFiles.find(f => f.slug === patternSlug);
+      if (bySlug) {
+        const items = await fetchPatternJson(`patterns/mystery/${bySlug.fileName}`);
+        if (items) {
+          appendLog(`Pattern file: patterns/mystery/${bySlug.fileName}`);
+          return items;
+        }
+      }
+
+      const byFullSlug = storageFiles.find(
+        f => `${f.uniqid}_${f.slug}` === patternSlug || f.fileName.replace(/\.(json|csv)$/, '') === `pattern_${patternSlug}`
+      );
+      if (byFullSlug) {
+        const items = await fetchPatternJson(`patterns/mystery/${byFullSlug.fileName}`);
+        if (items) {
+          appendLog(`Pattern file: patterns/mystery/${byFullSlug.fileName}`);
+          return items;
+        }
+      }
+
+      const directItems = await fetchPatternJson(`patterns/mystery/pattern_${patternSlug}.json`);
+      if (directItems) {
+        appendLog(`Pattern file: patterns/mystery/pattern_${patternSlug}.json`);
+        return directItems;
       }
     } catch {}
+
+    appendLog(`No pattern items found for slug: ${patternSlug}`);
     return [];
   };
 

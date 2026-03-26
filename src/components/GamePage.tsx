@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { GameConfig } from './LaunchGameModal';
 import { MysteryGamePage } from './MysteryGamePage';
 import { TagQuestGamePage } from './TagQuestGamePage';
+import { LeaderboardPage } from './LeaderboardPage';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -45,6 +46,7 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
@@ -207,12 +209,26 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
     );
   }
 
+  const handleGameEnd = useCallback(() => {
+    setShowLeaderboard(true);
+  }, []);
+
   const renderGame = () => {
+    if (showLeaderboard) {
+      return (
+        <LeaderboardPage
+          launchedGameId={launchedGameId}
+          config={config}
+          gameName={gameMetadata?.title}
+          onBack={onBack}
+        />
+      );
+    }
     if (gameMetadata?.type === 'mystery') {
-      return <MysteryGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} />;
+      return <MysteryGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} onGameEnd={handleGameEnd} />;
     }
     if (gameMetadata?.type === 'tagquest') {
-      return <TagQuestGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} />;
+      return <TagQuestGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} onGameEnd={handleGameEnd} />;
     }
     return (
       <div className="flex items-center justify-center h-full">

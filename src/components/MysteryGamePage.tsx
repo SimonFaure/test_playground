@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
 import { loadPatternEnigmas, PatternEnigma } from '../utils/patterns';
+import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import '../mystery.css';
 
 interface MysteryGamePageProps {
@@ -12,6 +13,7 @@ interface MysteryGamePageProps {
   gameUniqid: string;
   launchedGameId: number | null;
   onBack: () => void;
+  onGameEnd?: () => void;
 }
 
 interface GameData {
@@ -65,7 +67,7 @@ interface GameData {
   }>;
 }
 
-export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: MysteryGamePageProps) {
+export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd }: MysteryGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const gameDataRef = useRef<GameData | null>(null);
   const [gameStarted, setGameStarted] = useState(true);
@@ -594,6 +596,21 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack }: 
       }
     };
   }, [config.usbPort]);
+
+  const handleNewBip = useCallback((row: { raw_data: any }) => {
+    const card = row.raw_data;
+    if (card && gameDataRef.current) {
+      handleCardPunchLogic(card);
+    }
+  }, [launchedGameId]);
+
+  useGameStatePolling({
+    launchedGameId,
+    numberOfTeams: config.numberOfTeams,
+    onGameEnded: () => onGameEnd?.(),
+    onAllTeamsFinished: () => onGameEnd?.(),
+    onNewBip: handleNewBip,
+  });
 
   if (!gameData) {
     return (

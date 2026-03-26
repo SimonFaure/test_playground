@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Play, Users, Trophy } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
+import { useGameStatePolling } from '../hooks/useGameStatePolling';
 
 interface TagQuestGamePageProps {
   config: GameConfig;
   gameUniqid: string;
   launchedGameId: number | null;
   onBack: () => void;
+  onGameEnd?: () => void;
 }
 
 interface GameQuest {
@@ -78,7 +80,7 @@ interface GameLayout {
   height?: number;
 }
 
-export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }: TagQuestGamePageProps) {
+export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd }: TagQuestGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [layout, setLayout] = useState<GameLayout | null>(null);
   const [layoutLoading, setLayoutLoading] = useState(true);
@@ -458,6 +460,21 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack }:
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const handleNewBip = useCallback((row: { raw_data: any }) => {
+    const card = row.raw_data;
+    if (card) {
+      handleCardPunchLogic(card);
+    }
+  }, [launchedGameId, victoryType]);
+
+  useGameStatePolling({
+    launchedGameId,
+    numberOfTeams: config.numberOfTeams,
+    onGameEnded: () => onGameEnd?.(),
+    onAllTeamsFinished: () => onGameEnd?.(),
+    onNewBip: handleNewBip,
+  });
 
   useEffect(() => {
     const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square } from 'lucide-react';
+import { X, FlaskConical, Play, CheckCircle, AlertCircle, Loader, Monitor, Users, Image as ImageIcon, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { loadPatternEnigmas } from '../utils/patterns';
 
@@ -34,6 +34,13 @@ interface Device {
   device_id: string;
   connected: boolean;
   last_connexion_attempt: string;
+}
+
+interface TeamMember {
+  id: number;
+  team_name: string;
+  team_number: number;
+  key_id: number;
 }
 
 interface QuestImage {
@@ -71,13 +78,29 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [gameUniqid, setGameUniqid] = useState<string | null>(null);
   const [endChip, setEndChip] = useState(false);
 
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<TeamMember>(team);
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
 
   useEffect(() => {
     loadDevices();
     detectGameType();
+    loadTeamMembers();
   }, [gameId]);
+
+  const loadTeamMembers = async () => {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id, team_name, team_number, key_id')
+      .eq('launched_game_id', gameId)
+      .order('team_number', { ascending: true });
+    if (!error && data) {
+      setTeamMembers(data as TeamMember[]);
+    }
+  };
 
   const detectGameType = async () => {
     setLoadingType(true);
@@ -312,15 +335,15 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       const { data: currentTeam } = await supabase
         .from('teams')
         .select('start_time, end_time')
-        .eq('id', team.id)
+        .eq('id', selectedTeam.id)
         .maybeSingle();
 
       if (currentTeam?.start_time || currentTeam?.end_time) {
-        await supabase.from('teams').update({ start_time: null, end_time: null, score: 0 }).eq('id', team.id);
+        await supabase.from('teams').update({ start_time: null, end_time: null, score: 0 }).eq('id', selectedTeam.id);
         appendLog('  Reset previous run');
       }
 
-      appendLog(`Processing: ${team.team_name}`);
+      appendLog(`Processing: ${selectedTeam.team_name}`);
 
       if (gameType?.toLowerCase() === 'tagquest') {
         appendLog(`Selected ${selectedImages.size} image(s) across ${quests.length} quest(s)`);
@@ -339,9 +362,9 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
         appendLog(`Loaded ${tqPatternItems.length} pattern item(s)`);
 
         const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
-        await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
+        await supabase.from('teams').update({ start_time: startTime }).eq('id', selectedTeam.id);
 
-        const mockCard = buildTagQuestMockCard(team.key_id.toString(), selectedImages, tqPatternItems, endChip);
+        const mockCard = buildTagQuestMockCard(selectedTeam.key_id.toString(), selectedImages, tqPatternItems, endChip);
 
         appendLog(`Punch: ${JSON.stringify(mockCard)}`);
 
@@ -357,18 +380,18 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
         const { error: endErr } = await supabase
           .from('teams')
           .update({ end_time: endTime, score: totalScore })
-          .eq('id', team.id);
+          .eq('id', selectedTeam.id);
 
         if (endErr) {
           appendLog(`  Error: ${endErr.message}`);
-          setTestResult({ teamName: team.team_name, score: 0, status: 'error', message: endErr.message });
+          setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
         } else {
           const duration = endTime - startTime;
           const mins = Math.floor(duration / 60);
           const secs = duration % 60;
           const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
           appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-          setTestResult({ teamName: team.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+          setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
         }
 
         appendLog('Simulation complete.');
@@ -414,10 +437,10 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       }
 
       const startTime = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 1200 + 300);
-      await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
+      await supabase.from('teams').update({ start_time: startTime }).eq('id', selectedTeam.id);
 
       const mockCard = buildMockCard(
-        team.key_id.toString(),
+        selectedTeam.key_id.toString(),
         patternEnigmas,
         testConfig.goodAnswerPercent,
         testConfig.badAnswerPercent
@@ -449,18 +472,18 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
       const { error: endErr } = await supabase
         .from('teams')
         .update({ end_time: endTime, score: totalScore })
-        .eq('id', team.id);
+        .eq('id', selectedTeam.id);
 
       if (endErr) {
         appendLog(`  Error: ${endErr.message}`);
-        setTestResult({ teamName: team.team_name, score: 0, status: 'error', message: endErr.message });
+        setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
       } else {
         const duration = endTime - startTime;
         const mins = Math.floor(duration / 60);
         const secs = duration % 60;
         const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
         appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-        setTestResult({ teamName: team.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+        setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
       }
 
       appendLog('Simulation complete.');
@@ -494,12 +517,48 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
           Game: <span className="text-white font-medium">{gameName}</span>
         </p>
 
-        <div className="mb-5 px-4 py-3 bg-slate-700/50 rounded-lg border border-slate-600 flex items-center gap-3">
-          <Users size={18} className="text-blue-400 shrink-0" />
-          <div>
-            <p className="text-white text-sm font-semibold">{team.team_name}</p>
-            <p className="text-slate-400 text-xs">Team {team.team_number} · Chip #{team.key_id}</p>
-          </div>
+        <div className="mb-5 relative">
+          <button
+            type="button"
+            onClick={() => setTeamDropdownOpen(v => !v)}
+            className="w-full px-4 py-3 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-slate-500 flex items-center gap-3 transition text-left"
+          >
+            <Users size={18} className="text-blue-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-semibold">{selectedTeam.team_name}</p>
+              <p className="text-slate-400 text-xs">Team {selectedTeam.team_number} · Chip #{selectedTeam.key_id}</p>
+            </div>
+            <ChevronDown size={16} className={`text-slate-400 shrink-0 transition-transform ${teamDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {teamDropdownOpen && teamMembers.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
+              {teamMembers.map(member => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTeam(member);
+                    setTeamDropdownOpen(false);
+                    setTestResult(null);
+                    setTestLog([]);
+                  }}
+                  className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-700/60 transition text-left ${
+                    member.id === selectedTeam.id ? 'bg-blue-900/20' : ''
+                  }`}
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${member.id === selectedTeam.id ? 'bg-blue-400' : 'bg-slate-600'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${member.id === selectedTeam.id ? 'text-blue-300' : 'text-white'}`}>
+                      {member.team_name}
+                    </p>
+                    <p className="text-slate-400 text-xs">Team {member.team_number} · Chip #{member.key_id}</p>
+                  </div>
+                  {member.id === selectedTeam.id && <CheckCircle size={14} className="text-blue-400 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {loadingType ? (

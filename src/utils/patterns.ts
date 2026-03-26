@@ -6,6 +6,7 @@ export interface PatternFile {
   uniqid: string;
   slug: string;
   fileName: string;
+  storagePath: string;
 }
 
 export interface PatternOption {
@@ -14,29 +15,46 @@ export interface PatternOption {
   uniqid: string;
 }
 
+function parsePatternFileName(fileName: string): { uniqid: string; slug: string } | null {
+  const baseName = fileName.replace(/\.(json|csv)$/, '');
+  if (!baseName.startsWith('pattern_')) return null;
+  const afterPrefix = baseName.slice('pattern_'.length);
+  const slugIdx = afterPrefix.indexOf('_');
+  if (slugIdx === -1) return null;
+  const uniqid = afterPrefix.slice(0, slugIdx);
+  const slug = afterPrefix.slice(slugIdx + 1);
+  if (!uniqid || !slug) return null;
+  return { uniqid, slug };
+}
+
 export async function getPatternFilesFromStorage(gameTypeName: string): Promise<PatternFile[]> {
-  const { data, error } = await supabase.storage
-    .from('resources')
-    .list(`patterns/${gameTypeName}`, { limit: 1000 });
-
-  if (error) {
-    console.error('Storage list error for patterns:', error);
-    return [];
-  }
-  if (!data) return [];
-
   const files: PatternFile[] = [];
-  for (const item of data) {
-    if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
-    const baseName = item.name.replace(/\.(json|csv)$/, '');
-    const underscoreIdx = baseName.indexOf('_');
-    const secondUnderscoreIdx = baseName.indexOf('_', underscoreIdx + 1);
-    if (underscoreIdx !== -1 && secondUnderscoreIdx !== -1 && baseName.startsWith('pattern_')) {
-      const uniqid = baseName.slice(underscoreIdx + 1, secondUnderscoreIdx);
-      const slug = baseName.slice(secondUnderscoreIdx + 1);
-      files.push({ uniqid, slug, fileName: item.name });
+
+  const scanFolder = async (folderPath: string) => {
+    const { data, error } = await supabase.storage
+      .from('resources')
+      .list(folderPath, { limit: 1000 });
+
+    if (error) {
+      console.error(`Storage list error for ${folderPath}:`, error);
+      return;
     }
-  }
+    if (!data) return;
+
+    for (const item of data) {
+      if (!item.name || item.name === '.emptyFolderPlaceholder') continue;
+      if (item.id === null) {
+        await scanFolder(`${folderPath}/${item.name}`);
+      } else {
+        const parsed = parsePatternFileName(item.name);
+        if (parsed) {
+          files.push({ uniqid: parsed.uniqid, slug: parsed.slug, fileName: item.name, storagePath: `${folderPath}/${item.name}` });
+        }
+      }
+    }
+  };
+
+  await scanFolder(`patterns/${gameTypeName}`);
   return files;
 }
 

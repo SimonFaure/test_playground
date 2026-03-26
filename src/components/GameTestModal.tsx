@@ -242,12 +242,12 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
       appendLog(`Storage files found: ${storageFiles.map(f => `${f.slug}(${f.fileName})`).join(', ') || 'none'}`);
       const match = storageFiles.find(f => f.slug === patternSlug);
       if (match) {
-        const items = await fetchPatternJson(`patterns/mystery/${match.fileName}`);
+        const items = await fetchPatternJson(match.storagePath);
         if (items) {
-          appendLog(`Pattern file: patterns/mystery/${match.fileName}`);
+          appendLog(`Pattern file: ${match.storagePath}`);
           return items;
         }
-        appendLog(`JSON parse failed for: patterns/mystery/${match.fileName}`);
+        appendLog(`JSON parse failed for: ${match.storagePath}`);
       } else {
         appendLog(`No file matched slug "${patternSlug}" among: ${storageFiles.map(f => f.slug).join(', ')}`);
       }

@@ -735,9 +735,11 @@ export function LaunchedGamesList() {
                                 <span className="text-slate-400 text-sm ml-auto mr-4 shrink-0">
                                   Score: <span className="text-white font-medium">{team.score}</span>
                                 </span>
-                                <span className="text-slate-400 text-sm shrink-0">
-                                  Chip #{team.key_id}
-                                </span>
+                                {!showTeammates && (
+                                  <span className="text-slate-400 text-sm shrink-0">
+                                    Chip #{team.key_id}
+                                  </span>
+                                )}
                               </div>
                               <button className="p-1 hover:bg-slate-600 rounded transition ml-2 shrink-0" title="Expand team details">
                                 <Maximize2 size={16} className="text-slate-400" />
@@ -762,9 +764,11 @@ export function LaunchedGamesList() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-slate-400 text-sm">
-                                  Chip #{team.key_id}
-                                </span>
+                                {!showTeammates && (
+                                  <span className="text-slate-400 text-sm">
+                                    Chip #{team.key_id}
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => toggleMinimizeTeam(team.id)}
                                   className="p-1 hover:bg-slate-700 rounded transition"
@@ -1019,7 +1023,9 @@ export function LaunchedGamesList() {
                               Team {team.team_number}: {team.team_name}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-400">Chip #{team.key_id}</p>
+                          {selectedGamePlayMode !== 'team' && (
+                            <p className="text-sm text-slate-400">Chip #{team.key_id}</p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">

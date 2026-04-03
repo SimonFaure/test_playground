@@ -87,11 +87,44 @@ export function LaunchedGamesList() {
   const [savingTeammate, setSavingTeammate] = useState(false);
   const [savingTeam, setSavingTeam] = useState(false);
 
+  const parseChipsCsv = (text: string): SiPuce[] => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const idIdx = headers.indexOf('id');
+    const numIdx = headers.indexOf('key_number');
+    const nameIdx = headers.indexOf('key_name');
+    const colorIdx = headers.indexOf('color');
+    const chips: SiPuce[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const id = parseInt(vals[idIdx]);
+      const key_number = parseInt(vals[numIdx]);
+      const key_name = vals[nameIdx] || '';
+      if (isNaN(id) || isNaN(key_number)) continue;
+      chips.push({ id, key_number, key_name, color: colorIdx !== -1 ? vals[colorIdx] || null : null, created_at: '', updated_at: '' });
+    }
+    return chips.sort((a, b) => a.key_number - b.key_number);
+  };
+
   useEffect(() => {
     loadGames();
-    supabase.from('si_puces').select('*').order('key_number', { ascending: true }).then(({ data }) => {
-      if (data) setAllChips(data);
-    });
+    const loadChips = async () => {
+      const { data: files, error } = await supabase.storage.from('resources').list('cards', { limit: 100 });
+      if (error || !files) return;
+      const csvFiles = files.filter(f => f.name && f.name.endsWith('.csv') && f.name !== '.emptyFolderPlaceholder');
+      const allParsed: SiPuce[] = [];
+      for (const file of csvFiles) {
+        const { data: blob } = await supabase.storage.from('resources').download(`cards/${file.name}`);
+        if (blob) {
+          const parsed = parseChipsCsv(await blob.text());
+          allParsed.push(...parsed);
+        }
+      }
+      allParsed.sort((a, b) => a.key_number - b.key_number);
+      setAllChips(allParsed);
+    };
+    loadChips();
   }, []);
 
   useEffect(() => {

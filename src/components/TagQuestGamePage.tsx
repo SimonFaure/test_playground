@@ -479,6 +479,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const handleNewBip = useCallback((row: { raw_data: any }) => {
     const card = row.raw_data;
     if (card) {
+      console.log('🏷️  CARD DETECTED (test/simulation):', card);
+      setLastCardData(card);
+      setShowCardAlert(true);
+      setTimeout(() => setShowCardAlert(false), 5000);
       handleCardPunchLogic(card);
     }
   }, [launchedGameId, victoryType]);

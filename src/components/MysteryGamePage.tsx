@@ -600,6 +600,15 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack, on
   const handleNewBip = useCallback((row: { raw_data: any }) => {
     const card = row.raw_data;
     if (card && gameDataRef.current) {
+      console.log('🏷️  CARD DETECTED (test/simulation)');
+      console.log('  Card ID:', card.id);
+      console.log('  Series:', card.series);
+      console.log('  Number of punches:', card.nbPunch);
+      console.log('  Punches:', card.punches);
+      console.log('  Full card data:', JSON.stringify(card, null, 2));
+      setLastCardData(card);
+      setShowCardAlert(true);
+      setTimeout(() => setShowCardAlert(false), 5000);
       handleCardPunchLogic(card);
     }
   }, [launchedGameId]);

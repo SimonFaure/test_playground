@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
 import { TeamTestModal } from './TeamTestModal';
-import type { GameConfig, Team as ConfigTeam } from './LaunchGameModal';
+import type { GameConfig, Team as ConfigTeam, Teammate } from './LaunchGameModal';
+import type { SiPuce } from '../types/database';
 
 interface LaunchedGame {
   id: number;
@@ -80,9 +81,17 @@ export function LaunchedGamesList() {
   const [testTeam, setTestTeam] = useState<{ gameId: number; gameName: string; team: Team } | null>(null);
   const [selectedGamePlayMode, setSelectedGamePlayMode] = useState<'solo' | 'team' | null>(null);
   const [selectedGameTeamsConfig, setSelectedGameTeamsConfig] = useState<ConfigTeam[]>([]);
+  const [allChips, setAllChips] = useState<SiPuce[]>([]);
+  const [addTeammateState, setAddTeammateState] = useState<{ teamId: number; chipId: number | null; name: string } | null>(null);
+  const [addTeamState, setAddTeamState] = useState<{ name: string; chipId: number | null } | null>(null);
+  const [savingTeammate, setSavingTeammate] = useState(false);
+  const [savingTeam, setSavingTeam] = useState(false);
 
   useEffect(() => {
     loadGames();
+    supabase.from('si_puces').select('*').order('key_number', { ascending: true }).then(({ data }) => {
+      if (data) setAllChips(data);
+    });
   }, []);
 
   useEffect(() => {
@@ -358,6 +367,91 @@ export function LaunchedGamesList() {
         loadTeams(selectedGameId);
       }
     }
+  };
+
+  const getUsedChipIds = (): Set<number> => {
+    const used = new Set<number>();
+    selectedGameTeamsConfig.forEach(t => {
+      used.add(t.chipId);
+      t.teammates?.forEach(m => used.add(m.chipId));
+    });
+    teams.forEach(t => used.add(t.key_id));
+    return used;
+  };
+
+  const persistTeamsConfig = async (updated: ConfigTeam[]) => {
+    if (!selectedGameId) return;
+    setSelectedGameTeamsConfig(updated);
+    await supabase
+      .from('launched_game_meta')
+      .update({ meta_value: JSON.stringify(updated) })
+      .eq('launched_game_id', selectedGameId)
+      .eq('meta_name', 'teamsConfig');
+  };
+
+  const handleAddTeammate = async () => {
+    if (!addTeammateState || addTeammateState.chipId === null || !addTeammateState.name.trim() || !selectedGameId) return;
+    setSavingTeammate(true);
+    const chip = allChips.find(c => c.id === addTeammateState.chipId);
+    if (!chip) { setSavingTeammate(false); return; }
+
+    const newMate: Teammate = {
+      chipId: chip.id,
+      chipNumber: chip.key_number,
+      name: addTeammateState.name.trim(),
+    };
+
+    const updated = selectedGameTeamsConfig.map(t => {
+      if (t.chipId === teams.find(tm => tm.id === addTeammateState.teamId)?.key_id || t.name === teams.find(tm => tm.id === addTeammateState.teamId)?.team_name) {
+        return { ...t, teammates: [...(t.teammates ?? []), newMate] };
+      }
+      return t;
+    });
+
+    await persistTeamsConfig(updated);
+    setAddTeammateState(null);
+    setSavingTeammate(false);
+  };
+
+  const handleAddTeam = async () => {
+    if (!addTeamState || addTeamState.chipId === null || !addTeamState.name.trim() || !selectedGameId) return;
+    setSavingTeam(true);
+    const chip = allChips.find(c => c.id === addTeamState.chipId);
+    if (!chip) { setSavingTeam(false); return; }
+
+    const nextTeamNumber = (teams.length > 0 ? Math.max(...teams.map(t => t.team_number)) : 0) + 1;
+
+    const { data: newTeam, error } = await supabase
+      .from('teams')
+      .insert({
+        launched_game_id: selectedGameId,
+        team_number: nextTeamNumber,
+        team_name: addTeamState.name.trim(),
+        pattern: 0,
+        score: 0,
+        key_id: chip.id,
+      })
+      .select()
+      .maybeSingle();
+
+    if (error || !newTeam) {
+      console.error('Error adding team:', error);
+      setSavingTeam(false);
+      return;
+    }
+
+    const newConfigTeam: ConfigTeam = {
+      chipId: chip.id,
+      chipNumber: chip.key_number,
+      name: addTeamState.name.trim(),
+      teammates: [],
+    };
+
+    const updated = [...selectedGameTeamsConfig, newConfigTeam];
+    await persistTeamsConfig(updated);
+    await loadTeams(selectedGameId);
+    setAddTeamState(null);
+    setSavingTeam(false);
   };
 
   const handleShowRankings = async (gameId: number) => {
@@ -845,21 +939,74 @@ export function LaunchedGamesList() {
                                 <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
                                 <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
                               </div>
-                              {showTeammates && teammates.length > 1 && (
+                              {showTeammates && (
                                 <div className="mb-3 pt-2 border-t border-slate-700">
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                                    <Users size={12} />
-                                    <span className="font-medium uppercase tracking-wide">Teammates</span>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                      <Users size={12} />
+                                      <span className="font-medium uppercase tracking-wide">Teammates</span>
+                                    </div>
+                                    {addTeammateState?.teamId !== team.id && (
+                                      <button
+                                        onClick={() => setAddTeammateState({ teamId: team.id, chipId: null, name: '' })}
+                                        className="flex items-center gap-1 text-xs text-teal-400 hover:text-teal-300 transition"
+                                      >
+                                        <UserPlus size={12} />
+                                        Add
+                                      </button>
+                                    )}
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     {teammates.map((mate, mi) => (
                                       <span key={mi} className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 rounded-full text-xs text-slate-300">
                                         <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
                                         {mate.name}
-                                        <span className="text-slate-500">#{mate.chipNumber}</span>
+                                        <span className="text-slate-500 font-mono">#{mate.chipNumber}</span>
+                                        <span className="text-slate-600 font-mono text-[10px]">{mate.chipId}</span>
                                       </span>
                                     ))}
                                   </div>
+                                  {addTeammateState?.teamId === team.id && (
+                                    <div className="mt-2 p-2 bg-slate-900/60 rounded-lg space-y-2">
+                                      <input
+                                        type="text"
+                                        placeholder="Teammate name"
+                                        value={addTeammateState.name}
+                                        onChange={e => setAddTeammateState({ ...addTeammateState, name: e.target.value })}
+                                        className="w-full px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                      />
+                                      <select
+                                        value={addTeammateState.chipId ?? ''}
+                                        onChange={e => setAddTeammateState({ ...addTeammateState, chipId: Number(e.target.value) || null })}
+                                        className="w-full px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                      >
+                                        <option value="">Select chip...</option>
+                                        {allChips
+                                          .filter(c => !getUsedChipIds().has(c.id))
+                                          .map(c => (
+                                            <option key={c.id} value={c.id}>
+                                              #{c.key_number} — {c.key_name} (ID: {c.id})
+                                            </option>
+                                          ))}
+                                      </select>
+                                      <div className="flex gap-1.5">
+                                        <button
+                                          onClick={handleAddTeammate}
+                                          disabled={savingTeammate || !addTeammateState.name.trim() || addTeammateState.chipId === null}
+                                          className="flex-1 px-2 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white rounded text-xs font-medium flex items-center justify-center gap-1"
+                                        >
+                                          <Save size={11} />
+                                          {savingTeammate ? 'Saving...' : 'Save'}
+                                        </button>
+                                        <button
+                                          onClick={() => setAddTeammateState(null)}
+                                          className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs"
+                                        >
+                                          <X size={11} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               <div className="flex gap-2">
@@ -893,6 +1040,60 @@ export function LaunchedGamesList() {
                       })}
                     </div>
                     )
+                  )}
+                  {selectedGamePlayMode === 'team' && (
+                    <div className="mt-4">
+                      {addTeamState === null ? (
+                        <button
+                          onClick={() => setAddTeamState({ name: '', chipId: null })}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-600 hover:border-teal-500 text-slate-400 hover:text-teal-400 rounded-lg text-sm transition"
+                        >
+                          <PlusCircle size={15} />
+                          Add Team
+                        </button>
+                      ) : (
+                        <div className="p-3 bg-slate-800 border border-slate-600 rounded-lg space-y-2">
+                          <div className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">New Team</div>
+                          <input
+                            type="text"
+                            placeholder="Team name"
+                            value={addTeamState.name}
+                            onChange={e => setAddTeamState({ ...addTeamState, name: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          />
+                          <select
+                            value={addTeamState.chipId ?? ''}
+                            onChange={e => setAddTeamState({ ...addTeamState, chipId: Number(e.target.value) || null })}
+                            className="w-full px-2.5 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          >
+                            <option value="">Select chip...</option>
+                            {allChips
+                              .filter(c => !getUsedChipIds().has(c.id))
+                              .map(c => (
+                                <option key={c.id} value={c.id}>
+                                  #{c.key_number} — {c.key_name} (ID: {c.id})
+                                </option>
+                              ))}
+                          </select>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleAddTeam}
+                              disabled={savingTeam || !addTeamState.name.trim() || addTeamState.chipId === null}
+                              className="flex-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white rounded text-sm font-medium flex items-center justify-center gap-1.5"
+                            >
+                              <Save size={13} />
+                              {savingTeam ? 'Saving...' : 'Save Team'}
+                            </button>
+                            <button
+                              onClick={() => setAddTeamState(null)}
+                              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

@@ -282,6 +282,27 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   useEffect(() => {
     if (!launchedGameId) return;
 
+    const startAllTeams = async () => {
+      const startTime = Math.floor(Date.now() / 1000);
+      const { error } = await supabase
+        .from('teams')
+        .update({ start_time: startTime })
+        .eq('launched_game_id', launchedGameId)
+        .is('start_time', null);
+
+      if (error) {
+        console.error('[TagQuest] Error starting all teams:', error);
+      } else {
+        console.log('[TagQuest] All teams started at', startTime);
+      }
+    };
+
+    startAllTeams();
+  }, [launchedGameId]);
+
+  useEffect(() => {
+    if (!launchedGameId) return;
+
     const fetchLaunchedGame = async () => {
       const { data } = await supabase
         .from('launched_games')

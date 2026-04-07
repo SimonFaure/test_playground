@@ -444,8 +444,8 @@ export async function processTagQuestPunch(
       }
     }
 
-    // Step 13: End station detection (code 254)
-    const endStationReached = card.end?.code === 254 || workingPunches.some(p => p.code === 254);
+    // Step 13: End station detection — only end_time if card.end is present
+    const endStationReached = card.end != null;
 
     let gameEnded = false;
     if (endStationReached && !team.end_time) {
@@ -454,12 +454,6 @@ export async function processTagQuestPunch(
       gameEnded = true;
     } else if (scoreDelta !== 0 || completedNow.length > 0) {
       await supabase.from('teams').update({ score: newScore }).eq('id', team.id);
-    }
-
-    // Set start_time if not yet set
-    if (!team.start_time) {
-      const startTime = Math.floor(Date.now() / 1000);
-      await supabase.from('teams').update({ start_time: startTime }).eq('id', team.id);
     }
 
     // Step 14: Best partial quest (if no complete quest this round)
@@ -492,7 +486,7 @@ export async function processTagQuestPunch(
       status: 'ok',
     };
 
-    console.log('[TagQuest] Punch processed:', result);
+    console.log('[TagQuest] Punch processed:', JSON.stringify(result, null, 2));
     return result;
   } catch (err) {
     console.error('[TagQuest] Error processing punch:', err);

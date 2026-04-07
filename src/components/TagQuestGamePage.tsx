@@ -479,9 +479,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       setLastCardData(card);
       setShowCardAlert(true);
       setTimeout(() => setShowCardAlert(false), 5000);
-      handleCardPunchLogic(card);
     }
-  }, [launchedGameId, victoryType]);
+  }, []);
 
   useGameStatePolling({
     launchedGameId,

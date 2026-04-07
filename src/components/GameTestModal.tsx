@@ -233,7 +233,7 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
       nbPunch: punches.length,
       start: { code: '255', time: now - 600 },
       check: null,
-      end: { code: '254', time: now },
+      end: null,
       punches,
     };
   };
@@ -396,30 +396,13 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
             raw_data: mockCard,
           });
 
-          const totalScore = mockCard.nbPunch * 10;
-          const endTime = Math.floor(Date.now() / 1000);
-
-          const { error: endErr } = await supabase
-            .from('teams')
-            .update({ end_time: endTime, score: totalScore })
-            .eq('id', team.id);
-
-          if (endErr) {
-            appendLog(`  Error: ${endErr.message}`);
-            results.push({ teamName: team.team_name, score: 0, status: 'error', message: endErr.message });
-          } else {
-            const duration = endTime - startTime;
-            const mins = Math.floor(duration / 60);
-            const secs = duration % 60;
-            const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-            appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-            results.push({
-              teamName: team.team_name,
-              score: totalScore,
-              status: 'success',
-              message: `Score: ${totalScore} — Time: ${timeStr}`,
-            });
-          }
+          appendLog(`  Card inserted — punch logic will process this card`);
+          results.push({
+            teamName: team.team_name,
+            score: 0,
+            status: 'success',
+            message: `Card sent — check console for punch result`,
+          });
 
           await new Promise(r => setTimeout(r, 150));
         }

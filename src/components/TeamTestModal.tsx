@@ -390,24 +390,29 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
           raw_data: mockCard,
         });
 
-        const totalScore = mockCard.nbPunch * 10;
-        const endTime = Math.floor(Date.now() / 1000);
+        if (endChip) {
+          const totalScore = mockCard.nbPunch * 10;
+          const endTime = Math.floor(Date.now() / 1000);
 
-        const { error: endErr } = await supabase
-          .from('teams')
-          .update({ end_time: endTime, score: totalScore })
-          .eq('id', selectedTeam.id);
+          const { error: endErr } = await supabase
+            .from('teams')
+            .update({ end_time: endTime, score: totalScore })
+            .eq('id', selectedTeam.id);
 
-        if (endErr) {
-          appendLog(`  Error: ${endErr.message}`);
-          setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
+          if (endErr) {
+            appendLog(`  Error: ${endErr.message}`);
+            setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
+          } else {
+            const duration = endTime - startTime;
+            const mins = Math.floor(duration / 60);
+            const secs = duration % 60;
+            const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+            appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
+            setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+          }
         } else {
-          const duration = endTime - startTime;
-          const mins = Math.floor(duration / 60);
-          const secs = duration % 60;
-          const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-          appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-          setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+          appendLog(`  Card sent (no end punch) — punch logic will process this card`);
+          setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'success', message: `Card sent — no end punch` });
         }
 
         appendLog('Simulation complete.');

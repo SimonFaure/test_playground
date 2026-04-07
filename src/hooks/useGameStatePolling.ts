@@ -97,12 +97,14 @@ export function useGameStatePolling({
     gameEndedRef.current = false;
     lastRawDataIdRef.current = null;
 
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     initLastRawDataId().then(() => {
-      const interval = setInterval(tick, 1000);
-      return () => clearInterval(interval);
+      interval = setInterval(tick, 1000);
     });
 
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      if (interval !== null) clearInterval(interval);
+    };
   }, [launchedGameId, enabled, initLastRawDataId, tick]);
 }

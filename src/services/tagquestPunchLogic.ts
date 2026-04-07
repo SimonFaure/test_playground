@@ -7,6 +7,7 @@ interface GameQuest {
   number: string;
   text: string;
   points?: string | number;
+  good_answer_points?: string | number;
   main_image?: string;
   image_1?: string;
   image_2?: string;
@@ -24,6 +25,7 @@ interface GameMeta {
 interface GameDataJson {
   game_meta?: GameMeta;
   game_quests?: GameQuest[];
+  game_enigmas?: GameQuest[];
   game_data?: { quests?: GameQuest[] };
   quests?: GameQuest[];
 }
@@ -51,7 +53,7 @@ interface PunchResult {
 }
 
 function getQuests(gdj: GameDataJson): GameQuest[] {
-  return gdj?.game_quests || gdj?.game_data?.quests || gdj?.quests || [];
+  return gdj?.game_quests || gdj?.game_enigmas || gdj?.game_data?.quests || gdj?.quests || [];
 }
 
 function getLateMalusPoints(gdj: GameDataJson): number {
@@ -394,9 +396,8 @@ export async function processTagQuestPunch(
     let newCompletedQuest: PunchResult['completed_quest'] = null;
 
     for (const qp of completedNow) {
-      const pts = typeof qp.quest.points === 'string'
-        ? parseInt(qp.quest.points, 10) || 0
-        : (qp.quest.points ?? 0);
+      const rawPts = qp.quest.points ?? qp.quest.good_answer_points ?? 0;
+      const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
 
       pointsEarned += pts;
 

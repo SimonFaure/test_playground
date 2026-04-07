@@ -448,7 +448,7 @@ export function GameList() {
               launched_game_id: launchedGame.id,
               team_number: index + 1,
               team_name: team.name,
-              pattern: 0,
+              pattern: config.pattern || '',
               score: 0,
               key_id: team.chipId,
             }));

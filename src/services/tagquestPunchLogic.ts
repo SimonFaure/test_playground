@@ -261,22 +261,25 @@ export async function processTagQuestPunch(
     }
 
     // Step 4: Load pattern items for station→quest mapping
-    const patternNumber = team.pattern;
-
-    const { data: patternRow } = await supabase
-      .from('patterns')
-      .select('id')
-      .eq('number', patternNumber)
-      .maybeSingle();
+    // team.pattern stores the pattern slug
+    const patternSlug = team.pattern;
 
     let patternItems: PatternItem[] = [];
-    if (patternRow) {
-      const { data: items } = await supabase
-        .from('tagquest_pattern_items')
-        .select('item_index, assignment_type, station_key_number')
-        .eq('pattern_id', patternRow.id);
+    if (patternSlug) {
+      const { data: patternRow } = await supabase
+        .from('patterns')
+        .select('id')
+        .eq('slug', patternSlug)
+        .maybeSingle();
 
-      if (items) patternItems = items;
+      if (patternRow) {
+        const { data: items } = await supabase
+          .from('tagquest_pattern_items')
+          .select('item_index, assignment_type, station_key_number')
+          .eq('pattern_id', patternRow.id);
+
+        if (items) patternItems = items;
+      }
     }
 
     // Step 5: Load game data for quest definitions

@@ -339,13 +339,13 @@ export async function processTagQuestPunch(
       const questPatternItems = patternItems.filter(
         pi => pi.item_index === parseInt(questDef.number, 10)
       );
-      const requiredStations = new Set(questPatternItems.map(pi => pi.station_key_number));
+      const requiredStations = new Set(questPatternItems.map(pi => String(pi.station_key_number)));
 
-      const presentStations = new Set(workingPunches.map(p => p.code));
+      const presentStations = new Set(workingPunches.map(p => String(p.code)));
       const allPresent = [...requiredStations].every(s => presentStations.has(s));
 
       if (allPresent) {
-        workingPunches = workingPunches.filter(p => !requiredStations.has(p.code));
+        workingPunches = workingPunches.filter(p => !requiredStations.has(String(p.code)));
       }
     }
 
@@ -353,7 +353,7 @@ export async function processTagQuestPunch(
     workingPunches = deduplicatePunches(workingPunches);
 
     // Step 9: Quest completion analysis
-    const workingCodes = new Set(workingPunches.map(p => p.code));
+    const workingCodes = new Set(workingPunches.map(p => String(p.code)));
 
     interface QuestProgress {
       quest: GameQuest;
@@ -369,7 +369,7 @@ export async function processTagQuestPunch(
       const questSlots = patternItems.filter(pi => pi.item_index === questIndex);
       if (questSlots.length === 0) continue;
 
-      const matched = questSlots.filter(pi => workingCodes.has(pi.station_key_number)).length;
+      const matched = questSlots.filter(pi => workingCodes.has(String(pi.station_key_number))).length;
       questProgress.set(quest.id, {
         quest,
         totalSlots: questSlots.length,

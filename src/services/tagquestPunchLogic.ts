@@ -88,21 +88,27 @@ function isCheatDetected(
   currentPunches: CardData['punches'],
   previousPunches: CardData['punches']
 ): boolean {
-  if (previousPunches.length < 4 || currentPunches.length < 4) return false;
+  if (previousPunches.length === 0 || currentPunches.length === 0) return false;
 
-  const tail = (arr: CardData['punches']) => arr.slice(-4).map(p => p.code);
-  const currentTail = tail(currentPunches);
-  const previousTail = tail(previousPunches);
+  if (currentPunches.length < previousPunches.length) return true;
 
-  const tailsIdentical =
-    currentTail.length === previousTail.length &&
-    currentTail.every((c, i) => c === previousTail[i]);
+  const previousPunchKeys = new Set(previousPunches.map(p => `${p.code}:${p.time}`));
 
-  if (tailsIdentical) return true;
+  const newPunches = currentPunches.filter(p => !previousPunchKeys.has(`${p.code}:${p.time}`));
 
-  const previousCodes = new Set(previousPunches.map(p => p.code));
-  const overlap = currentTail.filter(c => previousCodes.has(c));
-  if (overlap.length > 0) return true;
+  if (newPunches.length === 0) return true;
+
+  const previousCodeTimeMap = new Map<number, string>();
+  for (const p of previousPunches) {
+    previousCodeTimeMap.set(p.code, p.time);
+  }
+
+  for (const p of newPunches) {
+    const prevTime = previousCodeTimeMap.get(p.code);
+    if (prevTime !== undefined && prevTime !== p.time) {
+      return true;
+    }
+  }
 
   return false;
 }

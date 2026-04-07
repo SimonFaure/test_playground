@@ -17,11 +17,10 @@ interface TagQuestGamePageProps {
 }
 
 interface GameQuest {
-  id: string;
-  game_id?: string;
-  number: string;
-  text: string;
-  main_image: string;
+  name: string;
+  points?: string;
+  sound?: string;
+  main_image?: string;
   image_1?: string;
   image_2?: string;
   image_3?: string;
@@ -36,15 +35,7 @@ interface GameData {
     type: string;
     title: string;
   };
-  game_data?: {
-    quests?: GameQuest[];
-  };
-  game_quests?: GameQuest[];
-  game_media_images?: Array<{
-    id: string;
-    uuid: string;
-    file_name: string;
-  }>;
+  quests?: GameQuest[];
 }
 
 interface TeamScore {
@@ -110,7 +101,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         if (isElectron) {
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
-          setGameData(data);
+          setGameData({
+            game: {
+              id: gameUniqid,
+              uniqid: gameUniqid,
+              type: 'tagquest',
+              title: data.title || data.game?.title || gameUniqid,
+            },
+            quests: data.quests || [],
+          });
 
           const csvContent = await (window as any).electron.games.readFile(gameUniqid, 'csv/game_media_images.csv');
           if (csvContent) {
@@ -172,7 +171,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               }
             }
 
-            const quests = gdj?.game_data?.quests || gdj?.quests || [];
+            const quests = gdj?.quests || [];
             setGameData({
               game: {
                 id: scenarioData.id.toString(),
@@ -180,8 +179,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
                 type: scenarioData.game_type,
                 title: scenarioData.title
               },
-              game_data: gdj?.game_data || gdj,
-              game_quests: quests
+              quests,
             });
           }
 
@@ -447,11 +445,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     if (result.status === 'ok') {
       if (result.completed_quest) {
         showMessage(
-          `${result.team_name} — Quest ${result.completed_quest.number} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`
+          `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`
         );
       } else if (result.best_partial_quest) {
         showMessage(
-          `${result.team_name} — Quest ${result.best_partial_quest.number}: ${result.best_partial_quest.matched} image(s) found`
+          `${result.team_name} — ${result.best_partial_quest.name}: ${result.best_partial_quest.matched} image(s) found`
         );
       }
       if (result.level_up) {
@@ -581,8 +579,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
 
     if (element.id === 'animation_quest_image') {
-
-      const quests = gameData?.game_data?.quests || gameData?.game_quests || [];
+      const quests = gameData?.quests || [];
 
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
@@ -603,16 +600,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         return [
           <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, display: 'none' }}>
             <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: 'blur(8px)' }}>
-              <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
+              <img src={mainSrc} alt={quest.name} style={{ width: '100%' }} />
             </div>
             <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap', filter: 'blur(8px)' }}>
               {subImages.map((src, i) => (
-                <img key={i} src={src} alt={`${quest.text} ${i + 1}`} style={{ width: '50%' }} />
+                <img key={i} src={src} alt={`${quest.name} ${i + 1}`} style={{ width: '50%' }} />
               ))}
             </div>
           </div>,
           <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, display: 'none', color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
-            {quest.text}
+            {quest.name}
           </div>
         ];
       });

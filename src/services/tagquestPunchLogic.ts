@@ -3,16 +3,14 @@ import { CardData } from './usbReader';
 import type { Team } from '../components/LaunchGameModal';
 
 interface GameQuest {
-  id: string;
-  number: string;
-  text: string;
+  name: string;
   points?: string | number;
-  good_answer_points?: string | number;
   main_image?: string;
   image_1?: string;
   image_2?: string;
   image_3?: string;
   image_4?: string;
+  sound?: string;
   [key: string]: string | number | undefined;
 }
 
@@ -24,9 +22,6 @@ interface GameMeta {
 
 interface GameDataJson {
   game_meta?: GameMeta;
-  game_quests?: GameQuest[];
-  game_enigmas?: GameQuest[];
-  game_data?: { quests?: GameQuest[] };
   quests?: GameQuest[];
 }
 
@@ -40,12 +35,12 @@ interface PunchResult {
   team_name: string;
   team_id: number;
   teammate_chip_id: number | null;
-  completed_quest: { id: string; number: string; text: string; points: number } | null;
+  completed_quest: { index: number; name: string; points: number } | null;
   points_earned: number;
   malus_applied: number;
   new_total_score: number;
   level_up: { new_level: number; name: string } | null;
-  best_partial_quest: { id: string; number: string; text: string; matched: number } | null;
+  best_partial_quest: { index: number; name: string; matched: number } | null;
   end_station_reached: boolean;
   game_ended: boolean;
   status: 'ok' | 'chip_not_recognized' | 'team_already_finished' | 'cheat_detected' | 'error';
@@ -53,7 +48,7 @@ interface PunchResult {
 }
 
 function getQuests(gdj: GameDataJson): GameQuest[] {
-  return gdj?.game_quests || gdj?.game_enigmas || gdj?.game_data?.quests || gdj?.quests || [];
+  return gdj?.quests || [];
 }
 
 function getLateMalusPoints(gdj: GameDataJson): number {
@@ -312,25 +307,23 @@ export async function processTagQuestPunch(
     const levels = gameDataJson?.game_meta?.levels;
 
     // Step 6: Load already-scored quests for this team
+    // quest_number stores the 1-based item_index (= array index + 1)
     const { data: completedQuests } = await supabase
       .from('team_completed_quests')
-      .select('quest_id')
+      .select('quest_number')
       .eq('team_id', team.id);
 
-    const completedQuestIds = new Set((completedQuests || []).map(r => r.quest_id));
+    const completedQuestNumbers = new Set((completedQuests || []).map(r => Number(r.quest_number)));
 
     // Step 7: Sanitize - remove already-scored quest punches from working set
-    const stationMap = buildStationToQuestMap(patternItems);
     let workingPunches = [...card.punches];
 
-    for (const questId of completedQuestIds) {
-      const questDef = quests.find(q => q.id === questId);
-      if (!questDef) continue;
-
-      const questPatternItems = patternItems.filter(
-        pi => pi.item_index === parseInt(questDef.number, 10)
+    for (const questNumber of completedQuestNumbers) {
+      const requiredStations = new Set(
+        patternItems
+          .filter(pi => pi.item_index === questNumber)
+          .map(pi => String(pi.station_key_number))
       );
-      const requiredStations = new Set(questPatternItems.map(pi => String(pi.station_key_number)));
 
       const presentStations = new Set(workingPunches.map(p => String(p.code)));
       const allPresent = [...requiredStations].every(s => presentStations.has(s));
@@ -344,29 +337,32 @@ export async function processTagQuestPunch(
     workingPunches = deduplicatePunches(workingPunches);
 
     // Step 9: Quest completion analysis
+    // item_index is 1-based; quest array index is 0-based (item_index - 1)
     const workingCodes = new Set(workingPunches.map(p => String(p.code)));
 
     interface QuestProgress {
+      questIndex: number;
       quest: GameQuest;
       totalSlots: number;
       matchedSlots: number;
     }
-    const questProgress = new Map<string, QuestProgress>();
+    const questProgress = new Map<number, QuestProgress>();
 
-    for (const quest of quests) {
-      if (completedQuestIds.has(quest.id)) continue;
+    quests.forEach((quest, arrayIndex) => {
+      const itemIndex = arrayIndex + 1;
+      if (completedQuestNumbers.has(itemIndex)) return;
 
-      const questIndex = parseInt(quest.number, 10);
-      const questSlots = patternItems.filter(pi => pi.item_index === questIndex);
-      if (questSlots.length === 0) continue;
+      const questSlots = patternItems.filter(pi => pi.item_index === itemIndex);
+      if (questSlots.length === 0) return;
 
       const matched = questSlots.filter(pi => workingCodes.has(String(pi.station_key_number))).length;
-      questProgress.set(quest.id, {
+      questProgress.set(itemIndex, {
+        questIndex: arrayIndex,
         quest,
         totalSlots: questSlots.length,
         matchedSlots: matched,
       });
-    }
+    });
 
     const completedNow = [...questProgress.values()].filter(
       qp => qp.matchedSlots === qp.totalSlots && qp.totalSlots > 0
@@ -396,7 +392,8 @@ export async function processTagQuestPunch(
     let newCompletedQuest: PunchResult['completed_quest'] = null;
 
     for (const qp of completedNow) {
-      const rawPts = qp.quest.points ?? qp.quest.good_answer_points ?? 0;
+      const itemIndex = qp.questIndex + 1;
+      const rawPts = qp.quest.points ?? 0;
       const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
 
       pointsEarned += pts;
@@ -405,16 +402,15 @@ export async function processTagQuestPunch(
         launched_game_id: launchedGameId,
         team_id: team.id,
         teammate_chip_id: teammateChipId ?? card.id,
-        quest_id: qp.quest.id,
-        quest_number: qp.quest.number,
+        quest_id: null,
+        quest_number: String(itemIndex),
         points_awarded: pts,
       });
 
       if (!newCompletedQuest) {
         newCompletedQuest = {
-          id: qp.quest.id,
-          number: qp.quest.number,
-          text: qp.quest.text,
+          index: itemIndex,
+          name: qp.quest.name,
           points: pts,
         };
       }
@@ -453,9 +449,8 @@ export async function processTagQuestPunch(
       if (inProgress.length > 0) {
         const best = inProgress.reduce((a, b) => a.matchedSlots >= b.matchedSlots ? a : b);
         bestPartial = {
-          id: best.quest.id,
-          number: best.quest.number,
-          text: best.quest.text,
+          index: best.questIndex + 1,
+          name: best.quest.name,
           matched: best.matchedSlots,
         };
       }

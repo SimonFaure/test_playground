@@ -6,6 +6,7 @@ import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import { processTagQuestPunch } from '../services/tagquestPunchLogic';
+import { logApiCall } from '../services/apiLogger';
 
 interface TagQuestGamePageProps {
   config: GameConfig;
@@ -286,9 +287,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       const startTime = Math.floor(Date.now() / 1000);
       const { error } = await supabase
         .from('teams')
-        .update({ start_time: startTime })
-        .eq('launched_game_id', launchedGameId)
-        .is('start_time', null);
+        .update({ start_time: startTime, end_time: null })
+        .eq('launched_game_id', launchedGameId);
 
       if (error) {
         console.error('[TagQuest] Error starting all teams:', error);
@@ -431,6 +431,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       playMode,
       teamsConfig
     );
+
+    await logApiCall({
+      endpoint: `/tagquest/punch/${launchedGameId}`,
+      method: 'PUNCH',
+      requestBody: card as unknown as Record<string, unknown>,
+      responseData: result,
+      statusCode: result.status === 'ok' ? 200 : result.status === 'error' ? 500 : 422,
+      errorMessage: result.status !== 'ok' ? result.message : undefined,
+    });
 
     if (result.status === 'ok') {
       if (result.completed_quest) {

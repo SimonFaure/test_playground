@@ -599,7 +599,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
 
         return [
-          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, opacity: 0 }}>
+          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, display: 'none' }}>
             <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: 'blur(8px)' }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>
@@ -609,7 +609,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               ))}
             </div>
           </div>,
-          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, opacity: 0, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, display: 'none', color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
             {quest.text}
           </div>
         ];
@@ -624,7 +624,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     switch (element.type) {
       case 'image':
         return (
-          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: 'none' }}>
             <img
               src={imageSrc || ''}
               alt={element.id}
@@ -642,7 +642,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           displayText = element.text ?? element.previewText;
         }
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, opacity: isTimer ? (wrapperStyle.opacity ?? 1) : 0 }}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: isTimer ? (wrapperStyle.display ?? 'block') : 'none' }}>
             <div
               style={{
                 width: '100%',
@@ -664,7 +664,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       }
       case 'container':
         return (
-          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: 'none' }}>
             {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
           </div>
         );

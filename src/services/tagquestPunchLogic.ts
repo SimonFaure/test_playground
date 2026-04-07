@@ -90,27 +90,10 @@ function isCheatDetected(
 ): boolean {
   if (previousPunches.length === 0 || currentPunches.length === 0) return false;
 
-  if (currentPunches.length < previousPunches.length) return true;
-
   const previousPunchKeys = new Set(previousPunches.map(p => `${p.code}:${p.time}`));
-
   const newPunches = currentPunches.filter(p => !previousPunchKeys.has(`${p.code}:${p.time}`));
 
-  if (newPunches.length === 0) return true;
-
-  const previousCodeTimeMap = new Map<number, string>();
-  for (const p of previousPunches) {
-    previousCodeTimeMap.set(p.code, p.time);
-  }
-
-  for (const p of newPunches) {
-    const prevTime = previousCodeTimeMap.get(p.code);
-    if (prevTime !== undefined && prevTime !== p.time) {
-      return true;
-    }
-  }
-
-  return false;
+  return newPunches.length === 0;
 }
 
 function buildStationToQuestMap(

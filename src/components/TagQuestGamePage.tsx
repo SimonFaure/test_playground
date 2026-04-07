@@ -540,6 +540,25 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     };
   }, [gameStarted, config.usbPort]);
 
+  const updateBgDimensions = useCallback(() => {
+    if (bgImageRef.current) {
+      setBgDimensions({
+        width: bgImageRef.current.offsetWidth,
+        height: bgImageRef.current.offsetHeight
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const observer = new ResizeObserver(updateBgDimensions);
+    if (bgImageRef.current) observer.observe(bgImageRef.current);
+    window.addEventListener('resize', updateBgDimensions);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateBgDimensions);
+    };
+  }, [updateBgDimensions, layout]);
+
   const renderLayoutElement = (element: LayoutElement, index: number): JSX.Element | JSX.Element[] => {
     if (!bgDimensions) {
       return <div key={`${element.id}-${index}`} />;
@@ -579,20 +598,18 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
         const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
 
-        const isRightPlacement = (element.x ?? 0) >= 50;
-
         return [
           <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, opacity: 0 }}>
-            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: isRightPlacement ? 'blur(8px)' : undefined }}>
+            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: 'blur(8px)' }}>
               <img src={mainSrc} alt={quest.text} style={{ width: '100%' }} />
             </div>
-            <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap' }}>
+            <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap', filter: 'blur(8px)' }}>
               {subImages.map((src, i) => (
                 <img key={i} src={src} alt={`${quest.text} ${i + 1}`} style={{ width: '50%' }} />
               ))}
             </div>
           </div>,
-          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, opacity: 0, color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
             {quest.text}
           </div>
         ];
@@ -625,7 +642,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           displayText = element.text ?? element.previewText;
         }
         return (
-          <div key={`${element.id}-${index}`} style={wrapperStyle}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, opacity: isTimer ? (wrapperStyle.opacity ?? 1) : 0 }}>
             <div
               style={{
                 width: '100%',
@@ -700,15 +717,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   }
 
   if (layout) {
-    const handleBgImageLoad = () => {
-      if (bgImageRef.current) {
-        setBgDimensions({
-          width: bgImageRef.current.offsetWidth,
-          height: bgImageRef.current.offsetHeight
-        });
-      }
-    };
-
     return (
       <div style={{
         position: 'relative',
@@ -725,7 +733,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             ref={bgImageRef}
             src={layout.background}
             alt="Background"
-            onLoad={handleBgImageLoad}
+            onLoad={updateBgDimensions}
             style={{
               position: 'absolute',
               top: 0,

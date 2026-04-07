@@ -322,7 +322,7 @@ export function MysteryGamePage({ config, gameUniqid, launchedGameId, onBack, on
           showMessage(`C'est parti! ${team.team_name}`, config.messageDisplayDuration * 1000);
           playSound('game_start');
         }
-      } else if (!team.end_time) {
+      } else if (!team.end_time && card.end != null) {
         const endTime = Math.floor(Date.now() / 1000);
 
         const patternEnigmas = await loadPatternEnigmasByUniqid('mystery', config.pattern);

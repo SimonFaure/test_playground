@@ -99,6 +99,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [victoryType, setVictoryType] = useState<'speed' | 'score'>(config.victoryType || 'speed');
   const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
+  const [punchLogs, setPunchLogs] = useState<Array<{ timestamp: Date; result: any }>>([]);
   const bgImageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -441,6 +442,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       errorMessage: result.status !== 'ok' ? result.message : undefined,
     });
 
+    setPunchLogs(prev => [{ timestamp: new Date(), result }, ...prev].slice(0, 50));
+
     if (result.status === 'ok') {
       if (result.completed_quest) {
         showMessage(
@@ -668,6 +671,48 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
   };
 
+  const renderPunchLog = () => {
+    if (punchLogs.length === 0) return null;
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        maxHeight: '220px',
+        backgroundColor: 'rgba(0,0,0,0.88)',
+        borderTop: '1px solid rgba(255,255,255,0.12)',
+        overflowY: 'auto',
+        zIndex: 9000,
+        fontFamily: 'monospace',
+        fontSize: '11px',
+      }}>
+        <div style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0 }}>
+          <span style={{ fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '10px' }}>Punch Console</span>
+          <button
+            onClick={() => setPunchLogs([])}
+            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '10px', padding: '2px 6px' }}
+          >
+            clear
+          </button>
+        </div>
+        {punchLogs.map((entry, i) => {
+          const isOk = entry.result?.status === 'ok';
+          const isError = entry.result?.status === 'error';
+          const color = isOk ? '#4ade80' : isError ? '#f87171' : '#fbbf24';
+          const time = entry.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          return (
+            <div key={i} style={{ padding: '3px 10px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <span style={{ color: '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
+              <span style={{ color, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>[{entry.result?.status?.toUpperCase()}]</span>
+              <span style={{ color: '#cbd5e1', wordBreak: 'break-all' }}>{JSON.stringify(entry.result)}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (!gameData || layoutLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -765,6 +810,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             cardData={lastCardData}
             show={showCardAlert}
           />
+        {renderPunchLog()}
       </div>
     );
   }
@@ -891,6 +937,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           cardData={lastCardData}
           show={showCardAlert}
         />
+      {renderPunchLog()}
     </div>
   );
 }

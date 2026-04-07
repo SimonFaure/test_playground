@@ -5,6 +5,7 @@ import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
+import { processTagQuestPunch } from '../services/tagquestPunchLogic';
 
 interface TagQuestGamePageProps {
   config: GameConfig;
@@ -400,68 +401,33 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   };
 
   const handleCardPunchLogic = async (card: CardData) => {
-    if (!supabase || !launchedGameId) {
-      return;
-    }
+    if (!launchedGameId) return;
 
-    try {
-      const { data: team, error: teamError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('launched_game_id', launchedGameId)
-        .eq('key_id', card.id)
-        .maybeSingle();
+    const result = await processTagQuestPunch(
+      card,
+      launchedGameId,
+      gameUniqid,
+      playMode,
+      teamsConfig
+    );
 
-      if (teamError) {
-        console.error('Error finding team:', teamError);
-        return;
+    if (result.status === 'ok') {
+      if (result.completed_quest) {
+        showMessage(
+          `${result.team_name} — Quest ${result.completed_quest.number} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`
+        );
+      } else if (result.best_partial_quest) {
+        showMessage(
+          `${result.team_name} — Quest ${result.best_partial_quest.number}: ${result.best_partial_quest.matched} image(s) found`
+        );
       }
-
-      if (!team) {
-        console.warn('No team found with card ID:', card.id);
-        return;
+      if (result.level_up) {
+        showMessage(`${result.team_name} — Level up: ${result.level_up.name}!`);
       }
-
-      if (!team.start_time) {
-        const startTime = Math.floor(Date.now() / 1000);
-        const { error: updateError } = await supabase
-          .from('teams')
-          .update({ start_time: startTime })
-          .eq('id', team.id);
-
-        if (updateError) {
-          console.error('Error updating team start time:', updateError);
-        } else {
-          console.log('✓ Team started:', team.team_name);
-          showMessage(`${team.team_name} - Game started!`);
-        }
-      } else if (!team.end_time) {
-        const endTime = Math.floor(Date.now() / 1000);
-        const duration = endTime - team.start_time;
-
-        const cardPunchCodes = card.punches.map(p => p.code.toString());
-        const totalScore = cardPunchCodes.length * 10;
-
-        const { error: updateError } = await supabase
-          .from('teams')
-          .update({
-            end_time: endTime,
-            score: totalScore
-          })
-          .eq('id', team.id);
-
-        if (updateError) {
-          console.error('Error updating team end time:', updateError);
-        } else {
-          console.log('✓ Team finished:', team.team_name);
-          showMessage(`${team.team_name} finished! Score: ${totalScore} - Time: ${formatTime(duration)}`);
-          loadTeams();
-        }
-      } else {
-        console.log('Team has already finished the game');
+      if (result.game_ended) {
+        showMessage(`${result.team_name} — Game finished!`);
       }
-    } catch (error) {
-      console.error('Error handling card punch logic:', error);
+      loadTeams();
     }
   };
 

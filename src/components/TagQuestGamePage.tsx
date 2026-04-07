@@ -475,6 +475,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleCardPunchLogicRef = useRef(handleCardPunchLogic);
+  useEffect(() => { handleCardPunchLogicRef.current = handleCardPunchLogic; });
+
   const handleNewBip = useCallback((row: { raw_data: any }) => {
     const card = row.raw_data;
     if (card) {
@@ -482,6 +485,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       setLastCardData(card);
       setShowCardAlert(true);
       setTimeout(() => setShowCardAlert(false), 5000);
+      handleCardPunchLogicRef.current(card);
     }
   }, []);
 

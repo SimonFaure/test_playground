@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Trophy, ArrowLeft, Clock, Zap, Star, Medal, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import { Trophy, ArrowLeft, Clock, Zap, Star, Medal, Users, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GameConfig, Team as ConfigTeam } from './LaunchGameModal';
 
@@ -22,9 +22,7 @@ interface TeamResult {
 
 interface RankedTeam extends TeamResult {
   rank: number;
-  prevRank: number | null;
   rankDelta: number | null;
-  animating: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -40,7 +38,9 @@ function getRankColor(index: number): string {
   return 'text-slate-400';
 }
 
-function getRankBg(index: number): string {
+function getRankBg(index: number, movingUp: boolean, movingDown: boolean): string {
+  if (movingUp) return 'bg-emerald-500/15 border-emerald-400/50';
+  if (movingDown) return 'bg-red-500/10 border-red-400/35';
   if (index === 0) return 'bg-yellow-400/10 border-yellow-400/30';
   if (index === 1) return 'bg-slate-300/10 border-slate-300/20';
   if (index === 2) return 'bg-amber-500/10 border-amber-500/25';
@@ -48,34 +48,10 @@ function getRankBg(index: number): string {
 }
 
 function RankIcon({ index }: { index: number }) {
-  if (index === 0) return <Trophy size={20} className="text-yellow-400" />;
-  if (index === 1) return <Medal size={20} className="text-slate-300" />;
-  if (index === 2) return <Medal size={20} className="text-amber-500" />;
+  if (index === 0) return <Trophy size={22} className="text-yellow-400" />;
+  if (index === 1) return <Medal size={22} className="text-slate-300" />;
+  if (index === 2) return <Medal size={22} className="text-amber-500" />;
   return <span className="text-slate-400 font-bold text-sm w-5 text-center">#{index + 1}</span>;
-}
-
-function RankDeltaBadge({ delta }: { delta: number | null }) {
-  if (delta === null || delta === 0) {
-    return (
-      <span className="flex items-center gap-0.5 text-slate-500 text-xs">
-        <Minus size={11} />
-      </span>
-    );
-  }
-  if (delta < 0) {
-    return (
-      <span className="flex items-center gap-0.5 text-emerald-400 text-xs font-semibold">
-        <TrendingUp size={13} />
-        {Math.abs(delta)}
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-0.5 text-red-400 text-xs font-semibold">
-      <TrendingDown size={13} />
-      {delta}
-    </span>
-  );
 }
 
 function sortTeams(teams: TeamResult[], victoryType: string): TeamResult[] {
@@ -99,9 +75,17 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
   const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
+
   const prevRanksRef = useRef<Map<number, number>>(new Map());
   const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // FLIP animation refs: map teamId -> DOM element
+  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  // Store positions before re-render
+  const prevPositionsRef = useRef<Map<number, DOMRect>>(new Map());
+  // Track which teams are mid-FLIP animation
+  const [flipAnimating, setFlipAnimating] = useState<Set<number>>(new Set());
 
   const victoryType = config.victoryType || 'speed';
 
@@ -111,7 +95,7 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
       const rank = index + 1;
       const prevRank = prevRanksRef.current.get(team.id) ?? null;
       const rankDelta = prevRank !== null ? rank - prevRank : null;
-      return { ...team, rank, prevRank, rankDelta, animating: rankDelta !== null && rankDelta !== 0 };
+      return { ...team, rank, rankDelta };
     });
   }, [victoryType]);
 
@@ -119,6 +103,15 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
     const map = new Map<number, number>();
     ranked.forEach(t => map.set(t.id, t.rank));
     prevRanksRef.current = map;
+  }, []);
+
+  // Capture current positions before state update
+  const capturePositions = useCallback(() => {
+    const positions = new Map<number, DOMRect>();
+    cardRefs.current.forEach((el, id) => {
+      positions.set(id, el.getBoundingClientRect());
+    });
+    prevPositionsRef.current = positions;
   }, []);
 
   const fetchTeams = useCallback(async (isInitial = false) => {
@@ -134,26 +127,60 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
     const ranked = processTeams(data);
 
     if (!isInitial) {
-      const hasChanges = ranked.some(t => t.animating);
-      if (hasChanges) {
-        setTeams(ranked);
-        updatePrevRanks(ranked);
+      const movers = ranked.filter(t => t.rankDelta !== null && t.rankDelta !== 0);
+      if (movers.length > 0) {
+        capturePositions();
+        setFlipAnimating(new Set(movers.map(t => t.id)));
+      }
+      setTeams(ranked);
+      updatePrevRanks(ranked);
 
+      if (movers.length > 0) {
         if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
         animationTimerRef.current = setTimeout(() => {
-          setTeams(prev => prev.map(t => ({ ...t, animating: false, rankDelta: null })));
-        }, 1500);
-      } else {
-        setTeams(ranked);
-        updatePrevRanks(ranked);
+          setTeams(prev => prev.map(t => ({ ...t, rankDelta: null })));
+          setFlipAnimating(new Set());
+        }, 2000);
       }
     } else {
       updatePrevRanks(ranked);
-      setTeams(ranked.map(t => ({ ...t, rankDelta: null, animating: false })));
+      setTeams(ranked.map(t => ({ ...t, rankDelta: null })));
       setLoading(false);
       setTimeout(() => setVisible(true), 50);
     }
-  }, [launchedGameId, processTeams, updatePrevRanks]);
+  }, [launchedGameId, processTeams, updatePrevRanks, capturePositions]);
+
+  // FLIP: after DOM updates with new positions, compute delta and play animation
+  useLayoutEffect(() => {
+    if (flipAnimating.size === 0) return;
+
+    flipAnimating.forEach(id => {
+      const el = cardRefs.current.get(id);
+      const prevRect = prevPositionsRef.current.get(id);
+      if (!el || !prevRect) return;
+
+      const nextRect = el.getBoundingClientRect();
+      const dy = prevRect.top - nextRect.top;
+      const scale = prevRect.height / nextRect.height;
+
+      if (Math.abs(dy) < 1 && Math.abs(scale - 1) < 0.01) return;
+
+      // Cancel any running animation
+      el.getAnimations().forEach(a => a.cancel());
+
+      el.animate(
+        [
+          { transform: `translateY(${dy}px) scale(${scale})`, zIndex: '10' },
+          { transform: 'translateY(0px) scale(1)', zIndex: '10' },
+        ],
+        {
+          duration: 600,
+          easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          fill: 'forwards',
+        }
+      );
+    });
+  }, [teams, flipAnimating]);
 
   useEffect(() => {
     const loadMeta = async () => {
@@ -248,6 +275,9 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
             <div className="w-full space-y-3">
               {teams.map((team) => {
                 const index = team.rank - 1;
+                const movingUp = flipAnimating.has(team.id) && team.rankDelta !== null && team.rankDelta < 0;
+                const movingDown = flipAnimating.has(team.id) && team.rankDelta !== null && team.rankDelta > 0;
+
                 const duration =
                   team.start_time && team.end_time
                     ? team.end_time - team.start_time
@@ -261,24 +291,60 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
                 return (
                   <div
                     key={team.id}
-                    className={`rounded-xl border ${getRankBg(index)} px-5 pt-4 pb-4`}
+                    ref={el => {
+                      if (el) cardRefs.current.set(team.id, el);
+                      else cardRefs.current.delete(team.id);
+                    }}
+                    className={`rounded-xl border ${getRankBg(index, movingUp, movingDown)} px-5 pt-4 pb-4 will-change-transform`}
                     style={{
                       opacity: visible ? 1 : 0,
-                      transform: visible ? 'translateX(0)' : 'translateX(-16px)',
-                      transition: team.animating
-                        ? 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                        : `opacity 0.4s ease ${index * 0.07}s, transform 0.4s ease ${index * 0.07}s`,
-                      outline: team.animating ? (team.rankDelta !== null && team.rankDelta < 0 ? '2px solid rgb(52 211 153 / 0.5)' : '2px solid rgb(248 113 113 / 0.4)') : '2px solid transparent',
+                      transition: !flipAnimating.has(team.id)
+                        ? `opacity 0.4s ease ${index * 0.07}s, background-color 0.4s ease, border-color 0.4s ease`
+                        : 'background-color 0.3s ease, border-color 0.3s ease',
+                      transform: visible ? 'none' : 'translateX(-16px)',
+                      boxShadow: movingUp
+                        ? '0 0 0 2px rgb(52 211 153 / 0.6), 0 8px 32px rgb(52 211 153 / 0.2)'
+                        : movingDown
+                        ? '0 0 0 1px rgb(248 113 113 / 0.4)'
+                        : 'none',
                     }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex flex-col items-center justify-center w-8 shrink-0 gap-1">
-                        <RankIcon index={index} />
-                        <RankDeltaBadge delta={team.rankDelta} />
+                      <div className="flex flex-col items-center justify-center w-10 shrink-0 gap-1.5">
+                        <div
+                          style={{
+                            transition: 'transform 0.3s ease',
+                            transform: movingUp ? 'scale(1.25)' : 'scale(1)',
+                          }}
+                        >
+                          <RankIcon index={index} />
+                        </div>
+
+                        {team.rankDelta !== null && team.rankDelta !== 0 ? (
+                          <span
+                            className={`flex items-center gap-0.5 text-xs font-bold ${movingUp ? 'text-emerald-400' : 'text-red-400'}`}
+                            style={{
+                              animation: movingUp ? 'bounceUp 0.5s ease' : undefined,
+                            }}
+                          >
+                            {movingUp ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                            {Math.abs(team.rankDelta)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-xs">
+                            <Minus size={11} />
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className={`font-bold text-lg leading-tight ${getRankColor(index)}`}>
+                        <div
+                          className={`font-bold leading-tight ${movingUp ? 'text-emerald-300' : getRankColor(index)}`}
+                          style={{
+                            fontSize: movingUp ? '1.2rem' : '1.125rem',
+                            transition: 'font-size 0.3s ease, color 0.3s ease',
+                          }}
+                        >
                           {team.team_name}
                         </div>
                         <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
@@ -297,14 +363,18 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
 
                       <div className="text-right shrink-0">
                         {victoryType === 'score' ? (
-                          <div className={`text-xl font-bold transition-all duration-500 ${team.animating && team.rankDelta !== null && team.rankDelta < 0 ? 'text-emerald-400 scale-110' : 'text-white'}`}
-                            style={{ display: 'inline-block' }}
+                          <div
+                            className={`font-bold transition-all duration-300 ${movingUp ? 'text-emerald-400' : 'text-white'}`}
+                            style={{ fontSize: movingUp ? '1.4rem' : '1.25rem' }}
                           >
                             {team.score}
                             <span className="text-slate-400 text-sm font-normal ml-1">pts</span>
                           </div>
                         ) : duration !== null ? (
-                          <div className={`text-xl font-bold ${getRankColor(index)}`}>
+                          <div
+                            className={`font-bold ${movingUp ? 'text-emerald-400' : getRankColor(index)}`}
+                            style={{ fontSize: movingUp ? '1.4rem' : '1.25rem', transition: 'font-size 0.3s ease, color 0.3s ease' }}
+                          >
                             {formatDuration(duration)}
                           </div>
                         ) : (
@@ -337,6 +407,14 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes bounceUp {
+          0%   { transform: translateY(4px); opacity: 0; }
+          60%  { transform: translateY(-3px); }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

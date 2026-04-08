@@ -57,15 +57,17 @@ function getLateMalusPoints(gdj: GameDataJson): number {
   return typeof val === 'string' ? parseFloat(val) || 0 : val;
 }
 
+function toMs(time: number | string): number {
+  const n = typeof time === 'string' ? parseFloat(time) : time;
+  if (n > 1e10) return n;
+  return n * 1000;
+}
+
 function deduplicatePunches(
   punches: CardData['punches'],
   windowMs = 20000
 ): CardData['punches'] {
-  const sorted = [...punches].sort((a, b) => {
-    const ta = new Date(a.time).getTime();
-    const tb = new Date(b.time).getTime();
-    return ta - tb;
-  });
+  const sorted = [...punches].sort((a, b) => toMs(a.time) - toMs(b.time));
 
   const result: CardData['punches'] = [];
   for (const punch of sorted) {
@@ -74,7 +76,7 @@ function deduplicatePunches(
       result.push(punch);
       continue;
     }
-    const diff = Math.abs(new Date(punch.time).getTime() - new Date(last.time).getTime());
+    const diff = Math.abs(toMs(punch.time) - toMs(last.time));
     if (diff >= windowMs) {
       result.push(punch);
     }
@@ -318,14 +320,19 @@ export async function processTagQuestPunch(
         console.warn('[TagQuest] Could not load game-data.json from electron');
       }
     } else {
-      const { data: scenarioData } = await supabase
-        .from('scenarios')
-        .select('game_data_json')
-        .eq('uniqid', gameUniqid)
-        .maybeSingle();
-
-      if (scenarioData?.game_data_json) {
-        gameDataJson = scenarioData.game_data_json as GameDataJson;
+      try {
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(`scenarios/${gameUniqid}/game-data.json`);
+        const resp = await fetch(urlData.publicUrl);
+        if (resp.ok) {
+          const raw = await resp.json();
+          gameDataJson = raw?.game_data ?? raw;
+        } else {
+          console.warn('[TagQuest] Could not fetch game-data.json from storage, status:', resp.status);
+        }
+      } catch (err) {
+        console.warn('[TagQuest] Error fetching game-data.json from storage:', err);
       }
     }
 

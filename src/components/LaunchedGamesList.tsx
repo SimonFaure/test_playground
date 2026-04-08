@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X, BarChart2 } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X, BarChart2, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -49,6 +49,7 @@ export function LaunchedGamesList() {
   const [games, setGames] = useState<LaunchedGame[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [refreshingTeams, setRefreshingTeams] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
@@ -755,32 +756,48 @@ export function LaunchedGamesList() {
                       <Users size={20} />
                       Teams ({teams.length})
                     </h3>
-                    {teams.length > 0 && (
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          if (minimizedTeams.size === teams.length) {
-                            setMinimizedTeams(new Set());
-                          } else {
-                            const allTeamIds = new Set(teams.map(t => t.id));
-                            setMinimizedTeams(allTeamIds);
-                          }
+                        onClick={async () => {
+                          if (selectedGameId === null) return;
+                          setRefreshingTeams(true);
+                          await loadTeams(selectedGameId);
+                          setRefreshingTeams(false);
                         }}
                         className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
-                        title={minimizedTeams.size === teams.length ? "Expand all teams" : "Minimize all teams"}
+                        title="Refresh teams"
+                        disabled={refreshingTeams}
                       >
-                        {minimizedTeams.size === teams.length ? (
-                          <>
-                            <Maximize2 size={14} />
-                            Expand All
-                          </>
-                        ) : (
-                          <>
-                            <Minimize2 size={14} />
-                            Minimize All
-                          </>
-                        )}
+                        <RefreshCw size={14} className={refreshingTeams ? 'animate-spin' : ''} />
+                        Refresh
                       </button>
-                    )}
+                      {teams.length > 0 && (
+                        <button
+                          onClick={() => {
+                            if (minimizedTeams.size === teams.length) {
+                              setMinimizedTeams(new Set());
+                            } else {
+                              const allTeamIds = new Set(teams.map(t => t.id));
+                              setMinimizedTeams(allTeamIds);
+                            }
+                          }}
+                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition flex items-center gap-1"
+                          title={minimizedTeams.size === teams.length ? "Expand all teams" : "Minimize all teams"}
+                        >
+                          {minimizedTeams.size === teams.length ? (
+                            <>
+                              <Maximize2 size={14} />
+                              Expand All
+                            </>
+                          ) : (
+                            <>
+                              <Minimize2 size={14} />
+                              Minimize All
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {teams.length > 0 && (

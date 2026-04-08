@@ -19,6 +19,9 @@ interface GameMeta {
   late_malus_points?: string | number;
   default_time?: string | number;
   levels?: Record<string, { points: string | null; name: string | null; description: string }>;
+  combo_6_quests?: string | number;
+  combo_4_quests?: string | number;
+  combo_2_quests?: string | number;
 }
 
 interface GameDataJson {
@@ -38,6 +41,7 @@ interface PunchResult {
   teammate_chip_id: number | null;
   completed_quest: { index: number; name: string; points: number } | null;
   points_earned: number;
+  combo_bonus: number;
   malus_applied: number;
   new_total_score: number;
   level_up: { new_level: number; name: string } | null;
@@ -55,6 +59,27 @@ function getQuests(gdj: GameDataJson): GameQuest[] {
 function getLateMalusPoints(gdj: GameDataJson): number {
   const val = gdj?.game_meta?.late_malus_points ?? gdj?.game_meta?.default_time_malus ?? 0;
   return typeof val === 'string' ? parseFloat(val) || 0 : val;
+}
+
+function getComboPoints(gdj: GameDataJson): { pts6: number; pts4: number; pts2: number } {
+  const parse = (val: string | number | undefined): number => {
+    if (val === undefined || val === null) return 0;
+    return typeof val === 'string' ? parseInt(val, 10) || 0 : val;
+  };
+  return {
+    pts6: parse(gdj?.game_meta?.combo_6_quests),
+    pts4: parse(gdj?.game_meta?.combo_4_quests),
+    pts2: parse(gdj?.game_meta?.combo_2_quests),
+  };
+}
+
+function computeCombos(questCount: number): { combos6: number; combos4: number; combos2: number } {
+  const combos6 = Math.floor(questCount / 6);
+  const rem6 = questCount % 6;
+  const combos4 = Math.floor(rem6 / 4);
+  const rem4 = rem6 % 4;
+  const combos2 = Math.floor(rem4 / 2);
+  return { combos6, combos4, combos2 };
 }
 
 function toMs(time: number | string): number {
@@ -165,6 +190,7 @@ export async function processTagQuestPunch(
     teammate_chip_id: null,
     completed_quest: null,
     points_earned: 0,
+    combo_bonus: 0,
     malus_applied: 0,
     new_total_score: 0,
     level_up: null,
@@ -217,6 +243,7 @@ export async function processTagQuestPunch(
         teammate_chip_id: null,
         completed_quest: null,
         points_earned: 0,
+        combo_bonus: 0,
         malus_applied: 0,
         new_total_score: 0,
         level_up: null,
@@ -245,6 +272,7 @@ export async function processTagQuestPunch(
         teammate_chip_id: teammateChipId,
         completed_quest: null,
         points_earned: 0,
+        combo_bonus: 0,
         malus_applied: 0,
         new_total_score: team.score,
         level_up: null,
@@ -275,6 +303,7 @@ export async function processTagQuestPunch(
           teammate_chip_id: teammateChipId,
           completed_quest: null,
           points_earned: 0,
+          combo_bonus: 0,
           malus_applied: 0,
           new_total_score: team.score,
           level_up: null,
@@ -328,6 +357,7 @@ export async function processTagQuestPunch(
 
     const quests = gameDataJson ? getQuests(gameDataJson) : [];
     const lateMalusPoints = gameDataJson ? getLateMalusPoints(gameDataJson) : 0;
+    const { pts6, pts4, pts2 } = gameDataJson ? getComboPoints(gameDataJson) : { pts6: 0, pts4: 0, pts2: 0 };
     const levels = gameDataJson?.game_meta?.levels;
 
     // Step 6: Load already-scored quests for this team
@@ -415,6 +445,8 @@ export async function processTagQuestPunch(
     let pointsEarned = 0;
     let newCompletedQuest: PunchResult['completed_quest'] = null;
 
+    const beforeCombos = computeCombos(completedQuestNumbers.size);
+
     for (const qp of completedNow) {
       const itemIndex = qp.questIndex + 1;
       const rawPts = qp.quest.points ?? 0;
@@ -439,6 +471,14 @@ export async function processTagQuestPunch(
         };
       }
     }
+
+    const afterCombos = computeCombos(completedQuestNumbers.size + completedNow.length);
+    const comboBonus =
+      (afterCombos.combos6 - beforeCombos.combos6) * pts6 +
+      (afterCombos.combos4 - beforeCombos.combos4) * pts4 +
+      (afterCombos.combos2 - beforeCombos.combos2) * pts2;
+
+    pointsEarned += comboBonus;
 
     const scoreDelta = pointsEarned - malusApplied;
     const prevScore = team.score ?? 0;
@@ -486,6 +526,7 @@ export async function processTagQuestPunch(
       teammate_chip_id: teammateChipId,
       completed_quest: newCompletedQuest,
       points_earned: pointsEarned,
+      combo_bonus: comboBonus,
       malus_applied: malusApplied,
       new_total_score: newScore,
       level_up: levelUpResult,

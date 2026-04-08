@@ -36,6 +36,7 @@ interface Team {
   start_time: number | null;
   end_time: number | null;
   key_id: number;
+  currentLevel?: { level: number; name: string } | null;
 }
 
 interface Device {
@@ -207,6 +208,7 @@ export function LaunchedGamesList() {
 
     const game = games.find(g => g.id === gameId);
     let pts6 = 0, pts4 = 0, pts2 = 0;
+    let gameLevels: Record<string, { name: string | null; points: string | null }> | null = null;
     if (game?.game_uniqid) {
       try {
         const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
@@ -224,8 +226,25 @@ export function LaunchedGamesList() {
         pts6 = parseVal(gameMeta?.combo_6_quests);
         pts4 = parseVal(gameMeta?.combo_4_quests);
         pts2 = parseVal(gameMeta?.combo_2_quests);
+        gameLevels = gameMeta?.levels ?? null;
       } catch {}
     }
+
+    const computeLevelForScore = (score: number): { level: number; name: string } | null => {
+      if (!gameLevels) return null;
+      let best: { level: number; name: string } | null = null;
+      for (const [key, val] of Object.entries(gameLevels)) {
+        const threshold = val.points ? parseFloat(val.points) : null;
+        if (threshold === null) continue;
+        if (score >= threshold) {
+          const lvlNum = parseInt(key, 10);
+          if (!best || lvlNum > best.level) {
+            best = { level: lvlNum, name: val.name || `Level ${lvlNum}` };
+          }
+        }
+      }
+      return best;
+    };
 
     const computeCombosForTeam = (countMap: Record<string, number>): number => {
       if (pts6 === 0 && pts4 === 0 && pts2 === 0) return 0;
@@ -257,7 +276,8 @@ export function LaunchedGamesList() {
     const enriched = teamsData.map(t => {
       const questScore = scoreByTeam[t.id] ?? 0;
       const comboBonus = computeCombosForTeam(questCountByTeam[t.id] ?? {});
-      return { ...t, score: questScore + comboBonus };
+      const totalScore = questScore + comboBonus;
+      return { ...t, score: totalScore, currentLevel: computeLevelForScore(totalScore) };
     });
 
     setTeams(enriched);
@@ -949,8 +969,14 @@ export function LaunchedGamesList() {
                                     {teammates.length}
                                   </span>
                                 )}
-                                <span className="text-slate-400 text-sm ml-auto mr-4 shrink-0">
+                                <span className="flex items-center gap-2 text-slate-400 text-sm ml-auto mr-4 shrink-0">
                                   Score: <span className="text-white font-medium">{team.score}</span>
+                                  {team.currentLevel && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                                      {team.currentLevel.name}
+                                    </span>
+                                  )}
                                 </span>
                                 {!showTeammates && (
                                   <span className="text-slate-400 text-sm shrink-0">
@@ -1058,7 +1084,15 @@ export function LaunchedGamesList() {
                             <>
                               <div className="text-sm text-slate-400 space-y-1 mb-3">
                                 <div>Name: <span className="text-white font-medium">{team.team_name}</span></div>
-                                <div>Score: <span className="text-white font-medium">{team.score}</span></div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>Score: <span className="text-white font-medium">{team.score}</span></span>
+                                  {team.currentLevel && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                                      {team.currentLevel.name}
+                                    </span>
+                                  )}
+                                </div>
                                 <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
                                 <div>End: <span className="text-white">{team.end_time ? formatTime(team.end_time) : 'Not ended'}</span></div>
                               </div>
@@ -1368,6 +1402,12 @@ export function LaunchedGamesList() {
                       <div className="text-right">
                         <div className="text-2xl font-bold text-white">{team.score}</div>
                         <div className="text-xs text-slate-400">points</div>
+                        {team.currentLevel && (
+                          <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                            {team.currentLevel.name}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {(team.start_time || team.end_time) && (

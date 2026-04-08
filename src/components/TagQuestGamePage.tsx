@@ -28,6 +28,12 @@ interface GameQuest {
   [key: string]: string | undefined;
 }
 
+interface GameLevel {
+  name: string | null;
+  points: string | null;
+  description?: string | null;
+}
+
 interface GameData {
   game: {
     id: string;
@@ -36,6 +42,7 @@ interface GameData {
     title: string;
   };
   quests?: GameQuest[];
+  levels?: Record<string, GameLevel>;
 }
 
 interface TeamScore {
@@ -45,6 +52,7 @@ interface TeamScore {
   start_time: number | null;
   end_time: number | null;
   key_id: number;
+  currentLevel?: { level: number; name: string } | null;
 }
 
 interface LayoutElement {
@@ -92,6 +100,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
   const [punchLogs, setPunchLogs] = useState<Array<{ timestamp: Date; result: any }>>([]);
   const bgImageRef = useRef<HTMLImageElement>(null);
+  const gameDataRef = useRef<GameData | null>(null);
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -101,15 +110,19 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         if (isElectron) {
           const gameDataContent = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
           const data = JSON.parse(gameDataContent);
-          setGameData({
+          const rawGdj = data?.game_data ?? data;
+          const gdElectron: GameData = {
             game: {
               id: gameUniqid,
               uniqid: gameUniqid,
               type: 'tagquest',
               title: data.title || data.game?.title || gameUniqid,
             },
-            quests: data.quests || [],
-          });
+            quests: rawGdj.quests || [],
+            levels: rawGdj.game_meta?.levels ?? rawGdj.levels ?? undefined,
+          };
+          gameDataRef.current = gdElectron;
+          setGameData(gdElectron);
 
           const csvContent = await (window as any).electron.games.readFile(gameUniqid, 'csv/game_media_images.csv');
           if (csvContent) {
@@ -171,8 +184,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               }
             }
 
-            const quests = gdj?.quests || [];
-            setGameData({
+            const rawGdjWeb = gdj?.game_data ?? gdj;
+            const quests = rawGdjWeb?.quests || [];
+            const gdWeb: GameData = {
               game: {
                 id: scenarioData.id.toString(),
                 uniqid: scenarioData.uniqid,
@@ -180,7 +194,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
                 title: scenarioData.title
               },
               quests,
-            });
+              levels: rawGdjWeb?.game_meta?.levels ?? rawGdjWeb?.levels ?? undefined,
+            };
+            gameDataRef.current = gdWeb;
+            setGameData(gdWeb);
           }
 
           const mediaByFilename: Record<string, string> = {};
@@ -359,6 +376,23 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     return () => clearInterval(interval);
   }, [launchedGameInfo]);
 
+  const getTeamLevel = (score: number): { level: number; name: string } | null => {
+    const levels = gameDataRef.current?.levels;
+    if (!levels) return null;
+    let best: { level: number; name: string } | null = null;
+    for (const [key, val] of Object.entries(levels)) {
+      const threshold = val.points ? parseFloat(val.points) : null;
+      if (threshold === null) continue;
+      if (score >= threshold) {
+        const lvlNum = parseInt(key, 10);
+        if (!best || lvlNum > best.level) {
+          best = { level: lvlNum, name: val.name || `Level ${lvlNum}` };
+        }
+      }
+    }
+    return best;
+  };
+
   const loadTeams = async () => {
     if (!launchedGameId) return;
 
@@ -368,7 +402,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       .eq('launched_game_id', launchedGameId);
 
     if (!error && data) {
-      const sorted = [...data].sort((a, b) => {
+      const withLevels = data.map(t => ({
+        ...t,
+        currentLevel: getTeamLevel(t.score ?? 0),
+      }));
+      const sorted = [...withLevels].sort((a, b) => {
         if (victoryType === 'speed') {
           if (a.end_time && b.end_time) return a.end_time - b.end_time;
           if (a.end_time) return -1;
@@ -442,7 +480,18 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     setPunchLogs(prev => [{ timestamp: new Date(), result }, ...prev].slice(0, 50));
 
     if (result.status === 'ok') {
-      if (result.completed_quest) {
+      if (result.game_ended) {
+        showMessage(`${result.team_name} — Game finished!`);
+      } else if (result.level_up) {
+        const levelPart = `Level up: ${result.level_up.name}!`;
+        if (result.completed_quest) {
+          showMessage(
+            `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''} — ${levelPart}`
+          );
+        } else {
+          showMessage(`${result.team_name} — ${levelPart}`);
+        }
+      } else if (result.completed_quest) {
         showMessage(
           `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`
         );
@@ -450,12 +499,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         showMessage(
           `${result.team_name} — ${result.best_partial_quest.name}: ${result.best_partial_quest.matched} image(s) found`
         );
-      }
-      if (result.level_up) {
-        showMessage(`${result.team_name} — Level up: ${result.level_up.name}!`);
-      }
-      if (result.game_ended) {
-        showMessage(`${result.team_name} — Game finished!`);
       }
       loadTeams();
     }
@@ -896,7 +939,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
                       </div>
                       <div className="text-right">
                         {victoryType === 'score' ? (
-                          <div className="text-2xl font-bold text-white">{team.score} pts</div>
+                          <>
+                            <div className="text-2xl font-bold text-white">{team.score} pts</div>
+                            {team.currentLevel && (
+                              <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                                {team.currentLevel.name}
+                              </div>
+                            )}
+                          </>
                         ) : (
                           team.end_time ? (
                             <div className="text-lg font-bold text-orange-400">{formatTime(team.end_time - (team.start_time ?? team.end_time))}</div>

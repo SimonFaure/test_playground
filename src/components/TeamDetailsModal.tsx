@@ -47,6 +47,7 @@ interface GameDataJson {
     combo_6_quests?: string | number;
     combo_4_quests?: string | number;
     combo_2_quests?: string | number;
+    levels?: Record<string, { name: string | null; points: string | null; description?: string | null }>;
   };
   quests?: GameQuest[];
 }
@@ -93,6 +94,25 @@ function computeCombos(questCompletions: Map<string, number>): { combos6: number
 function parseComboVal(val: string | number | undefined): number {
   if (val === undefined || val === null) return 0;
   return typeof val === 'string' ? parseInt(val, 10) || 0 : val;
+}
+
+function computeLevel(
+  score: number,
+  levels: Record<string, { name: string | null; points: string | null }> | undefined
+): { level: number; name: string } | null {
+  if (!levels) return null;
+  let best: { level: number; name: string } | null = null;
+  for (const [key, val] of Object.entries(levels)) {
+    const threshold = val.points ? parseFloat(val.points) : null;
+    if (threshold === null) continue;
+    if (score >= threshold) {
+      const lvlNum = parseInt(key, 10);
+      if (!best || lvlNum > best.level) {
+        best = { level: lvlNum, name: val.name || `Level ${lvlNum}` };
+      }
+    }
+  }
+  return best;
 }
 
 export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: TeamDetailsModalProps) {
@@ -167,6 +187,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const hasComboConfig = pts6 > 0 || pts4 > 0 || pts2 > 0;
 
   const totalQuestPoints = completedQuests.reduce((sum, q) => sum + (q.points_awarded ?? 0), 0);
+  const gameLevels = comboConfig?.levels;
 
   const getQuestName = (questNumber: string): string => {
     const idx = parseInt(questNumber, 10) - 1;
@@ -181,6 +202,8 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const questCountMapForCombos = new Map<string, number>(Object.entries(questCountMap));
   const combos = computeCombos(questCountMapForCombos);
   const comboTotal = combos.combos6 * pts6 + combos.combos4 * pts4 + combos.combos2 * pts2;
+  const totalScore = totalQuestPoints + comboTotal;
+  const currentLevel = computeLevel(totalScore, gameLevels);
 
   const allQuestNumbers = quests.length > 0
     ? quests.map((_, i) => String(i + 1))
@@ -244,7 +267,13 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
               <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
                 <Clock size={11} /> Total score
               </div>
-              <div className="text-green-400 font-bold text-xl">{totalQuestPoints + comboTotal}</div>
+              <div className="text-green-400 font-bold text-xl">{totalScore}</div>
+              {currentLevel && (
+                <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-400 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                  {currentLevel.name}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Map, ChevronRight, Loader, FolderOpen, Upload, Radio, Trash2 } from 'lucide-react';
-import { getPatternFolders } from '../utils/patterns';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+import { getPatternFolders, getPatternFilesFromStorage } from '../utils/patterns';
+import { supabase } from '../lib/db';
 
 const DEFAULT_FOLDERS = ['ado_adultes', 'kids', 'mini_kids'];
 
@@ -21,12 +17,12 @@ interface PatternFolder {
   folder: string;
   meta: PatternMeta | null;
   source: 'static' | 'local';
-  supabaseId?: string;
+  storageUniqid?: string;
+  storagePath?: string;
+  gameType?: string;
 }
 
 interface TagquestPatternItem {
-  id: string;
-  pattern_id: string;
   item_index: number;
   assignment_type: string;
   station_key_number: number;
@@ -188,12 +184,7 @@ export function PatternsPage() {
     try {
       const folders = await getPatternFolders(gameType);
       const uploadedList: string[] = JSON.parse(localStorage.getItem('uploaded_patterns_list') || '[]');
-
-      let supabasePatterns: { id: string; slug: string }[] = [];
-      if (supabase) {
-        const { data } = await supabase.from('patterns').select('id, slug');
-        supabasePatterns = data || [];
-      }
+      const storageFiles = await getPatternFilesFromStorage(gameType);
 
       const patternList: PatternFolder[] = [];
       for (const folder of folders) {
@@ -208,12 +199,14 @@ export function PatternsPage() {
             if (rows.length > 0) meta = rows[0] as PatternMeta;
           }
         }
-        const supabaseMatch = supabasePatterns.find(p => p.slug === folder);
+        const storageMatch = storageFiles.find(f => f.slug === folder);
         patternList.push({
           folder,
           meta,
           source: isLocal ? 'local' : 'static',
-          supabaseId: supabaseMatch?.id,
+          storageUniqid: storageMatch?.uniqid,
+          storagePath: storageMatch?.storagePath,
+          gameType,
         });
       }
       setPatterns(patternList);
@@ -228,14 +221,20 @@ export function PatternsPage() {
     setItems([]);
     setLoadingItems(true);
     try {
-      if (supabase && pattern.supabaseId) {
-        const { data, error } = await supabase
-          .from('tagquest_pattern_items')
-          .select('*')
-          .eq('pattern_id', pattern.supabaseId)
-          .order('item_index', { ascending: true });
-        if (!error && data) {
-          setItems(data);
+      if (pattern.storagePath) {
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(pattern.storagePath);
+
+        const resp = await fetch(urlData.publicUrl);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json?.pattern_data)) {
+            const sorted = [...json.pattern_data].sort((a: TagquestPatternItem, b: TagquestPatternItem) =>
+              a.item_index - b.item_index
+            );
+            setItems(sorted);
+          }
         }
       }
     } catch (err) {
@@ -252,10 +251,11 @@ export function PatternsPage() {
       const updated = list.filter(s => s !== pattern.folder);
       localStorage.setItem('uploaded_patterns_list', JSON.stringify(updated));
 
-      if (supabase && pattern.supabaseId) {
-        await supabase.from('tagquest_pattern_items').delete().eq('pattern_id', pattern.supabaseId);
-        await supabase.from('patterns').delete().eq('id', pattern.supabaseId);
+      if (pattern.storagePath) {
+        await supabase.storage.from('resources').remove([pattern.storagePath]);
       }
+
+      await supabase.from('patterns').delete().eq('slug', pattern.folder);
 
       if (selectedPattern?.folder === pattern.folder) {
         setSelectedPattern(null);
@@ -330,10 +330,10 @@ export function PatternsPage() {
                             {pattern.meta.public}
                           </span>
                         )}
-                        {pattern.supabaseId && (
+                        {pattern.storageUniqid && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-900/40 text-cyan-400 border border-cyan-800/50 font-medium flex items-center gap-1">
                             <Radio size={10} />
-                            synced
+                            in storage
                           </span>
                         )}
                       </div>
@@ -385,20 +385,20 @@ export function PatternsPage() {
                     <Loader size={20} className="animate-spin" />
                     <span>Loading station assignments...</span>
                   </div>
-                ) : !selectedPattern.supabaseId ? (
+                ) : !selectedPattern.storagePath ? (
                   <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-10 text-center">
                     <Radio size={36} className="text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-300 font-semibold mb-1">Pattern not synced</p>
+                    <p className="text-slate-300 font-semibold mb-1">Pattern file not found in storage</p>
                     <p className="text-slate-500 text-sm">
-                      This pattern has no entry in the database yet. Add it to Supabase to manage station assignments.
+                      Upload a pattern JSON file to view its station assignments.
                     </p>
                   </div>
                 ) : items.length === 0 ? (
                   <div className="bg-slate-800/60 border-2 border-slate-700 rounded-xl p-10 text-center">
                     <Radio size={36} className="text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-300 font-semibold mb-1">No station assignments yet</p>
+                    <p className="text-slate-300 font-semibold mb-1">No station assignments found</p>
                     <p className="text-slate-500 text-sm">
-                      Add items to the <span className="font-mono text-slate-400">tagquest_pattern_items</span> table for this pattern.
+                      The pattern file does not contain a <span className="font-mono text-slate-400">pattern_data</span> array.
                     </p>
                   </div>
                 ) : (
@@ -426,9 +426,9 @@ export function PatternsPage() {
               Are you sure you want to delete{' '}
               <span className="font-semibold text-white">{displayName(confirmDelete)}</span>?
             </p>
-            {confirmDelete.supabaseId && (
+            {confirmDelete.storagePath && (
               <p className="text-amber-400 text-xs mt-2 bg-amber-900/20 border border-amber-800/40 rounded-lg px-3 py-2">
-                This will also remove all station assignments from the database.
+                This will also remove the pattern file from storage.
               </p>
             )}
             <div className="flex gap-3 mt-5">

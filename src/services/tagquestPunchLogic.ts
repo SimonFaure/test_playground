@@ -1,4 +1,5 @@
 import { supabase } from '../lib/db';
+import { getPatternFilesFromStorage } from '../utils/patterns';
 import { CardData } from './usbReader';
 import type { Team } from '../components/LaunchGameModal';
 
@@ -93,17 +94,41 @@ function isCheatDetected(
   return newPunches.length === 0;
 }
 
-function buildStationToQuestMap(
-  patternItems: PatternItem[]
-): Map<number, { questIndex: number; imageSlot: string }> {
-  const map = new Map<number, { questIndex: number; imageSlot: string }>();
-  for (const item of patternItems) {
-    map.set(item.station_key_number, {
-      questIndex: item.item_index,
-      imageSlot: item.assignment_type,
-    });
+async function loadPatternItemsFromFile(
+  gameType: string,
+  patternUniqid: string
+): Promise<PatternItem[]> {
+  if (!patternUniqid) return [];
+
+  try {
+    const storageFiles = await getPatternFilesFromStorage(gameType);
+    const match = storageFiles.find(f => f.uniqid === patternUniqid);
+    if (!match) {
+      console.warn('[TagQuest] No pattern file found for uniqid:', patternUniqid);
+      return [];
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('resources')
+      .getPublicUrl(match.storagePath);
+
+    const resp = await fetch(urlData.publicUrl);
+    if (!resp.ok) {
+      console.warn('[TagQuest] Failed to fetch pattern file:', match.storagePath);
+      return [];
+    }
+
+    const json = await resp.json();
+    if (Array.isArray(json?.pattern_data)) {
+      return json.pattern_data as PatternItem[];
+    }
+
+    console.warn('[TagQuest] Pattern file missing pattern_data array:', match.storagePath);
+    return [];
+  } catch (err) {
+    console.error('[TagQuest] Error loading pattern items from file:', err);
+    return [];
   }
-  return map;
 }
 
 function computeLevel(
@@ -260,27 +285,26 @@ export async function processTagQuestPunch(
       }
     }
 
-    // Step 4: Load pattern items for station→quest mapping
-    // team.pattern stores the pattern slug
-    const patternSlug = team.pattern;
+    // Step 4: Load pattern items from the pattern file in storage
+    const { data: metaRows } = await supabase
+      .from('launched_game_meta')
+      .select('meta_name, meta_value')
+      .eq('launched_game_id', launchedGameId);
 
-    let patternItems: PatternItem[] = [];
-    if (patternSlug) {
-      const { data: patternRow } = await supabase
-        .from('patterns')
-        .select('id')
-        .eq('slug', patternSlug)
-        .maybeSingle();
+    const metaMap: Record<string, string> = {};
+    metaRows?.forEach(m => { metaMap[m.meta_name] = m.meta_value || ''; });
 
-      if (patternRow) {
-        const { data: items } = await supabase
-          .from('tagquest_pattern_items')
-          .select('item_index, assignment_type, station_key_number')
-          .eq('pattern_id', patternRow.id);
+    const patternUniqid = metaMap.pattern || '';
 
-        if (items) patternItems = items;
-      }
-    }
+    const { data: launchedGameRow } = await supabase
+      .from('launched_games')
+      .select('game_type')
+      .eq('id', launchedGameId)
+      .maybeSingle();
+
+    const gameType = (launchedGameRow?.game_type || 'mystery').toLowerCase();
+
+    const patternItems: PatternItem[] = await loadPatternItemsFromFile(gameType, patternUniqid);
 
     // Step 5: Load game data for quest definitions
     let gameDataJson: GameDataJson | null = null;

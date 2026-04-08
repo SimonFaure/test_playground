@@ -442,7 +442,6 @@ export async function processTagQuestPunch(
     }
 
     // Step 11: Apply scoring
-    let pointsEarned = 0;
     let newCompletedQuest: PunchResult['completed_quest'] = null;
 
     const beforeCombos = computeCombos(completedQuestNumbers.size);
@@ -451,8 +450,6 @@ export async function processTagQuestPunch(
       const itemIndex = qp.questIndex + 1;
       const rawPts = qp.quest.points ?? 0;
       const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
-
-      pointsEarned += pts;
 
       await supabase.from('team_completed_quests').insert({
         launched_game_id: launchedGameId,
@@ -472,17 +469,37 @@ export async function processTagQuestPunch(
       }
     }
 
-    const afterCombos = computeCombos(completedQuestNumbers.size + completedNow.length);
+    // Recompute score from scratch based on all completed quests (existing + new)
+    // This guarantees the score is always consistent with team_completed_quests
+    const { data: allCompletedRows } = await supabase
+      .from('team_completed_quests')
+      .select('quest_number, points_awarded')
+      .eq('team_id', team.id);
+
+    const allCompleted = allCompletedRows ?? [];
+    const totalQuestPoints = allCompleted.reduce((sum, r) => sum + (r.points_awarded ?? 0), 0);
+
+    const totalQuestCount = allCompleted.length;
+    const afterCombos = computeCombos(totalQuestCount);
+    const totalComboBonus =
+      afterCombos.combos6 * pts6 +
+      afterCombos.combos4 * pts4 +
+      afterCombos.combos2 * pts2;
+
+    const afterCombosNew = computeCombos(completedQuestNumbers.size + completedNow.length);
     const comboBonus =
-      (afterCombos.combos6 - beforeCombos.combos6) * pts6 +
-      (afterCombos.combos4 - beforeCombos.combos4) * pts4 +
-      (afterCombos.combos2 - beforeCombos.combos2) * pts2;
+      (afterCombosNew.combos6 - beforeCombos.combos6) * pts6 +
+      (afterCombosNew.combos4 - beforeCombos.combos4) * pts4 +
+      (afterCombosNew.combos2 - beforeCombos.combos2) * pts2;
 
-    pointsEarned += comboBonus;
+    const pointsEarned = completedNow.reduce((sum, qp) => {
+      const rawPts = qp.quest.points ?? 0;
+      return sum + (typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts);
+    }, 0) + comboBonus;
 
-    const scoreDelta = pointsEarned - malusApplied;
+    const newScore = Math.max(0, totalQuestPoints + totalComboBonus - malusApplied);
     const prevScore = team.score ?? 0;
-    const newScore = Math.max(0, prevScore + scoreDelta);
+    const scoreDelta = newScore - prevScore;
 
     // Step 12: Level up check
     let levelUpResult: PunchResult['level_up'] = null;

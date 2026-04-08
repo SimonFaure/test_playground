@@ -108,12 +108,15 @@ export function useGameStatePolling({
     };
 
     let interval: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
 
     init().then(() => {
+      if (cancelled) return;
       interval = setInterval(tick, 1000);
     });
 
     return () => {
+      cancelled = true;
       if (interval !== null) clearInterval(interval);
     };
   }, [launchedGameId, enabled]);

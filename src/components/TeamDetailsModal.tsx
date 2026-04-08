@@ -165,9 +165,17 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
     ? quests.map((_, i) => String(i + 1))
     : [...new Set(completedQuests.map(q => q.quest_number))].sort((a, b) => parseInt(a) - parseInt(b));
 
+  const getQuestPoints = (questNumber: string): number => {
+    const idx = parseInt(questNumber, 10) - 1;
+    const raw = quests[idx]?.points;
+    if (raw === undefined || raw === null) return 0;
+    return typeof raw === 'string' ? parseInt(raw, 10) || 0 : raw;
+  };
+
   const questCountRows = allQuestNumbers.map(num => ({
     questNumber: num,
     name: getQuestName(num),
+    points: getQuestPoints(num),
     count: questCountMap[num] ?? 0,
   }));
 
@@ -335,36 +343,45 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                     <tr className="text-slate-400 text-xs border-b border-slate-700">
                       <th className="text-left py-2 pr-3 font-medium">#</th>
                       <th className="text-left py-2 pr-3 font-medium">Quest</th>
+                      <th className="text-right py-2 pr-3 font-medium">Pts</th>
                       <th className="text-right py-2 pr-3 font-medium">Completions</th>
                       <th className="text-right py-2 font-medium w-32">Progress</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {questCountRows.map((row) => {
+                    {(() => {
                       const maxCount = Math.max(1, ...questCountRows.map(r => r.count));
-                      const pct = Math.round((row.count / maxCount) * 100);
-                      return (
-                        <tr key={row.questNumber} className="border-b border-slate-800 hover:bg-slate-800/50 transition">
-                          <td className="py-2.5 pr-3 text-slate-500 text-xs">{row.questNumber}</td>
-                          <td className="py-2.5 pr-3 text-white">{row.name}</td>
-                          <td className="py-2.5 pr-3 text-right">
-                            <span className={row.count > 0 ? 'text-blue-400 font-semibold' : 'text-slate-600'}>
-                              {row.count}
-                            </span>
-                          </td>
-                          <td className="py-2.5 text-right w-32">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-20 bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="h-1.5 rounded-full bg-blue-500 transition-all duration-300"
-                                  style={{ width: `${row.count > 0 ? pct : 0}%` }}
-                                />
+                      return questCountRows.map((row) => {
+                        const pct = Math.round((row.count / maxCount) * 100);
+                        return (
+                          <tr key={row.questNumber} className="border-b border-slate-800 hover:bg-slate-800/50 transition">
+                            <td className="py-2.5 pr-3 text-slate-500 text-xs">{row.questNumber}</td>
+                            <td className="py-2.5 pr-3 text-white">{row.name}</td>
+                            <td className="py-2.5 pr-3 text-right">
+                              {row.points > 0
+                                ? <span className="text-amber-400 text-xs font-medium">{row.points}</span>
+                                : <span className="text-slate-600 text-xs">—</span>
+                              }
+                            </td>
+                            <td className="py-2.5 pr-3 text-right">
+                              <span className={row.count > 0 ? 'text-blue-400 font-semibold' : 'text-slate-600'}>
+                                {row.count}
+                              </span>
+                            </td>
+                            <td className="py-2.5 text-right w-32">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className="h-1.5 rounded-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${row.count > 0 ? pct : 0}%` }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               )}

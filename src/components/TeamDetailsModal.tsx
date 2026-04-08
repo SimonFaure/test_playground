@@ -223,7 +223,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
               <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
                 <Clock size={11} /> Total score
               </div>
-              <div className="text-green-400 font-bold text-xl">{currentTeam.score}</div>
+              <div className="text-green-400 font-bold text-xl">{totalQuestPoints + comboTotal}</div>
             </div>
           </div>
         </div>

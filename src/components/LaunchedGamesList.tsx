@@ -194,18 +194,71 @@ export function LaunchedGamesList() {
 
     const { data: questRows } = await supabase
       .from('team_completed_quests')
-      .select('team_id, points_awarded')
+      .select('team_id, quest_number, points_awarded')
       .eq('launched_game_id', gameId);
 
     const scoreByTeam: Record<number, number> = {};
+    const questCountByTeam: Record<number, Record<string, number>> = {};
     for (const row of questRows || []) {
       scoreByTeam[row.team_id] = (scoreByTeam[row.team_id] ?? 0) + (row.points_awarded ?? 0);
+      if (!questCountByTeam[row.team_id]) questCountByTeam[row.team_id] = {};
+      questCountByTeam[row.team_id][row.quest_number] = (questCountByTeam[row.team_id][row.quest_number] ?? 0) + 1;
     }
 
-    const enriched = teamsData.map(t => ({
-      ...t,
-      score: scoreByTeam[t.id] ?? t.score ?? 0,
-    }));
+    const game = games.find(g => g.id === gameId);
+    let pts6 = 0, pts4 = 0, pts2 = 0;
+    if (game?.game_uniqid) {
+      try {
+        const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
+        let gameDataJson: any = null;
+        if (isElectron && (window as any).electron?.games?.readFile) {
+          const content = await (window as any).electron.games.readFile(game.game_uniqid, 'game-data.json');
+          gameDataJson = JSON.parse(content);
+        } else {
+          const { data: urlData } = supabase.storage.from('resources').getPublicUrl(`scenarios/${game.game_uniqid}/game-data.json`);
+          const resp = await fetch(urlData.publicUrl);
+          if (resp.ok) gameDataJson = await resp.json();
+        }
+        const gameMeta = gameDataJson?.game_data?.game_meta ?? gameDataJson?.game_meta;
+        const parseVal = (v: any) => (v === undefined || v === null) ? 0 : (typeof v === 'string' ? parseInt(v, 10) || 0 : v);
+        pts6 = parseVal(gameMeta?.combo_6_quests);
+        pts4 = parseVal(gameMeta?.combo_4_quests);
+        pts2 = parseVal(gameMeta?.combo_2_quests);
+      } catch {}
+    }
+
+    const computeCombosForTeam = (countMap: Record<string, number>): number => {
+      if (pts6 === 0 && pts4 === 0 && pts2 === 0) return 0;
+      const counts = new Map(Object.entries(countMap));
+      let bonus = 0;
+
+      while ([...counts.values()].every(v => v > 0) && counts.size >= 6) {
+        bonus += pts6;
+        for (const key of counts.keys()) counts.set(key, counts.get(key)! - 1);
+      }
+
+      while (true) {
+        const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+        if (nonZero.length < 4) break;
+        bonus += pts4;
+        for (const [key] of nonZero.slice(0, 4)) counts.set(key, counts.get(key)! - 1);
+      }
+
+      while (true) {
+        const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+        if (nonZero.length < 2) break;
+        bonus += pts2;
+        for (const [key] of nonZero.slice(0, 2)) counts.set(key, counts.get(key)! - 1);
+      }
+
+      return bonus;
+    };
+
+    const enriched = teamsData.map(t => {
+      const questScore = scoreByTeam[t.id] ?? 0;
+      const comboBonus = computeCombosForTeam(questCountByTeam[t.id] ?? {});
+      return { ...t, score: questScore + comboBonus };
+    });
 
     setTeams(enriched);
   };

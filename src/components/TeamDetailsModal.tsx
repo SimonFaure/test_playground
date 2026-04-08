@@ -49,6 +49,7 @@ interface GameDataJson {
     combo_2_quests?: string | number;
     levels?: Record<string, { name: string | null; points: string | null; description?: string | null }>;
   };
+  levels?: Record<string, { name: string | null; points: string | null; description?: string | null }>;
   quests?: GameQuest[];
 }
 
@@ -187,7 +188,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const hasComboConfig = pts6 > 0 || pts4 > 0 || pts2 > 0;
 
   const totalQuestPoints = completedQuests.reduce((sum, q) => sum + (q.points_awarded ?? 0), 0);
-  const gameLevels = comboConfig?.levels;
+  const gameLevels = gameData?.levels ?? comboConfig?.levels;
 
   const getQuestName = (questNumber: string): string => {
     const idx = parseInt(questNumber, 10) - 1;

@@ -310,30 +310,20 @@ export async function processTagQuestPunch(
 
     // Step 5: Load game data for quest definitions
     let gameDataJson: GameDataJson | null = null;
-    const isElectron = typeof window !== 'undefined' && (window as any).electron?.isElectron;
 
-    if (isElectron) {
-      try {
-        const raw = await (window as any).electron.games.readFile(gameUniqid, 'game-data.json');
-        gameDataJson = JSON.parse(raw);
-      } catch {
-        console.warn('[TagQuest] Could not load game-data.json from electron');
+    try {
+      const { data: urlData } = supabase.storage
+        .from('resources')
+        .getPublicUrl(`scenarios/${gameUniqid}/game-data.json`);
+      const resp = await fetch(urlData.publicUrl);
+      if (resp.ok) {
+        const raw = await resp.json();
+        gameDataJson = raw?.game_data ?? raw;
+      } else {
+        console.warn('[TagQuest] Could not fetch game-data.json from storage, status:', resp.status);
       }
-    } else {
-      try {
-        const { data: urlData } = supabase.storage
-          .from('resources')
-          .getPublicUrl(`scenarios/${gameUniqid}/game-data.json`);
-        const resp = await fetch(urlData.publicUrl);
-        if (resp.ok) {
-          const raw = await resp.json();
-          gameDataJson = raw?.game_data ?? raw;
-        } else {
-          console.warn('[TagQuest] Could not fetch game-data.json from storage, status:', resp.status);
-        }
-      } catch (err) {
-        console.warn('[TagQuest] Error fetching game-data.json from storage:', err);
-      }
+    } catch (err) {
+      console.warn('[TagQuest] Error fetching game-data.json from storage:', err);
     }
 
     const quests = gameDataJson ? getQuests(gameDataJson) : [];

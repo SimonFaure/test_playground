@@ -451,16 +451,18 @@ export async function processTagQuestPunch(
       const rawPts = qp.quest.points ?? 0;
       const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
 
-      await supabase.from('team_completed_quests').insert({
+      const { data: insertedRows } = await supabase.from('team_completed_quests').upsert({
         launched_game_id: launchedGameId,
         team_id: team.id,
         teammate_chip_id: teammateChipId ?? card.id,
         quest_id: null,
         quest_number: String(itemIndex),
         points_awarded: pts,
-      });
+      }, { onConflict: 'team_id,quest_number', ignoreDuplicates: true }).select('id');
 
-      if (!newCompletedQuest) {
+      const actuallyInserted = insertedRows && insertedRows.length > 0;
+
+      if (actuallyInserted && !newCompletedQuest) {
         newCompletedQuest = {
           index: itemIndex,
           name: qp.quest.name,

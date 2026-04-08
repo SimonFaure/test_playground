@@ -52,6 +52,8 @@ interface Quest {
   index: number;
   number: string;
   text: string;
+  name: string;
+  points: number;
   images: QuestImage[];
 }
 
@@ -150,7 +152,9 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
             for (let i = 1; i <= 4; i++) {
               if (q[`image_${i}`]) images.push({ key: resolve(q[`image_${i}`]), label: `Image ${i}` });
             }
-            return { index: idx + 1, number: q.number ?? '', text: q.text ?? '', images };
+            const rawPts = q.points ?? q.point ?? 0;
+            const points = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
+            return { index: idx + 1, number: q.number ?? '', text: q.text ?? '', name: q.name ?? q.title ?? '', points, images };
           });
 
           setQuests(parsedQuests);
@@ -694,12 +698,22 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                       return (
                         <div key={quest.index} className="bg-slate-700/40 rounded-lg border border-slate-600 overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-600/60">
-                            <span className="text-sm font-medium text-white">
-                              Quest {quest.index}
-                            </span>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-xs text-slate-500 shrink-0">#{quest.index}</span>
+                              {quest.name ? (
+                                <span className="text-sm font-medium text-white truncate">{quest.name}</span>
+                              ) : (
+                                <span className="text-sm font-medium text-white">Quest {quest.index}</span>
+                              )}
+                              {quest.points > 0 && (
+                                <span className="shrink-0 text-xs font-medium text-amber-400 bg-amber-900/30 border border-amber-700/40 px-1.5 py-0.5 rounded">
+                                  {quest.points} pts
+                                </span>
+                              )}
+                            </div>
                             <button
                               onClick={() => selectQuestAll(quest)}
-                              className={`flex items-center gap-1 text-xs transition ${
+                              className={`flex items-center gap-1 text-xs transition shrink-0 ml-2 ${
                                 questAllSelected ? 'text-amber-400' : questSomeSelected ? 'text-amber-400/60' : 'text-slate-400 hover:text-white'
                               }`}
                             >

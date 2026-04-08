@@ -76,10 +76,8 @@ function getComboPoints(gdj: GameDataJson): { pts6: number; pts4: number; pts2: 
 function computeCombos(questCount: number): { combos6: number; combos4: number; combos2: number } {
   const combos6 = Math.floor(questCount / 6);
   const rem6 = questCount % 6;
-  const combos4 = Math.floor(rem6 / 4);
-  const rem4 = rem6 % 4;
-  const combos2 = Math.floor(rem4 / 2);
-  return { combos6, combos4, combos2 };
+  const combos2 = Math.floor(rem6 / 2);
+  return { combos6, combos4: 0, combos2 };
 }
 
 function toMs(time: number | string): number {

@@ -187,9 +187,27 @@ export function LaunchedGamesList() {
 
     if (error) {
       console.error('Error loading teams:', error);
-    } else {
-      setTeams(data || []);
+      return;
     }
+
+    const teamsData = data || [];
+
+    const { data: questRows } = await supabase
+      .from('team_completed_quests')
+      .select('team_id, points_awarded')
+      .eq('launched_game_id', gameId);
+
+    const scoreByTeam: Record<number, number> = {};
+    for (const row of questRows || []) {
+      scoreByTeam[row.team_id] = (scoreByTeam[row.team_id] ?? 0) + (row.points_awarded ?? 0);
+    }
+
+    const enriched = teamsData.map(t => ({
+      ...t,
+      score: scoreByTeam[t.id] ?? t.score ?? 0,
+    }));
+
+    setTeams(enriched);
   };
 
   const loadGameData = async () => {

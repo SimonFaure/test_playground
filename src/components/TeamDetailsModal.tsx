@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Award, Zap, Target, Clock, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Award, Zap, Target, Clock, List, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface Team {
@@ -81,7 +81,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const [rawDataRecords, setRawDataRecords] = useState<RawDataRecord[]>([]);
   const [gameData, setGameData] = useState<GameDataJson | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'quests' | 'punches'>('quests');
+  const [activeTab, setActiveTab] = useState<'quests' | 'quest-count' | 'punches'>('quests');
   const [expandedPunch, setExpandedPunch] = useState<number | null>(null);
   const [currentTeam, setCurrentTeam] = useState(team);
 
@@ -155,6 +155,21 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
     const idx = parseInt(questNumber, 10) - 1;
     return quests[idx]?.name ?? `Quest #${questNumber}`;
   };
+
+  const questCountMap = completedQuests.reduce<Record<string, number>>((acc, q) => {
+    acc[q.quest_number] = (acc[q.quest_number] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const allQuestNumbers = quests.length > 0
+    ? quests.map((_, i) => String(i + 1))
+    : [...new Set(completedQuests.map(q => q.quest_number))].sort((a, b) => parseInt(a) - parseInt(b));
+
+  const questCountRows = allQuestNumbers.map(num => ({
+    questNumber: num,
+    name: getQuestName(num),
+    count: questCountMap[num] ?? 0,
+  }));
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -245,6 +260,17 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
             Quests ({completedQuests.length})
           </button>
           <button
+            onClick={() => setActiveTab('quest-count')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition border-b-2 ${
+              activeTab === 'quest-count'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <BarChart2 size={14} />
+            Quest count
+          </button>
+          <button
             onClick={() => setActiveTab('punches')}
             className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition border-b-2 ${
               activeTab === 'punches'
@@ -295,6 +321,50 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : activeTab === 'quest-count' ? (
+            <div className="p-4">
+              {questCountRows.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No quest data available.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-slate-400 text-xs border-b border-slate-700">
+                      <th className="text-left py-2 pr-3 font-medium">#</th>
+                      <th className="text-left py-2 pr-3 font-medium">Quest</th>
+                      <th className="text-right py-2 pr-3 font-medium">Completions</th>
+                      <th className="text-right py-2 font-medium w-32">Progress</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {questCountRows.map((row) => {
+                      const maxCount = Math.max(1, ...questCountRows.map(r => r.count));
+                      const pct = Math.round((row.count / maxCount) * 100);
+                      return (
+                        <tr key={row.questNumber} className="border-b border-slate-800 hover:bg-slate-800/50 transition">
+                          <td className="py-2.5 pr-3 text-slate-500 text-xs">{row.questNumber}</td>
+                          <td className="py-2.5 pr-3 text-white">{row.name}</td>
+                          <td className="py-2.5 pr-3 text-right">
+                            <span className={row.count > 0 ? 'text-blue-400 font-semibold' : 'text-slate-600'}>
+                              {row.count}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right w-32">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-20 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="h-1.5 rounded-full bg-blue-500 transition-all duration-300"
+                                  style={{ width: `${row.count > 0 ? pct : 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

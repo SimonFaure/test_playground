@@ -17,7 +17,7 @@ interface CompletedQuest {
   quest_number: string;
   points_awarded: number;
   teammate_chip_id: number | null;
-  created_at: string;
+  completed_at: string | null;
 }
 
 interface RawDataRecord {
@@ -83,28 +83,10 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'quests' | 'punches'>('quests');
   const [expandedPunch, setExpandedPunch] = useState<number | null>(null);
+  const [currentTeam, setCurrentTeam] = useState(team);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-
-      const [questsRes, rawRes] = await Promise.all([
-        supabase
-          .from('team_completed_quests')
-          .select('id, quest_number, points_awarded, teammate_chip_id, created_at')
-          .eq('team_id', team.id)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('launched_game_raw_data')
-          .select('id, raw_data, created_at')
-          .eq('launched_game_id', launchedGameId)
-          .eq('raw_data->>id', team.key_id.toString())
-          .order('created_at', { ascending: true }),
-      ]);
-
-      if (questsRes.data) setCompletedQuests(questsRes.data as CompletedQuest[]);
-      if (rawRes.data) setRawDataRecords(rawRes.data as RawDataRecord[]);
-
+    const loadGameData = async () => {
       try {
         const { data: urlData } = supabase.storage
           .from('resources')
@@ -117,12 +99,46 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
       } catch {
         // game data not available
       }
-
-      setLoading(false);
     };
 
-    load();
-  }, [team.id, launchedGameId, gameUniqid, team.key_id]);
+    loadGameData();
+  }, [gameUniqid]);
+
+  useEffect(() => {
+    const load = async (isInitial = false) => {
+      if (isInitial) setLoading(true);
+
+      const [questsRes, rawRes, teamRes] = await Promise.all([
+        supabase
+          .from('team_completed_quests')
+          .select('id, quest_number, points_awarded, teammate_chip_id, completed_at')
+          .eq('team_id', team.id)
+          .order('completed_at', { ascending: true }),
+        supabase
+          .from('launched_game_raw_data')
+          .select('id, raw_data, created_at')
+          .eq('launched_game_id', launchedGameId)
+          .eq('raw_data->>id', team.key_id.toString())
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('teams')
+          .select('id, team_name, score, start_time, end_time, key_id')
+          .eq('id', team.id)
+          .maybeSingle(),
+      ]);
+
+      if (questsRes.data) setCompletedQuests(questsRes.data as CompletedQuest[]);
+      if (rawRes.data) setRawDataRecords(rawRes.data as RawDataRecord[]);
+      if (teamRes.data) setCurrentTeam(teamRes.data as typeof team);
+
+      if (isInitial) setLoading(false);
+    };
+
+    load(true);
+
+    const interval = setInterval(() => load(false), 2000);
+    return () => clearInterval(interval);
+  }, [team.id, launchedGameId, team.key_id]);
 
   const quests = gameData?.quests ?? [];
   const comboConfig = gameData?.game_meta;
@@ -184,7 +200,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
               <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
                 <Clock size={11} /> Total score
               </div>
-              <div className="text-green-400 font-bold text-xl">{team.score}</div>
+              <div className="text-green-400 font-bold text-xl">{currentTeam.score}</div>
             </div>
           </div>
         </div>
@@ -275,7 +291,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                           <span className="text-blue-400 font-semibold">+{cq.points_awarded}</span>
                         </td>
                         <td className="py-2.5 text-right text-slate-400 text-xs">
-                          {formatCreatedAt(cq.created_at)}
+                          {cq.completed_at ? formatCreatedAt(cq.completed_at) : '—'}
                         </td>
                       </tr>
                     ))}

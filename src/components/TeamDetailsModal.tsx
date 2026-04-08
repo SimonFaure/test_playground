@@ -62,12 +62,31 @@ function formatCreatedAt(iso: string): string {
   return new Date(iso).toLocaleTimeString();
 }
 
-function computeCombos(count: number): { combos6: number; combos4: number; combos2: number } {
-  const combos6 = Math.floor(count / 6);
-  const rem6 = count % 6;
-  const combos4 = Math.floor(rem6 / 4);
-  const rem4 = rem6 % 4;
-  const combos2 = Math.floor(rem4 / 2);
+function computeCombos(questCompletions: Map<string, number>): { combos6: number; combos4: number; combos2: number } {
+  const counts = new Map(questCompletions);
+
+  let combos6 = 0;
+  while ([...counts.values()].every(v => v > 0) && counts.size >= 6) {
+    combos6++;
+    for (const key of counts.keys()) counts.set(key, counts.get(key)! - 1);
+  }
+
+  let combos4 = 0;
+  while (true) {
+    const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+    if (nonZero.length < 4) break;
+    combos4++;
+    for (const [key] of nonZero.slice(0, 4)) counts.set(key, counts.get(key)! - 1);
+  }
+
+  let combos2 = 0;
+  while (true) {
+    const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+    if (nonZero.length < 2) break;
+    combos2++;
+    for (const [key] of nonZero.slice(0, 2)) counts.set(key, counts.get(key)! - 1);
+  }
+
   return { combos6, combos4, combos2 };
 }
 
@@ -148,8 +167,6 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const hasComboConfig = pts6 > 0 || pts4 > 0 || pts2 > 0;
 
   const totalQuestPoints = completedQuests.reduce((sum, q) => sum + (q.points_awarded ?? 0), 0);
-  const combos = computeCombos(completedQuests.length);
-  const comboTotal = combos.combos6 * pts6 + combos.combos4 * pts4 + combos.combos2 * pts2;
 
   const getQuestName = (questNumber: string): string => {
     const idx = parseInt(questNumber, 10) - 1;
@@ -160,6 +177,10 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
     acc[q.quest_number] = (acc[q.quest_number] ?? 0) + 1;
     return acc;
   }, {});
+
+  const questCountMapForCombos = new Map<string, number>(Object.entries(questCountMap));
+  const combos = computeCombos(questCountMapForCombos);
+  const comboTotal = combos.combos6 * pts6 + combos.combos4 * pts4 + combos.combos2 * pts2;
 
   const allQuestNumbers = quests.length > 0
     ? quests.map((_, i) => String(i + 1))

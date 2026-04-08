@@ -9,13 +9,13 @@ interface TimeRangeLeaderboardProps {
   onBack: () => void;
 }
 
-interface AggregatedTeam {
+interface TeamEntry {
+  key: string;
   team_name: string;
-  best_time: number | null;
-  total_score: number;
-  sessions: number;
-  fastest_duration: number | null;
+  score: number;
+  duration: number | null;
   launched_game_name: string;
+  game_date: string;
 }
 
 function getTimeRangeStart(range: TimeRange): Date | null {
@@ -46,6 +46,11 @@ function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function timeRangeLabel(range: TimeRange): string {
@@ -82,7 +87,7 @@ function RankIcon({ index }: { index: number }) {
 }
 
 export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeLeaderboardProps) {
-  const [teams, setTeams] = useState<AggregatedTeam[]>([]);
+  const [teams, setTeams] = useState<TeamEntry[]>([]);
   const [victoryType, setVictoryType] = useState<'speed' | 'score'>('score');
   const [playMode, setPlayMode] = useState<'solo' | 'team'>('solo');
   const [loading, setLoading] = useState(true);
@@ -113,13 +118,13 @@ export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeL
       }
 
       const gameIds = launchedGames.map(g => g.id);
-      const gameNameMap: Record<number, string> = {};
-      launchedGames.forEach(g => { gameNameMap[g.id] = g.name; });
+      const gameInfoMap: Record<number, { name: string; created_at: string }> = {};
+      launchedGames.forEach(g => { gameInfoMap[g.id] = { name: g.name, created_at: g.created_at }; });
 
       const [teamsRes, metaRes] = await Promise.all([
         supabase
           .from('teams')
-          .select('team_name, score, start_time, end_time, launched_game_id')
+          .select('id, team_name, score, start_time, end_time, launched_game_id')
           .in('launched_game_id', gameIds),
         supabase
           .from('launched_game_meta')
@@ -142,50 +147,31 @@ export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeL
         return;
       }
 
-      const aggregated = new Map<string, AggregatedTeam>();
-
-      teamsRes.data.forEach(t => {
-        const name = t.team_name;
+      const entries: TeamEntry[] = teamsRes.data.map(t => {
+        const gameInfo = gameInfoMap[t.launched_game_id];
         const duration = t.start_time && t.end_time ? t.end_time - t.start_time : null;
-        const existing = aggregated.get(name);
-
-        if (!existing) {
-          aggregated.set(name, {
-            team_name: name,
-            best_time: t.end_time,
-            total_score: t.score ?? 0,
-            sessions: 1,
-            fastest_duration: duration,
-            launched_game_name: gameNameMap[t.launched_game_id] ?? '',
-          });
-        } else {
-          aggregated.set(name, {
-            ...existing,
-            total_score: existing.total_score + (t.score ?? 0),
-            sessions: existing.sessions + 1,
-            fastest_duration:
-              duration !== null && (existing.fastest_duration === null || duration < existing.fastest_duration)
-                ? duration
-                : existing.fastest_duration,
-            best_time:
-              t.end_time !== null && (existing.best_time === null || t.end_time < existing.best_time)
-                ? t.end_time
-                : existing.best_time,
-            launched_game_name: gameNameMap[t.launched_game_id] ?? existing.launched_game_name,
-          });
-        }
+        return {
+          key: `${t.launched_game_id}-${t.id}`,
+          team_name: t.team_name,
+          score: t.score ?? 0,
+          duration,
+          launched_game_name: gameInfo?.name ?? '',
+          game_date: gameInfo?.created_at ?? '',
+        };
       });
 
-      let sorted = Array.from(aggregated.values());
-      if (victoryType === 'speed') {
-        sorted.sort((a, b) => {
-          if (a.fastest_duration !== null && b.fastest_duration !== null) return a.fastest_duration - b.fastest_duration;
-          if (a.fastest_duration !== null) return -1;
-          if (b.fastest_duration !== null) return 1;
+      const resolvedVictoryType = metaRes.data?.find(m => m.meta_name === 'victoryType')?.meta_value ?? 'score';
+
+      let sorted = entries;
+      if (resolvedVictoryType === 'speed') {
+        sorted = entries.sort((a, b) => {
+          if (a.duration !== null && b.duration !== null) return a.duration - b.duration;
+          if (a.duration !== null) return -1;
+          if (b.duration !== null) return 1;
           return 0;
         });
       } else {
-        sorted.sort((a, b) => b.total_score - a.total_score);
+        sorted = entries.sort((a, b) => b.score - a.score);
       }
 
       setTeams(sorted);
@@ -253,7 +239,7 @@ export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeL
           {loading ? (
             <div className="w-full space-y-3">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-16 bg-slate-800/60 rounded-xl animate-pulse" />
+                <div key={i} className="h-20 bg-slate-800/60 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : teams.length === 0 ? (
@@ -265,12 +251,12 @@ export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeL
             <div className="w-full space-y-3">
               {teams.map((team, index) => (
                 <div
-                  key={team.team_name}
-                  className={`rounded-xl border ${getRankBg(index)} px-5 pt-4 pb-4`}
+                  key={team.key}
+                  className={`rounded-xl border ${getRankBg(index)} px-5 py-4`}
                   style={{
                     opacity: visible ? 1 : 0,
                     transform: visible ? 'translateX(0)' : 'translateX(-16px)',
-                    transition: `opacity 0.4s ease ${index * 0.06}s, transform 0.4s ease ${index * 0.06}s`,
+                    transition: `opacity 0.4s ease ${index * 0.05}s, transform 0.4s ease ${index * 0.05}s`,
                   }}
                 >
                   <div className="flex items-center gap-4">
@@ -279,32 +265,41 @@ export function TimeRangeLeaderboard({ scenario, timeRange, onBack }: TimeRangeL
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className={`font-bold text-lg leading-tight ${getRankColor(index)}`}>
+                      <div className={`font-bold text-lg leading-tight truncate ${getRankColor(index)}`}>
                         {team.team_name}
                       </div>
-                      <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-2">
-                        <span>{team.sessions} session{team.sessions !== 1 ? 's' : ''}</span>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-slate-500 text-xs truncate max-w-[180px]">{team.launched_game_name}</span>
+                        {team.game_date && (
+                          <>
+                            <span className="text-slate-700 text-xs">·</span>
+                            <span className="flex items-center gap-1 text-slate-500 text-xs">
+                              <Calendar size={10} />
+                              {formatDate(team.game_date)}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      {victoryType === 'speed' && team.fastest_duration !== null ? (
+                      {victoryType === 'speed' && team.duration !== null ? (
                         <>
                           <div className={`text-xl font-bold ${getRankColor(index)}`}>
-                            {formatDuration(team.fastest_duration)}
+                            {formatDuration(team.duration)}
                           </div>
                           <div className="text-slate-500 text-xs mt-0.5 flex items-center justify-end gap-1">
                             <Clock size={10} />
-                            best time
+                            time
                           </div>
                         </>
                       ) : victoryType === 'score' ? (
                         <>
                           <div className={`text-xl font-bold ${index === 0 ? 'text-yellow-400' : 'text-white'}`}>
-                            {team.total_score}
+                            {team.score}
                             <span className="text-slate-400 text-sm font-normal ml-1">pts</span>
                           </div>
-                          <div className="text-slate-500 text-xs mt-0.5">total score</div>
+                          <div className="text-slate-500 text-xs mt-0.5">score</div>
                         </>
                       ) : (
                         <div className="text-slate-500 text-sm">&mdash;</div>

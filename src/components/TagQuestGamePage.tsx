@@ -91,6 +91,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [showCardAlert, setShowCardAlert] = useState(false);
   const [teams, setTeams] = useState<TeamScore[]>([]);
   const [gameMessage, setGameMessage] = useState('');
+  const [levelUpMessage, setLevelUpMessage] = useState('');
   const [mediaFiles, setMediaFiles] = useState<Record<string, string>>({});
   const [bgDimensions, setBgDimensions] = useState<{ width: number; height: number } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -482,19 +483,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     if (result.status === 'ok') {
       if (result.game_ended) {
         showMessage(`${result.team_name} — Game finished!`);
-      } else if (result.level_up) {
-        const levelPart = `Level up: ${result.level_up.name}!`;
-        if (result.completed_quest) {
-          showMessage(
-            `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''} — ${levelPart}`
-          );
-        } else {
-          showMessage(`${result.team_name} — ${levelPart}`);
-        }
       } else if (result.completed_quest) {
-        showMessage(
-          `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`
-        );
+        const mainMsg = `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`;
+        const levelPart = result.level_up ? `Level up: ${result.level_up.name}!` : undefined;
+        showMessage(mainMsg, levelPart);
+      } else if (result.level_up) {
+        showMessage(`${result.team_name} — Level up: ${result.level_up.name}!`);
       } else if (result.best_partial_quest) {
         showMessage(
           `${result.team_name} — ${result.best_partial_quest.name}: ${result.best_partial_quest.matched} image(s) found`
@@ -504,9 +498,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
   };
 
-  const showMessage = (message: string) => {
+  const showMessage = (message: string, levelUp?: string) => {
     setGameMessage(message);
-    setTimeout(() => setGameMessage(''), 5000);
+    setLevelUpMessage(levelUp || '');
+    setTimeout(() => { setGameMessage(''); setLevelUpMessage(''); }, 5000);
   };
 
   const formatTime = (seconds: number): string => {
@@ -843,9 +838,20 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             borderRadius: '10px',
             fontSize: '24px',
             fontWeight: 'bold',
-            zIndex: 1000
+            zIndex: 1000,
+            textAlign: 'center',
           }}>
             {gameMessage}
+            {levelUpMessage && (
+              <div style={{
+                marginTop: '10px',
+                fontSize: '20px',
+                color: '#facc15',
+                fontWeight: 'bold',
+              }}>
+                {levelUpMessage}
+              </div>
+            )}
           </div>
         )}
 
@@ -882,6 +888,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         {gameMessage && (
           <div className="bg-blue-600 text-white p-4 rounded-lg mb-6 text-center text-xl font-semibold">
             {gameMessage}
+            {levelUpMessage && (
+              <div className="mt-2 text-yellow-300 text-lg font-bold">
+                {levelUpMessage}
+              </div>
+            )}
           </div>
         )}
 

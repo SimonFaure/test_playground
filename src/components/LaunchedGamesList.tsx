@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X, BarChart2, RefreshCw } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X, BarChart2, RefreshCw, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -7,6 +7,7 @@ import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
 import { TeamTestModal } from './TeamTestModal';
 import { TeamDetailsModal } from './TeamDetailsModal';
+import { LeaderboardPage } from './LeaderboardPage';
 import type { GameConfig, Team as ConfigTeam, Teammate } from './LaunchGameModal';
 import type { SiPuce } from '../types/database';
 
@@ -56,7 +57,10 @@ export function LaunchedGamesList() {
   const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
   const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
   const [showRankings, setShowRankings] = useState<number | null>(null);
+  const [rankingsGameName, setRankingsGameName] = useState<string>('');
+  const [rankingsConfig, setRankingsConfig] = useState<GameConfig | null>(null);
   const [rankings, setRankings] = useState<Team[]>([]);
+  const [rankingPageGame, setRankingPageGame] = useState<{ launchedGameId: number; gameName: string; config: GameConfig } | null>(null);
   const [playingGame, setPlayingGame] = useState<{ config: GameConfig; uniqid: string; launchedGameId: number } | null>(null);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamSortBy, setTeamSortBy] = useState<'ranking' | 'name'>('ranking');
@@ -581,19 +585,41 @@ export function LaunchedGamesList() {
     setSavingTeam(false);
   };
 
-  const handleShowRankings = async (gameId: number) => {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('launched_game_id', gameId)
-      .order('score', { ascending: false });
+  const handleShowRankings = async (gameId: number, gameName: string) => {
+    const [teamsRes, metaRes] = await Promise.all([
+      supabase.from('teams').select('*').eq('launched_game_id', gameId).order('score', { ascending: false }),
+      supabase.from('launched_game_meta').select('meta_name, meta_value').eq('launched_game_id', gameId),
+    ]);
 
-    if (error) {
-      console.error('Error loading rankings:', error);
-    } else {
-      setRankings(data || []);
-      setShowRankings(gameId);
+    if (teamsRes.error) {
+      console.error('Error loading rankings:', teamsRes.error);
+      return;
     }
+
+    const metaMap: Record<string, string> = {};
+    metaRes.data?.forEach(row => { metaMap[row.meta_name] = row.meta_value || ''; });
+
+    const config: GameConfig = {
+      name: gameName,
+      numberOfTeams: parseInt(metaMap.numberOfTeams || '0'),
+      firstChipIndex: parseInt(metaMap.firstChipIndex || '1'),
+      pattern: metaMap.pattern || '',
+      duration: parseInt(metaMap.duration || '0'),
+      messageDisplayDuration: parseInt(metaMap.messageDisplayDuration || '5'),
+      enigmaImageDisplayDuration: parseInt(metaMap.enigmaImageDisplayDuration || '5'),
+      colorblindMode: metaMap.colorblindMode === 'true',
+      autoResetTeam: metaMap.autoResetTeam === 'true',
+      delayBeforeReset: parseInt(metaMap.delayBeforeReset || '2'),
+      testMode: metaMap.testMode === 'true',
+      victoryType: (metaMap.victoryType as 'speed' | 'score') || undefined,
+      playMode: (metaMap.playMode as 'solo' | 'team') || undefined,
+      usbPort: metaMap.usbPort || undefined,
+    };
+
+    setRankings(teamsRes.data || []);
+    setRankingsGameName(gameName);
+    setRankingsConfig(config);
+    setShowRankings(gameId);
   };
 
   const handleShowDevices = async (gameId: number) => {
@@ -794,7 +820,7 @@ export function LaunchedGamesList() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleShowRankings(game.id);
+                      handleShowRankings(game.id, game.name);
                     }}
                     className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition"
                     title="Rankings"
@@ -1342,13 +1368,28 @@ export function LaunchedGamesList() {
                 <Trophy size={24} className="text-yellow-500" />
                 Game Rankings
               </h3>
-              <button
-                onClick={() => setShowRankings(null)}
-                className="text-slate-400 hover:text-white transition"
-                title="Close"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {rankingsConfig && (
+                  <button
+                    onClick={() => {
+                      setRankingPageGame({ launchedGameId: showRankings!, gameName: rankingsGameName, config: rankingsConfig });
+                      setShowRankings(null);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition"
+                    title="Open full ranking page"
+                  >
+                    <ExternalLink size={14} />
+                    Full Page
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowRankings(null)}
+                  className="text-slate-400 hover:text-white transition"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {rankings.length === 0 ? (
@@ -1483,6 +1524,15 @@ export function LaunchedGamesList() {
         variant={confirmDialog.variant}
         confirmText={confirmDialog.confirmText}
       />
+
+      {rankingPageGame && (
+        <LeaderboardPage
+          launchedGameId={rankingPageGame.launchedGameId}
+          config={rankingPageGame.config}
+          gameName={rankingPageGame.gameName}
+          onBack={() => setRankingPageGame(null)}
+        />
+      )}
     </div>
   );
 }

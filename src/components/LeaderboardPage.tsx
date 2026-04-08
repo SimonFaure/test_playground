@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Trophy, ArrowLeft, Clock, Zap, Star, Medal, Users } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Trophy, ArrowLeft, Clock, Zap, Star, Medal, Users, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GameConfig, Team as ConfigTeam } from './LaunchGameModal';
 
@@ -18,6 +18,13 @@ interface TeamResult {
   start_time: number | null;
   end_time: number | null;
   key_id: number;
+}
+
+interface RankedTeam extends TeamResult {
+  rank: number;
+  prevRank: number | null;
+  rankDelta: number | null;
+  animating: boolean;
 }
 
 function formatDuration(seconds: number): string {
@@ -47,64 +54,136 @@ function RankIcon({ index }: { index: number }) {
   return <span className="text-slate-400 font-bold text-sm w-5 text-center">#{index + 1}</span>;
 }
 
+function RankDeltaBadge({ delta }: { delta: number | null }) {
+  if (delta === null || delta === 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-slate-500 text-xs">
+        <Minus size={11} />
+      </span>
+    );
+  }
+  if (delta < 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-emerald-400 text-xs font-semibold">
+        <TrendingUp size={13} />
+        {Math.abs(delta)}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-red-400 text-xs font-semibold">
+      <TrendingDown size={13} />
+      {delta}
+    </span>
+  );
+}
+
+function sortTeams(teams: TeamResult[], victoryType: string): TeamResult[] {
+  return [...teams].sort((a, b) => {
+    if (victoryType === 'speed') {
+      if (a.end_time && b.end_time) return a.end_time - b.end_time;
+      if (a.end_time) return -1;
+      if (b.end_time) return 1;
+      if (a.start_time && b.start_time) return a.start_time - b.start_time;
+      if (a.start_time) return -1;
+      if (b.start_time) return 1;
+      return 0;
+    }
+    return (b.score ?? 0) - (a.score ?? 0);
+  });
+}
+
 export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: LeaderboardPageProps) {
-  const [teams, setTeams] = useState<TeamResult[]>([]);
+  const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [teamsConfig, setTeamsConfig] = useState<ConfigTeam[]>(config.teams || []);
   const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
+  const prevRanksRef = useRef<Map<number, number>>(new Map());
+  const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const victoryType = config.victoryType || 'speed';
 
+  const processTeams = useCallback((raw: TeamResult[]): RankedTeam[] => {
+    const sorted = sortTeams(raw, victoryType);
+    return sorted.map((team, index) => {
+      const rank = index + 1;
+      const prevRank = prevRanksRef.current.get(team.id) ?? null;
+      const rankDelta = prevRank !== null ? rank - prevRank : null;
+      return { ...team, rank, prevRank, rankDelta, animating: rankDelta !== null && rankDelta !== 0 };
+    });
+  }, [victoryType]);
+
+  const updatePrevRanks = useCallback((ranked: RankedTeam[]) => {
+    const map = new Map<number, number>();
+    ranked.forEach(t => map.set(t.id, t.rank));
+    prevRanksRef.current = map;
+  }, []);
+
+  const fetchTeams = useCallback(async (isInitial = false) => {
+    if (!launchedGameId) return;
+
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id, team_number, team_name, score, start_time, end_time, key_id')
+      .eq('launched_game_id', launchedGameId);
+
+    if (error || !data) return;
+
+    const ranked = processTeams(data);
+
+    if (!isInitial) {
+      const hasChanges = ranked.some(t => t.animating);
+      if (hasChanges) {
+        setTeams(ranked);
+        updatePrevRanks(ranked);
+
+        if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+        animationTimerRef.current = setTimeout(() => {
+          setTeams(prev => prev.map(t => ({ ...t, animating: false, rankDelta: null })));
+        }, 1500);
+      } else {
+        setTeams(ranked);
+        updatePrevRanks(ranked);
+      }
+    } else {
+      updatePrevRanks(ranked);
+      setTeams(ranked.map(t => ({ ...t, rankDelta: null, animating: false })));
+      setLoading(false);
+      setTimeout(() => setVisible(true), 50);
+    }
+  }, [launchedGameId, processTeams, updatePrevRanks]);
+
   useEffect(() => {
-    const load = async () => {
+    const loadMeta = async () => {
       if (!launchedGameId) return;
+      const { data: metaData } = await supabase
+        .from('launched_game_meta')
+        .select('meta_name, meta_value')
+        .eq('launched_game_id', launchedGameId)
+        .in('meta_name', ['playMode', 'teamsConfig']);
 
-      const [teamsRes, metaRes] = await Promise.all([
-        supabase
-          .from('teams')
-          .select('id, team_number, team_name, score, start_time, end_time, key_id')
-          .eq('launched_game_id', launchedGameId),
-        supabase
-          .from('launched_game_meta')
-          .select('meta_name, meta_value')
-          .eq('launched_game_id', launchedGameId)
-          .in('meta_name', ['playMode', 'teamsConfig', 'victoryType']),
-      ]);
-
-      if (metaRes.data) {
+      if (metaData) {
         const map: Record<string, string> = {};
-        metaRes.data.forEach(row => { map[row.meta_name] = row.meta_value || ''; });
-        if (map.playMode === 'solo' || map.playMode === 'team') {
-          setPlayMode(map.playMode);
-        }
+        metaData.forEach(row => { map[row.meta_name] = row.meta_value || ''; });
+        if (map.playMode === 'solo' || map.playMode === 'team') setPlayMode(map.playMode);
         if (map.teamsConfig) {
           try { setTeamsConfig(JSON.parse(map.teamsConfig)); } catch {}
         }
       }
-
-      if (teamsRes.data) {
-        const sorted = [...teamsRes.data].sort((a, b) => {
-          if (victoryType === 'speed') {
-            if (a.end_time && b.end_time) return a.end_time - b.end_time;
-            if (a.end_time) return -1;
-            if (b.end_time) return 1;
-            if (a.start_time && b.start_time) return a.start_time - b.start_time;
-            if (a.start_time) return -1;
-            if (b.start_time) return 1;
-            return 0;
-          }
-          return (b.score ?? 0) - (a.score ?? 0);
-        });
-        setTeams(sorted);
-      }
-
-      setLoading(false);
-      setTimeout(() => setVisible(true), 50);
     };
 
-    load();
-  }, [launchedGameId, victoryType]);
+    loadMeta();
+    fetchTeams(true);
+
+    intervalRef.current = setInterval(() => fetchTeams(false), 3000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    };
+  }, [launchedGameId, fetchTeams]);
 
   return (
     <div className="fixed inset-0 z-[200] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
@@ -122,7 +201,7 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
           >
             <ArrowLeft size={18} />
-            Back to games
+            Back
           </button>
 
           <div className="flex items-center gap-3 text-slate-400 text-sm">
@@ -132,6 +211,10 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
                 Team mode
               </span>
             )}
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-400 text-xs font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+              Live
+            </span>
             {victoryType === 'speed' ? (
               <>
                 <Zap size={15} className="text-orange-400" />
@@ -151,19 +234,20 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-400/10 border-2 border-yellow-400/40 mb-5">
               <Trophy size={36} className="text-yellow-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white tracking-tight mb-1">Results</h1>
+            <h1 className="text-4xl font-bold text-white tracking-tight mb-1">Rankings</h1>
             {gameName && (
               <p className="text-slate-400 text-base mt-1">{gameName}</p>
             )}
           </div>
 
           {loading ? (
-            <div className="text-slate-400 text-center py-16">Loading results...</div>
+            <div className="text-slate-400 text-center py-16">Loading rankings...</div>
           ) : teams.length === 0 ? (
             <div className="text-slate-400 text-center py-16">No team data found.</div>
           ) : (
             <div className="w-full space-y-3">
-              {teams.map((team, index) => {
+              {teams.map((team) => {
+                const index = team.rank - 1;
                 const duration =
                   team.start_time && team.end_time
                     ? team.end_time - team.start_time
@@ -181,12 +265,16 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
                     style={{
                       opacity: visible ? 1 : 0,
                       transform: visible ? 'translateX(0)' : 'translateX(-16px)',
-                      transition: `opacity 0.4s ease ${index * 0.07}s, transform 0.4s ease ${index * 0.07}s`,
+                      transition: team.animating
+                        ? 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                        : `opacity 0.4s ease ${index * 0.07}s, transform 0.4s ease ${index * 0.07}s`,
+                      outline: team.animating ? (team.rankDelta !== null && team.rankDelta < 0 ? '2px solid rgb(52 211 153 / 0.5)' : '2px solid rgb(248 113 113 / 0.4)') : '2px solid transparent',
                     }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8 shrink-0">
+                      <div className="flex flex-col items-center justify-center w-8 shrink-0 gap-1">
                         <RankIcon index={index} />
+                        <RankDeltaBadge delta={team.rankDelta} />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -209,7 +297,9 @@ export function LeaderboardPage({ launchedGameId, config, gameName, onBack }: Le
 
                       <div className="text-right shrink-0">
                         {victoryType === 'score' ? (
-                          <div className="text-xl font-bold text-white">
+                          <div className={`text-xl font-bold transition-all duration-500 ${team.animating && team.rankDelta !== null && team.rankDelta < 0 ? 'text-emerald-400 scale-110' : 'text-white'}`}
+                            style={{ display: 'inline-block' }}
+                          >
                             {team.score}
                             <span className="text-slate-400 text-sm font-normal ml-1">pts</span>
                           </div>

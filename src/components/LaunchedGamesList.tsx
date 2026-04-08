@@ -10,6 +10,7 @@ import { TeamDetailsModal } from './TeamDetailsModal';
 import { LeaderboardPage } from './LeaderboardPage';
 import { RankingsModal } from './RankingsModal';
 import { TimeRangeLeaderboard } from './TimeRangeLeaderboard';
+import { MultiGameLeaderboard } from './MultiGameLeaderboard';
 import type { ScenarioOption, TimeRange, ActiveGameOption } from './RankingsModal';
 import type { GameConfig, Team as ConfigTeam, Teammate } from './LaunchGameModal';
 import type { SiPuce } from '../types/database';
@@ -99,7 +100,7 @@ export function LaunchedGamesList() {
   const [teamDetails, setTeamDetails] = useState<{ team: Team; gameUniqid: string } | null>(null);
   const [showRankingsModal, setShowRankingsModal] = useState(false);
   const [timeRangePage, setTimeRangePage] = useState<{ scenario: ScenarioOption; timeRange: TimeRange } | null>(null);
-  const [activeGamePage, setActiveGamePage] = useState<ActiveGameOption | null>(null);
+  const [activeGamesPage, setActiveGamesPage] = useState<ActiveGameOption[] | null>(null);
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
@@ -1557,10 +1558,10 @@ export function LaunchedGamesList() {
         />
       )}
 
-      {activeGamePage && (
-        <ActiveGameLeaderboardLoader
-          game={activeGamePage}
-          onBack={() => setActiveGamePage(null)}
+      {activeGamesPage && activeGamesPage.length > 0 && (
+        <MultiGameLeaderboard
+          games={activeGamesPage}
+          onBack={() => setActiveGamesPage(null)}
         />
       )}
 
@@ -1571,63 +1572,12 @@ export function LaunchedGamesList() {
             setShowRankingsModal(false);
             setTimeRangePage({ scenario, timeRange });
           }}
-          onOpenActiveGame={(game) => {
+          onOpenActiveGames={(games) => {
             setShowRankingsModal(false);
-            setActiveGamePage(game);
+            setActiveGamesPage(games);
           }}
         />
       )}
     </div>
-  );
-}
-
-function ActiveGameLeaderboardLoader({ game, onBack }: { game: ActiveGameOption; onBack: () => void }) {
-  const [config, setConfig] = useState<GameConfig | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      const { data: metaData } = await supabase
-        .from('launched_game_meta')
-        .select('meta_name, meta_value')
-        .eq('launched_game_id', game.id);
-
-      const metaMap: Record<string, string> = {};
-      metaData?.forEach(row => { metaMap[row.meta_name] = row.meta_value || ''; });
-
-      setConfig({
-        name: game.name,
-        numberOfTeams: parseInt(metaMap.numberOfTeams || '0'),
-        firstChipIndex: parseInt(metaMap.firstChipIndex || '1'),
-        pattern: metaMap.pattern || '',
-        duration: parseInt(metaMap.duration || '0'),
-        messageDisplayDuration: parseInt(metaMap.messageDisplayDuration || '5'),
-        enigmaImageDisplayDuration: parseInt(metaMap.enigmaImageDisplayDuration || '5'),
-        colorblindMode: metaMap.colorblindMode === 'true',
-        autoResetTeam: metaMap.autoResetTeam === 'true',
-        delayBeforeReset: parseInt(metaMap.delayBeforeReset || '2'),
-        testMode: metaMap.testMode === 'true',
-        victoryType: (metaMap.victoryType as 'speed' | 'score') || undefined,
-        playMode: (metaMap.playMode as 'solo' | 'team') || undefined,
-        usbPort: metaMap.usbPort || undefined,
-      });
-    };
-    load();
-  }, [game.id, game.name]);
-
-  if (!config) {
-    return (
-      <div className="fixed inset-0 z-[200] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-slate-400">Loading...</div>
-      </div>
-    );
-  }
-
-  return (
-    <LeaderboardPage
-      launchedGameId={game.id}
-      config={config}
-      gameName={`${game.name} — ${game.scenarioTitle}`}
-      onBack={onBack}
-    />
   );
 }

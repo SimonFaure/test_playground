@@ -19,7 +19,7 @@ export interface ActiveGameOption {
 interface RankingsModalProps {
   onClose: () => void;
   onOpenTimeRange: (scenario: ScenarioOption, timeRange: TimeRange) => void;
-  onOpenActiveGame: (game: ActiveGameOption) => void;
+  onOpenActiveGames: (games: ActiveGameOption[]) => void;
 }
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
@@ -31,7 +31,7 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: 'all', label: 'All Time' },
 ];
 
-export function RankingsModal({ onClose, onOpenTimeRange, onOpenActiveGame }: RankingsModalProps) {
+export function RankingsModal({ onClose, onOpenTimeRange, onOpenActiveGames }: RankingsModalProps) {
   const [scenarios, setScenarios] = useState<ScenarioOption[]>([]);
   const [activeGames, setActiveGames] = useState<ActiveGameOption[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
@@ -40,6 +40,21 @@ export function RankingsModal({ onClose, onOpenTimeRange, onOpenActiveGame }: Ra
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('all');
   const [scenarioOpen, setScenarioOpen] = useState(false);
   const [tab, setTab] = useState<'timerange' | 'active'>('timerange');
+  const [selectedGameIds, setSelectedGameIds] = useState<Set<number>>(new Set());
+
+  const MAX_SELECTION = 4;
+
+  const toggleGame = (id: number) => {
+    setSelectedGameIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < MAX_SELECTION) {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const loadScenarios = async () => {
@@ -223,24 +238,70 @@ export function RankingsModal({ onClose, onOpenTimeRange, onOpenActiveGame }: Ra
                   <p className="text-slate-400 text-sm">No active games running right now.</p>
                 </div>
               ) : (
-                activeGames.map(game => (
+                <>
+                  <p className="text-xs text-slate-500">
+                    Select up to {MAX_SELECTION} games to compare side by side.
+                    {selectedGameIds.size === MAX_SELECTION && (
+                      <span className="text-amber-400 ml-1">Maximum reached.</span>
+                    )}
+                  </p>
+                  <div className="space-y-2">
+                    {activeGames.map(game => {
+                      const selected = selectedGameIds.has(game.id);
+                      const disabled = !selected && selectedGameIds.size >= MAX_SELECTION;
+                      return (
+                        <button
+                          key={game.id}
+                          onClick={() => !disabled && toggleGame(game.id)}
+                          disabled={disabled}
+                          className={`w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${
+                            selected
+                              ? 'bg-emerald-500/10 border-emerald-500/50'
+                              : disabled
+                              ? 'bg-slate-800/40 border-slate-700/40 opacity-40 cursor-not-allowed'
+                              : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                            selected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'
+                          }`}>
+                            {selected && (
+                              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-semibold text-sm leading-tight truncate">{game.name}</div>
+                            <div className="text-slate-500 text-xs mt-0.5">{game.scenarioTitle}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <button
-                    key={game.id}
-                    onClick={() => onOpenActiveGame(game)}
-                    className="w-full flex items-center justify-between p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-500 rounded-xl text-left transition-all group"
+                    disabled={selectedGameIds.size === 0}
+                    onClick={() => {
+                      const selected = activeGames.filter(g => selectedGameIds.has(g.id));
+                      if (selected.length > 0) onOpenActiveGames(selected);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold transition-colors mt-1"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      </div>
-                      <div>
-                        <div className="text-white font-semibold text-sm leading-tight">{game.name}</div>
-                        <div className="text-slate-500 text-xs mt-0.5">{game.scenarioTitle}</div>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-500 group-hover:text-white transition-colors shrink-0" />
+                    View Rankings
+                    {selectedGameIds.size > 0 && (
+                      <span className="px-1.5 py-0.5 bg-white/20 rounded-md text-xs font-bold">
+                        {selectedGameIds.size}
+                      </span>
+                    )}
+                    <ChevronRight size={16} />
                   </button>
-                ))
+                </>
               )}
             </div>
           )}

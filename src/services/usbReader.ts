@@ -39,6 +39,8 @@ export interface StationData {
   radioChannel: boolean | number;
 }
 
+const CARD_DEBOUNCE_MS = 5000;
+
 export class USBReaderService {
   private isRunning = false;
   private isPortOpen = false;
@@ -46,6 +48,7 @@ export class USBReaderService {
   private onCardDetected?: (card: CardData) => void;
   private onCardRemoved?: () => void;
   private onStationsDetected?: (stations: StationData[]) => void;
+  private lastCardTimestamps = new Map<number, number>();
 
   isElectron(): boolean {
     return typeof window !== 'undefined' && (window as any).electron?.isElectron === true;
@@ -217,7 +220,14 @@ export class USBReaderService {
                 const cardData = await this.readCardData();
 
                 if (cardData && this.onCardDetected) {
-                  this.onCardDetected(cardData);
+                  const now = Date.now();
+                  const last = this.lastCardTimestamps.get(cardData.id) ?? 0;
+                  if (now - last >= CARD_DEBOUNCE_MS) {
+                    this.lastCardTimestamps.set(cardData.id, now);
+                    this.onCardDetected(cardData);
+                  } else {
+                    console.log(`Card ${cardData.id} ignored (debounce: ${Math.round((now - last) / 1000)}s < ${CARD_DEBOUNCE_MS / 1000}s)`);
+                  }
                 }
 
                 do {

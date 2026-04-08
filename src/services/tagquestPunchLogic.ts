@@ -360,6 +360,9 @@ export async function processTagQuestPunch(
     const { pts6, pts4, pts2 } = gameDataJson ? getComboPoints(gameDataJson) : { pts6: 0, pts4: 0, pts2: 0 };
     const levels = gameDataJson?.game_meta?.levels;
 
+    const victoryType = (metaMap.victoryType || 'speed').toLowerCase();
+    const isScoreMode = victoryType === 'score';
+
     // Step 6: Load already-scored quests for this team
     // quest_number stores the 1-based item_index (= array index + 1)
     const { data: completedQuests } = await supabase
@@ -370,20 +373,23 @@ export async function processTagQuestPunch(
     const completedQuestNumbers = new Set((completedQuests || []).map(r => Number(r.quest_number)));
 
     // Step 7: Sanitize - remove already-scored quest punches from working set
+    // In score mode, quests can be completed multiple times so we never strip them out.
     let workingPunches = [...card.punches];
 
-    for (const questNumber of completedQuestNumbers) {
-      const requiredStations = new Set(
-        patternItems
-          .filter(pi => pi.item_index === questNumber)
-          .map(pi => String(pi.station_key_number))
-      );
+    if (!isScoreMode) {
+      for (const questNumber of completedQuestNumbers) {
+        const requiredStations = new Set(
+          patternItems
+            .filter(pi => pi.item_index === questNumber)
+            .map(pi => String(pi.station_key_number))
+        );
 
-      const presentStations = new Set(workingPunches.map(p => String(p.code)));
-      const allPresent = [...requiredStations].every(s => presentStations.has(s));
+        const presentStations = new Set(workingPunches.map(p => String(p.code)));
+        const allPresent = [...requiredStations].every(s => presentStations.has(s));
 
-      if (allPresent) {
-        workingPunches = workingPunches.filter(p => !requiredStations.has(String(p.code)));
+        if (allPresent) {
+          workingPunches = workingPunches.filter(p => !requiredStations.has(String(p.code)));
+        }
       }
     }
 
@@ -404,7 +410,8 @@ export async function processTagQuestPunch(
 
     quests.forEach((quest, arrayIndex) => {
       const itemIndex = arrayIndex + 1;
-      if (completedQuestNumbers.has(itemIndex)) return;
+      // In speed mode, skip quests already completed. In score mode, allow re-completion.
+      if (!isScoreMode && completedQuestNumbers.has(itemIndex)) return;
 
       const questSlots = patternItems.filter(pi => pi.item_index === itemIndex);
       if (questSlots.length === 0) return;
@@ -451,16 +458,23 @@ export async function processTagQuestPunch(
       const rawPts = qp.quest.points ?? 0;
       const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
 
-      const { data: insertedRows } = await supabase.from('team_completed_quests').upsert({
+      const row = {
         launched_game_id: launchedGameId,
         team_id: team.id,
         teammate_chip_id: teammateChipId ?? card.id,
         quest_id: null,
         quest_number: String(itemIndex),
         points_awarded: pts,
-      }, { onConflict: 'team_id,quest_number', ignoreDuplicates: true }).select('id');
+      };
 
-      const actuallyInserted = insertedRows && insertedRows.length > 0;
+      // In speed mode, skip if already completed (guards against rare race conditions)
+      if (!isScoreMode && completedQuestNumbers.has(itemIndex)) continue;
+
+      const { data: insertedRows } = await supabase
+        .from('team_completed_quests')
+        .insert(row)
+        .select('id');
+      const actuallyInserted = insertedRows !== null && insertedRows.length > 0;
 
       if (actuallyInserted && !newCompletedQuest) {
         newCompletedQuest = {

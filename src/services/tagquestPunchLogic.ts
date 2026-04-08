@@ -73,11 +73,32 @@ function getComboPoints(gdj: GameDataJson): { pts6: number; pts4: number; pts2: 
   };
 }
 
-function computeCombos(questCount: number): { combos6: number; combos4: number; combos2: number } {
-  const combos6 = Math.floor(questCount / 6);
-  const rem6 = questCount % 6;
-  const combos2 = Math.floor(rem6 / 2);
-  return { combos6, combos4: 0, combos2 };
+function computeCombos(questCompletions: Map<string, number>): { combos6: number; combos4: number; combos2: number } {
+  const counts = new Map(questCompletions);
+
+  let combos6 = 0;
+  while ([...counts.values()].every(v => v > 0) && counts.size >= 6) {
+    combos6++;
+    for (const key of counts.keys()) counts.set(key, counts.get(key)! - 1);
+  }
+
+  let combos4 = 0;
+  while (true) {
+    const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+    if (nonZero.length < 4) break;
+    combos4++;
+    for (const [key] of nonZero.slice(0, 4)) counts.set(key, counts.get(key)! - 1);
+  }
+
+  let combos2 = 0;
+  while (true) {
+    const nonZero = [...counts.entries()].filter(([, v]) => v > 0);
+    if (nonZero.length < 2) break;
+    combos2++;
+    for (const [key] of nonZero.slice(0, 2)) counts.set(key, counts.get(key)! - 1);
+  }
+
+  return { combos6, combos4, combos2 };
 }
 
 function toMs(time: number | string): number {
@@ -449,7 +470,18 @@ export async function processTagQuestPunch(
     // Step 11: Apply scoring
     let newCompletedQuest: PunchResult['completed_quest'] = null;
 
-    const beforeCombos = computeCombos(completedQuestNumbers.size);
+    const buildCompletionMap = (rows: { quest_number: string }[]): Map<string, number> => {
+      const map = new Map<string, number>();
+      for (const r of rows) {
+        map.set(r.quest_number, (map.get(r.quest_number) ?? 0) + 1);
+      }
+      return map;
+    };
+
+    const beforeCompletionMap = buildCompletionMap(
+      (completedQuests || []).map(r => ({ quest_number: String(r.quest_number) }))
+    );
+    const beforeCombos = computeCombos(beforeCompletionMap);
 
     for (const qp of completedNow) {
       const itemIndex = qp.questIndex + 1;
@@ -503,18 +535,19 @@ export async function processTagQuestPunch(
     const allCompleted = allCompletedRows ?? [];
     const totalQuestPoints = allCompleted.reduce((sum, r) => sum + (r.points_awarded ?? 0), 0);
 
-    const totalQuestCount = allCompleted.length;
-    const afterCombos = computeCombos(totalQuestCount);
+    const afterCompletionMap = buildCompletionMap(
+      allCompleted.map(r => ({ quest_number: String(r.quest_number) }))
+    );
+    const afterCombos = computeCombos(afterCompletionMap);
     const totalComboBonus =
       afterCombos.combos6 * pts6 +
       afterCombos.combos4 * pts4 +
       afterCombos.combos2 * pts2;
 
-    const afterCombosNew = computeCombos(completedQuestNumbers.size + completedNow.length);
     const comboBonus =
-      (afterCombosNew.combos6 - beforeCombos.combos6) * pts6 +
-      (afterCombosNew.combos4 - beforeCombos.combos4) * pts4 +
-      (afterCombosNew.combos2 - beforeCombos.combos2) * pts2;
+      (afterCombos.combos6 - beforeCombos.combos6) * pts6 +
+      (afterCombos.combos4 - beforeCombos.combos4) * pts4 +
+      (afterCombos.combos2 - beforeCombos.combos2) * pts2;
 
     const pointsEarned = completedNow.reduce((sum, qp) => {
       const rawPts = qp.quest.points ?? 0;

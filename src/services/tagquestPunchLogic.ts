@@ -470,10 +470,20 @@ export async function processTagQuestPunch(
       // In speed mode, skip if already completed (guards against rare race conditions)
       if (!isScoreMode && completedQuestNumbers.has(itemIndex)) continue;
 
-      const { data: insertedRows } = await supabase
-        .from('team_completed_quests')
-        .insert(row)
-        .select('id');
+      let insertedRows: { id: number }[] | null = null;
+      if (isScoreMode) {
+        const { data } = await supabase
+          .from('team_completed_quests')
+          .insert(row)
+          .select('id');
+        insertedRows = data;
+      } else {
+        const { data } = await supabase
+          .from('team_completed_quests')
+          .upsert(row, { onConflict: 'team_id,quest_number', ignoreDuplicates: true })
+          .select('id');
+        insertedRows = data;
+      }
       const actuallyInserted = insertedRows !== null && insertedRows.length > 0;
 
       if (actuallyInserted && !newCompletedQuest) {

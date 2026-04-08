@@ -1,0 +1,352 @@
+import { useState, useEffect } from 'react';
+import { X, Award, Zap, Target, Clock, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '../lib/db';
+
+interface Team {
+  id: number;
+  team_number: number;
+  team_name: string;
+  score: number;
+  start_time: number | null;
+  end_time: number | null;
+  key_id: number;
+}
+
+interface CompletedQuest {
+  id: number;
+  quest_number: string;
+  points_awarded: number;
+  teammate_chip_id: number | null;
+  created_at: string;
+}
+
+interface RawDataRecord {
+  id: number;
+  raw_data: {
+    id: number;
+    punches: { code: number | string; time: number | string }[];
+    end?: number | string | null;
+  };
+  created_at: string;
+}
+
+interface TeamDetailsModalProps {
+  team: Team;
+  launchedGameId: number;
+  gameUniqid: string;
+  onClose: () => void;
+}
+
+interface GameQuest {
+  name: string;
+  points?: string | number;
+}
+
+interface GameDataJson {
+  game_meta?: {
+    combo_6_quests?: string | number;
+    combo_4_quests?: string | number;
+    combo_2_quests?: string | number;
+  };
+  quests?: GameQuest[];
+}
+
+function formatTimestamp(ts: number | string | null | undefined): string {
+  if (ts === null || ts === undefined) return '—';
+  const ms = typeof ts === 'string' ? parseFloat(ts) : ts;
+  const adjusted = ms > 1e10 ? ms : ms * 1000;
+  return new Date(adjusted).toLocaleTimeString();
+}
+
+function formatCreatedAt(iso: string): string {
+  return new Date(iso).toLocaleTimeString();
+}
+
+function computeCombos(count: number): { combos6: number; combos4: number; combos2: number } {
+  const combos6 = Math.floor(count / 6);
+  const rem6 = count % 6;
+  const combos4 = Math.floor(rem6 / 4);
+  const rem4 = rem6 % 4;
+  const combos2 = Math.floor(rem4 / 2);
+  return { combos6, combos4, combos2 };
+}
+
+function parseComboVal(val: string | number | undefined): number {
+  if (val === undefined || val === null) return 0;
+  return typeof val === 'string' ? parseInt(val, 10) || 0 : val;
+}
+
+export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: TeamDetailsModalProps) {
+  const [completedQuests, setCompletedQuests] = useState<CompletedQuest[]>([]);
+  const [rawDataRecords, setRawDataRecords] = useState<RawDataRecord[]>([]);
+  const [gameData, setGameData] = useState<GameDataJson | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'quests' | 'punches'>('quests');
+  const [expandedPunch, setExpandedPunch] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+
+      const [questsRes, rawRes] = await Promise.all([
+        supabase
+          .from('team_completed_quests')
+          .select('id, quest_number, points_awarded, teammate_chip_id, created_at')
+          .eq('team_id', team.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('launched_game_raw_data')
+          .select('id, raw_data, created_at')
+          .eq('launched_game_id', launchedGameId)
+          .eq('raw_data->>id', team.key_id.toString())
+          .order('created_at', { ascending: true }),
+      ]);
+
+      if (questsRes.data) setCompletedQuests(questsRes.data as CompletedQuest[]);
+      if (rawRes.data) setRawDataRecords(rawRes.data as RawDataRecord[]);
+
+      try {
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(`scenarios/${gameUniqid}/game-data.json`);
+        const resp = await fetch(urlData.publicUrl);
+        if (resp.ok) {
+          const raw = await resp.json();
+          setGameData(raw?.game_data ?? raw);
+        }
+      } catch {
+        // game data not available
+      }
+
+      setLoading(false);
+    };
+
+    load();
+  }, [team.id, launchedGameId, gameUniqid, team.key_id]);
+
+  const quests = gameData?.quests ?? [];
+  const comboConfig = gameData?.game_meta;
+  const pts6 = parseComboVal(comboConfig?.combo_6_quests);
+  const pts4 = parseComboVal(comboConfig?.combo_4_quests);
+  const pts2 = parseComboVal(comboConfig?.combo_2_quests);
+  const hasComboConfig = pts6 > 0 || pts4 > 0 || pts2 > 0;
+
+  const totalQuestPoints = completedQuests.reduce((sum, q) => sum + (q.points_awarded ?? 0), 0);
+  const combos = computeCombos(completedQuests.length);
+  const comboTotal = combos.combos6 * pts6 + combos.combos4 * pts4 + combos.combos2 * pts2;
+
+  const getQuestName = (questNumber: string): string => {
+    const idx = parseInt(questNumber, 10) - 1;
+    return quests[idx]?.name ?? `Quest #${questNumber}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 shrink-0">
+          <div>
+            <h2 className="text-white font-semibold text-lg">{team.team_name}</h2>
+            <p className="text-slate-400 text-sm">Game details — Chip #{team.key_id}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-700 rounded-lg transition text-slate-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Score summary */}
+        <div className="px-6 py-4 border-b border-slate-700 shrink-0">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="bg-slate-800 rounded-lg p-3 text-center">
+              <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
+                <Target size={11} /> Quests
+              </div>
+              <div className="text-white font-bold text-xl">{completedQuests.length}</div>
+            </div>
+            <div className="bg-slate-800 rounded-lg p-3 text-center">
+              <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
+                <Award size={11} /> Quest pts
+              </div>
+              <div className="text-blue-400 font-bold text-xl">{totalQuestPoints}</div>
+            </div>
+            {hasComboConfig && (
+              <div className="bg-slate-800 rounded-lg p-3 text-center">
+                <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
+                  <Zap size={11} /> Combo bonus
+                </div>
+                <div className="text-amber-400 font-bold text-xl">{comboTotal}</div>
+              </div>
+            )}
+            <div className="bg-slate-800 rounded-lg p-3 text-center">
+              <div className="text-slate-400 text-xs mb-1 flex items-center justify-center gap-1">
+                <Clock size={11} /> Total score
+              </div>
+              <div className="text-green-400 font-bold text-xl">{team.score}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Combo breakdown */}
+        {hasComboConfig && (combos.combos6 > 0 || combos.combos4 > 0 || combos.combos2 > 0) && (
+          <div className="px-6 py-3 border-b border-slate-700 shrink-0 bg-amber-950/20">
+            <p className="text-amber-400 text-xs font-medium mb-2 flex items-center gap-1.5">
+              <Zap size={12} /> Combo breakdown
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {combos.combos6 > 0 && (
+                <span className="px-2 py-1 bg-amber-900/40 border border-amber-700/40 rounded text-amber-300 text-xs">
+                  {combos.combos6}× combo-6 = +{combos.combos6 * pts6} pts
+                </span>
+              )}
+              {combos.combos4 > 0 && (
+                <span className="px-2 py-1 bg-amber-900/40 border border-amber-700/40 rounded text-amber-300 text-xs">
+                  {combos.combos4}× combo-4 = +{combos.combos4 * pts4} pts
+                </span>
+              )}
+              {combos.combos2 > 0 && (
+                <span className="px-2 py-1 bg-amber-900/40 border border-amber-700/40 rounded text-amber-300 text-xs">
+                  {combos.combos2}× combo-2 = +{combos.combos2 * pts2} pts
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex border-b border-slate-700 shrink-0">
+          <button
+            onClick={() => setActiveTab('quests')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition border-b-2 ${
+              activeTab === 'quests'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Target size={14} />
+            Quests ({completedQuests.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('punches')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition border-b-2 ${
+              activeTab === 'punches'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <List size={14} />
+            Punches ({rawDataRecords.length})
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-slate-500 text-sm">
+              Loading...
+            </div>
+          ) : activeTab === 'quests' ? (
+            <div className="p-4">
+              {completedQuests.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No quests completed yet.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-slate-400 text-xs border-b border-slate-700">
+                      <th className="text-left py-2 pr-3 font-medium">#</th>
+                      <th className="text-left py-2 pr-3 font-medium">Quest</th>
+                      <th className="text-right py-2 pr-3 font-medium">Points</th>
+                      <th className="text-right py-2 font-medium">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedQuests.map((cq, i) => (
+                      <tr key={cq.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition">
+                        <td className="py-2.5 pr-3 text-slate-500">{i + 1}</td>
+                        <td className="py-2.5 pr-3 text-white font-medium">
+                          {getQuestName(cq.quest_number)}
+                          {cq.teammate_chip_id && cq.teammate_chip_id !== team.key_id && (
+                            <span className="ml-2 text-xs text-teal-400">chip #{cq.teammate_chip_id}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right">
+                          <span className="text-blue-400 font-semibold">+{cq.points_awarded}</span>
+                        </td>
+                        <td className="py-2.5 text-right text-slate-400 text-xs">
+                          {formatCreatedAt(cq.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {rawDataRecords.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No punch records found.</p>
+              ) : (
+                rawDataRecords.map((rec, i) => {
+                  const isExpanded = expandedPunch === rec.id;
+                  const punches = rec.raw_data?.punches ?? [];
+                  return (
+                    <div key={rec.id} className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/50 transition text-left"
+                        onClick={() => setExpandedPunch(isExpanded ? null : rec.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-500 text-xs">#{i + 1}</span>
+                          <span className="text-white text-sm font-medium">
+                            {punches.length} punch{punches.length !== 1 ? 'es' : ''}
+                          </span>
+                          {rec.raw_data?.end != null && (
+                            <span className="px-1.5 py-0.5 bg-green-900/50 border border-green-700/50 rounded text-green-400 text-xs">
+                              end station
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400 text-xs">{formatCreatedAt(rec.created_at)}</span>
+                          {isExpanded ? (
+                            <ChevronUp size={14} className="text-slate-400" />
+                          ) : (
+                            <ChevronDown size={14} className="text-slate-400" />
+                          )}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="border-t border-slate-700 px-4 py-3">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-slate-500 border-b border-slate-700">
+                                <th className="text-left py-1.5 pr-3 font-medium">Station code</th>
+                                <th className="text-right py-1.5 font-medium">Punch time</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {punches.map((p, j) => (
+                                <tr key={j} className="border-b border-slate-800/60">
+                                  <td className="py-1.5 pr-3 text-white font-mono">{p.code}</td>
+                                  <td className="py-1.5 text-right text-slate-400">
+                                    {formatTimestamp(p.time)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

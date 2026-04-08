@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X } from 'lucide-react';
+import { Play, Trash2, Users, Save, Clock, CheckCircle, Flag, Trophy, Gamepad2, Search, ArrowUpDown, Import as SortAsc, Minimize2, Maximize2, Monitor, StopCircle, Settings, FlaskConical, UserPlus, PlusCircle, X, BarChart2 } from 'lucide-react';
 import { supabase } from '../lib/db';
 import { GamePage } from './GamePage';
 import { ConfirmDialog } from './ConfirmDialog';
 import { LaunchedGameConfigModal } from './LaunchedGameConfigModal';
 import { GameTestModal } from './GameTestModal';
 import { TeamTestModal } from './TeamTestModal';
+import { TeamDetailsModal } from './TeamDetailsModal';
 import type { GameConfig, Team as ConfigTeam, Teammate } from './LaunchGameModal';
 import type { SiPuce } from '../types/database';
 
@@ -86,6 +87,7 @@ export function LaunchedGamesList() {
   const [addTeamState, setAddTeamState] = useState<{ name: string; chipId: number | null } | null>(null);
   const [savingTeammate, setSavingTeammate] = useState(false);
   const [savingTeam, setSavingTeam] = useState(false);
+  const [teamDetails, setTeamDetails] = useState<{ team: Team; gameUniqid: string } | null>(null);
 
   const parseChipsCsv = (text: string): SiPuce[] => {
     const lines = text.trim().split('\n');
@@ -1054,6 +1056,19 @@ export function LaunchedGamesList() {
                                   onClick={() => {
                                     const game = games.find(g => g.id === selectedGameId);
                                     if (game) {
+                                      setTeamDetails({ team, gameUniqid: game.game_uniqid });
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded text-sm font-medium flex items-center gap-1.5"
+                                  title="View team details"
+                                >
+                                  <BarChart2 size={14} />
+                                  Details
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const game = games.find(g => g.id === selectedGameId);
+                                    if (game) {
                                       setTestTeam({ gameId: game.id, gameName: game.name, team });
                                     }
                                   }}
@@ -1319,6 +1334,15 @@ export function LaunchedGamesList() {
             setTestTeam(null);
             if (selectedGameId !== null) loadTeams(selectedGameId);
           }}
+        />
+      )}
+
+      {teamDetails && selectedGameId !== null && (
+        <TeamDetailsModal
+          team={teamDetails.team}
+          launchedGameId={selectedGameId}
+          gameUniqid={teamDetails.gameUniqid}
+          onClose={() => setTeamDetails(null)}
         />
       )}
 

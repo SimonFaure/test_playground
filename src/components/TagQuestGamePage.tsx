@@ -413,7 +413,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         console.error('Error saving card data:', error);
       } else {
         console.log('✓ Card data saved successfully');
-        await handleCardPunchLogic(card);
       }
     } catch (error) {
       console.error('Error saving card data:', error);

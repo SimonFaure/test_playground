@@ -972,7 +972,7 @@ export function LaunchedGamesList() {
                                 <div>Name: <span className="text-white font-medium">{team.team_name}</span></div>
                                 <div>Score: <span className="text-white font-medium">{team.score}</span></div>
                                 <div>Start: <span className="text-white">{formatTime(team.start_time)}</span></div>
-                                <div>End: <span className="text-white">{formatTime(team.end_time)}</span></div>
+                                <div>End: <span className="text-white">{team.end_time ? formatTime(team.end_time) : 'Not ended'}</span></div>
                               </div>
                               {showTeammates && (
                                 <div className="mb-3 pt-2 border-t border-slate-700">

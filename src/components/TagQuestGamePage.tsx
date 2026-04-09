@@ -882,10 +882,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     const getQuestDetail = (details: PunchAnimationData['newQuestDetails'], qi: number) =>
       details.find(d => d.questIndex === qi);
 
+    const isQuestSpecificImage = questIndexForElement >= 0;
+    const imageVisible = isTimer || (isAnimating && (
+      !isQuestSpecificImage || questIndexForElement === activeQuestIndex
+    ));
+
     switch (element.type) {
       case 'image':
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: isTimer ? 'block' : 'none' }}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: imageVisible ? 'block' : 'none' }}>
             <img
               src={imageSrc || ''}
               alt={element.id}
@@ -944,12 +949,22 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           </div>
         );
       }
-      case 'container':
+      case 'container': {
+        const containerQuestIndex = (() => {
+          const cId = element.id?.toLowerCase() ?? '';
+          const m = cId.match(/quest_(\d+)/);
+          return m ? parseInt(m[1], 10) - 1 : -1;
+        })();
+        const containerIsQuestSpecific = containerQuestIndex >= 0;
+        const containerVisible = isAnimating && (
+          !containerIsQuestSpecific || containerQuestIndex === activeQuestIndex
+        );
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: 'none' }}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: containerVisible ? (wrapperStyle.display ?? 'block') : 'none' }}>
             {element.children?.map((child, childIndex) => renderLayoutElement(child, childIndex))}
           </div>
         );
+      }
       default:
         return <div key={`${element.id}-${index}`}>Unknown element type</div>;
     }

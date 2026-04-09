@@ -789,13 +789,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         const showMain = isActiveQuest && (animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
         const showSubImages = isActiveQuest && (animPhase === 'images' || animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
 
-        const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
-
         return [
           <div
             key={`quest-${questNum}-wrapper`}
             id={`quest-${questNum}-wrapper`}
-            style={{ ...wrapperStyle, width: questHeight, display: isActiveQuest ? 'block' : 'none', position: 'relative' }}
+            style={{ ...wrapperStyle, display: isActiveQuest ? 'block' : 'none', position: 'relative' }}
           >
             {showMain && (
               <div

@@ -545,49 +545,70 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                   const isOk = resp.status === 'ok';
                   const isError = resp.status === 'error';
                   const statusColor = isOk ? 'text-green-400 bg-green-900/40 border-green-700/50' : isError ? 'text-red-400 bg-red-900/40 border-red-700/50' : 'text-amber-400 bg-amber-900/40 border-amber-700/50';
+                  const isExpanded = expandedPunch === resp.id;
                   return (
-                    <div key={resp.id} className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <span className="text-slate-500 text-xs">#{punchResponses.length - i}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${statusColor}`}>
-                            {resp.status.replace(/_/g, ' ').toUpperCase()}
-                          </span>
-                          {resp.chip_id != null && (
-                            <span className="text-slate-400 text-xs">chip #{resp.chip_id}</span>
-                          )}
+                    <div key={resp.id} className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                      <button
+                        className="w-full text-left px-4 py-3 space-y-2 hover:bg-slate-700/40 transition"
+                        onClick={() => setExpandedPunch(isExpanded ? null : resp.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <span className="text-slate-500 text-xs">#{punchResponses.length - i}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${statusColor}`}>
+                              {resp.status.replace(/_/g, ' ').toUpperCase()}
+                            </span>
+                            {resp.chip_id != null && (
+                              <span className="text-slate-400 text-xs">chip #{resp.chip_id}</span>
+                            )}
+                            {r.completed_quest && (
+                              <span className="text-white text-xs font-medium">{r.completed_quest.name}</span>
+                            )}
+                            {r.end_station_reached && (
+                              <span className="px-1.5 py-0.5 bg-teal-900/50 border border-teal-700/50 rounded text-teal-400 text-xs">end station</span>
+                            )}
+                            {r.game_ended && (
+                              <span className="px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-slate-300 text-xs">game ended</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-slate-500 text-xs">{formatCreatedAt(resp.punched_at)}</span>
+                            {isExpanded ? (
+                              <ChevronUp size={14} className="text-slate-400" />
+                            ) : (
+                              <ChevronDown size={14} className="text-slate-400" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs">
                           {r.completed_quest && (
-                            <span className="text-white text-xs font-medium">{r.completed_quest.name}</span>
+                            <span className="text-blue-400">+{r.points_earned ?? r.completed_quest.points} pts</span>
                           )}
-                          {r.end_station_reached && (
-                            <span className="px-1.5 py-0.5 bg-teal-900/50 border border-teal-700/50 rounded text-teal-400 text-xs">end station</span>
+                          {(r.combo_bonus ?? 0) > 0 && (
+                            <span className="text-amber-400">+{r.combo_bonus} combo</span>
                           )}
-                          {r.game_ended && (
-                            <span className="px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-slate-300 text-xs">game ended</span>
+                          {(r.malus_applied ?? 0) > 0 && (
+                            <span className="text-red-400">−{r.malus_applied} malus</span>
+                          )}
+                          {r.level_up && (
+                            <span className="text-yellow-400 font-semibold">Level up: {r.level_up.name}</span>
+                          )}
+                          {r.best_partial_quest && !r.completed_quest && (
+                            <span className="text-slate-400">{r.best_partial_quest.name}: {r.best_partial_quest.matched} match{r.best_partial_quest.matched !== 1 ? 'es' : ''}</span>
+                          )}
+                          {r.message && (
+                            <span className="text-slate-500 italic">{r.message}</span>
                           )}
                         </div>
-                        <span className="text-slate-500 text-xs shrink-0 ml-2">{formatCreatedAt(resp.punched_at)}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        {r.completed_quest && (
-                          <span className="text-blue-400">+{r.points_earned ?? r.completed_quest.points} pts</span>
-                        )}
-                        {(r.combo_bonus ?? 0) > 0 && (
-                          <span className="text-amber-400">+{r.combo_bonus} combo</span>
-                        )}
-                        {(r.malus_applied ?? 0) > 0 && (
-                          <span className="text-red-400">−{r.malus_applied} malus</span>
-                        )}
-                        {r.level_up && (
-                          <span className="text-yellow-400 font-semibold">Level up: {r.level_up.name}</span>
-                        )}
-                        {r.best_partial_quest && !r.completed_quest && (
-                          <span className="text-slate-400">{r.best_partial_quest.name}: {r.best_partial_quest.matched} match{r.best_partial_quest.matched !== 1 ? 'es' : ''}</span>
-                        )}
-                        {r.message && (
-                          <span className="text-slate-500 italic">{r.message}</span>
-                        )}
-                      </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="border-t border-slate-700 px-4 py-3 bg-slate-900/60">
+                          <p className="text-slate-500 text-xs font-medium mb-2 uppercase tracking-wide">result_json</p>
+                          <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap break-all leading-relaxed">
+                            {JSON.stringify(resp.result_json, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   );
                 })

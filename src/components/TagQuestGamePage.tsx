@@ -3,6 +3,7 @@ import { ArrowLeft, Play, Users, Trophy } from 'lucide-react';
 import { GameConfig } from './LaunchGameModal';
 import { usbReaderService, CardData, StationData } from '../services/usbReader';
 import { CardDetectionAlert } from './CardDetectionAlert';
+import { PunchAnimationOverlay } from './PunchAnimationOverlay';
 import { supabase } from '../lib/db';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import { processTagQuestPunch } from '../services/tagquestPunchLogic';

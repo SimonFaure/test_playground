@@ -860,13 +860,21 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             key={`quest-${questNum}-title`}
             className="quest_title"
             style={{
-              ...wrapperStyle,
+              position: 'absolute',
+              left: wrapperStyle.left,
+              top: element.y !== undefined && element.height !== undefined
+                ? `${((element.y + element.height) / 100) * bgDimensions.height + 4}px`
+                : wrapperStyle.top,
+              width: wrapperStyle.width,
               display: isActiveQuest ? 'flex' : 'none',
               color: element.color || '#fff',
               fontFamily: element.fontFamily,
-              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
+              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : '1em',
               alignItems: 'center',
               justifyContent: 'center',
+              textAlign: 'center',
+              lineHeight: 1.2,
+              textShadow: '0 1px 4px rgba(0,0,0,0.8)',
             }}
           >
             {quest.name}
@@ -924,15 +932,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           showElement = isAnimating;
           const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
           const qd = getQuestDetail(details, questIndexForElement);
-          displayText = qd ? qd.totalPoints : 0;
+          displayText = qd ? `${qd.totalPoints} pts` : '0 pts';
         } else if (isQuestMultiplicator && questIndexForElement >= 0) {
           showElement = isAnimating;
           const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
           const qd = getQuestDetail(details, questIndexForElement);
-          displayText = qd ? qd.timesCompleted : 0;
+          displayText = qd ? `x${qd.timesCompleted}` : 'x0';
         } else if (isMultiplicator) {
           showElement = isAnimating;
-          displayText = animDisplayedCombos.combos6 + animDisplayedCombos.combos4 + animDisplayedCombos.combos2;
+          const totalCombos = animDisplayedCombos.combos6 + animDisplayedCombos.combos4 + animDisplayedCombos.combos2;
+          displayText = `x${totalCombos}`;
         } else {
           displayText = element.text ?? element.previewText;
         }

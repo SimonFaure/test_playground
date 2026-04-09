@@ -26,7 +26,10 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
   const [revealedSlots, setRevealedSlots] = useState(0);
   const [showMain, setShowMain] = useState(false);
   const [showUpdated, setShowUpdated] = useState(false);
+  const [displayedScore, setDisplayedScore] = useState(prevScore);
+  const [displayedCombos, setDisplayedCombos] = useState(prevCombos);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const slots = displayQuest?.slots ?? [];
   const isComplete = displayQuest?.complete ?? false;
@@ -36,7 +39,10 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
   };
 
   useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,7 +73,37 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
 
   useEffect(() => {
     if (phase === 'update') {
-      setShowUpdated(true);
+      setDisplayedScore(prevScore);
+      setDisplayedCombos(prevCombos);
+
+      if (newScore !== prevScore) {
+        const steps = 20;
+        const stepMs = Math.floor(900 / steps);
+        let step = 0;
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+          step++;
+          const progress = step / steps;
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setDisplayedScore(Math.round(prevScore + (newScore - prevScore) * eased));
+          setDisplayedCombos({
+            combos6: Math.round(prevCombos.combos6 + (newCombos.combos6 - prevCombos.combos6) * eased),
+            combos4: Math.round(prevCombos.combos4 + (newCombos.combos4 - prevCombos.combos4) * eased),
+            combos2: Math.round(prevCombos.combos2 + (newCombos.combos2 - prevCombos.combos2) * eased),
+          });
+          if (step >= steps) {
+            clearInterval(intervalRef.current!);
+            setDisplayedScore(newScore);
+            setDisplayedCombos(newCombos);
+            setShowUpdated(true);
+          }
+        }, stepMs);
+      } else {
+        setDisplayedScore(newScore);
+        setDisplayedCombos(newCombos);
+        setShowUpdated(true);
+      }
+
       set(() => setPhase('exit'), UPDATE_HOLD_MS);
     }
   }, [phase]);
@@ -78,10 +114,8 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
     }
   }, [phase, onDone]);
 
-  const score = showUpdated ? newScore : prevScore;
-  const combos = showUpdated ? newCombos : prevCombos;
   const questDetails = showUpdated ? newQuestDetails : prevQuestDetails;
-  const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
+  const totalCombos = displayedCombos.combos6 + displayedCombos.combos4 + displayedCombos.combos2;
 
   const isExiting = phase === 'exit';
 
@@ -159,7 +193,7 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
                   transition: 'color 0.4s ease',
                 }}
               >
-                {score}
+                {displayedScore}
                 <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 500, marginLeft: '4px' }}>pts</span>
               </div>
               {showUpdated && newScore !== prevScore && (
@@ -177,14 +211,14 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
                   Combos
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  {(showUpdated ? newCombos : prevCombos).combos6 > 0 && (
-                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×6: {(showUpdated ? newCombos : prevCombos).combos6}</span>
+                  {displayedCombos.combos6 > 0 && (
+                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×6: {displayedCombos.combos6}</span>
                   )}
-                  {(showUpdated ? newCombos : prevCombos).combos4 > 0 && (
-                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×4: {(showUpdated ? newCombos : prevCombos).combos4}</span>
+                  {displayedCombos.combos4 > 0 && (
+                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×4: {displayedCombos.combos4}</span>
                   )}
-                  {(showUpdated ? newCombos : prevCombos).combos2 > 0 && (
-                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×2: {(showUpdated ? newCombos : prevCombos).combos2}</span>
+                  {displayedCombos.combos2 > 0 && (
+                    <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.85rem' }}>×2: {displayedCombos.combos2}</span>
                   )}
                 </div>
               </div>

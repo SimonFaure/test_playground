@@ -116,6 +116,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [animShowUpdated, setAnimShowUpdated] = useState(false);
   const [animDisplayedScore, setAnimDisplayedScore] = useState(0);
   const [animDisplayedCombos, setAnimDisplayedCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
+  const [lastKnownScore, setLastKnownScore] = useState(0);
+  const [lastKnownQuestDetails, setLastKnownQuestDetails] = useState<PunchAnimationData['newQuestDetails']>([]);
+  const [lastKnownCombos, setLastKnownCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
   const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -164,8 +167,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
   useEffect(() => {
     if (animPhase === 'update' && punchAnimation) {
-      setAnimShowUpdated(true);
-
       const fromScore = punchAnimation.prevScore;
       const toScore = punchAnimation.newScore;
       const fromCombos = punchAnimation.prevCombos;
@@ -193,11 +194,13 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             clearAnimInterval();
             setAnimDisplayedScore(toScore);
             setAnimDisplayedCombos(toCombos);
+            setAnimShowUpdated(true);
           }
         }, stepMs);
       } else {
         setAnimDisplayedScore(toScore);
         setAnimDisplayedCombos(toCombos);
+        setAnimShowUpdated(true);
       }
 
       animSet(() => setAnimPhase('exit'), UPDATE_HOLD_MS);
@@ -210,6 +213,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         clearAnimInterval();
         const wasGameOver = punchAnimation?.gameOver ?? false;
         const teamName = punchAnimation?.teamName ?? '';
+        if (punchAnimation) {
+          setLastKnownScore(punchAnimation.newScore);
+          setLastKnownQuestDetails(punchAnimation.newQuestDetails);
+          setLastKnownCombos(punchAnimation.newCombos);
+        }
         setAnimPhase('idle');
         setAnimRevealedSlots(0);
         setAnimShowUpdated(false);
@@ -930,21 +938,26 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           showElement = isAnimating;
           displayText = punchAnimation?.teamName ?? '';
         } else if (isTotalScore) {
-          showElement = isAnimating;
-          displayText = animDisplayedScore;
+          showElement = true;
+          displayText = isAnimating ? animDisplayedScore : lastKnownScore;
         } else if (isQuestPoints && questIndexForElement >= 0) {
-          showElement = isAnimating;
-          const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
+          showElement = true;
+          const details = isAnimating
+            ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
+            : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `${qd.totalPoints} pts` : '0 pts';
         } else if (isQuestMultiplicator && questIndexForElement >= 0) {
-          showElement = isAnimating;
-          const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
+          showElement = true;
+          const details = isAnimating
+            ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
+            : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `x${qd.timesCompleted}` : 'x0';
         } else if (isMultiplicator) {
-          showElement = isAnimating;
-          const totalCombos = animDisplayedCombos.combos6 + animDisplayedCombos.combos4 + animDisplayedCombos.combos2;
+          showElement = true;
+          const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
+          const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
           displayText = `x${totalCombos}`;
         } else {
           displayText = element.text ?? element.previewText;

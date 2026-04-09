@@ -1088,6 +1088,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             cardData={lastCardData}
             show={showCardAlert}
           />
+        {punchAnimation && (
+          <PunchAnimationOverlay
+            data={punchAnimation}
+            onDone={() => setPunchAnimation(null)}
+          />
+        )}
       </div>
     );
   }

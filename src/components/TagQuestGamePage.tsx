@@ -12,8 +12,8 @@ import { logApiCall } from '../services/apiLogger';
 type AnimPhase = 'idle' | 'enter' | 'images' | 'main' | 'update' | 'exit';
 
 const SLOT_STAGGER_MS = 400;
-const MAIN_IMAGE_HOLD_MS = 1800;
-const UPDATE_HOLD_MS = 2000;
+const MAIN_IMAGE_HOLD_MS = 2500;
+const UPDATE_HOLD_MS = 4000;
 const EXIT_MS = 600;
 
 interface TagQuestGamePageProps {

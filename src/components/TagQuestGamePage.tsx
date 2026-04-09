@@ -1089,7 +1089,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             cardData={lastCardData}
             show={showCardAlert}
           />
-        {punchAnimation && (
+        {punchAnimation && !layout.elements?.some(el => el.id === 'animation_quest_image') && (
           <PunchAnimationOverlay
             data={punchAnimation}
             onDone={() => setPunchAnimation(null)}

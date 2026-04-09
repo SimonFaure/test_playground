@@ -7,8 +7,14 @@ import { supabase } from '../lib/db';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import { processTagQuestPunch } from '../services/tagquestPunchLogic';
 import type { PunchAnimationData } from '../services/tagquestPunchLogic';
-import { PunchAnimationOverlay } from './PunchAnimationOverlay';
 import { logApiCall } from '../services/apiLogger';
+
+type AnimPhase = 'idle' | 'enter' | 'images' | 'main' | 'update' | 'exit';
+
+const SLOT_STAGGER_MS = 400;
+const MAIN_IMAGE_HOLD_MS = 1800;
+const UPDATE_HOLD_MS = 2000;
+const EXIT_MS = 600;
 
 interface TagQuestGamePageProps {
   config: GameConfig;
@@ -103,9 +109,128 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
   const [punchLogs, setPunchLogs] = useState<Array<{ timestamp: Date; result: any }>>([]);
   const [punchAnimation, setPunchAnimation] = useState<PunchAnimationData | null>(null);
+
+  const [animPhase, setAnimPhase] = useState<AnimPhase>('idle');
+  const [animRevealedSlots, setAnimRevealedSlots] = useState(0);
+  const [animShowUpdated, setAnimShowUpdated] = useState(false);
+  const [animDisplayedScore, setAnimDisplayedScore] = useState(0);
+  const [animDisplayedCombos, setAnimDisplayedCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const bgImageRef = useRef<HTMLImageElement>(null);
   const gameDataRef = useRef<GameData | null>(null);
   const mediaFilesRef = useRef<Record<string, string>>({});
+
+  const animSet = (fn: () => void, ms: number) => {
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(fn, ms);
+  };
+
+  const clearAnimInterval = () => {
+    if (animIntervalRef.current) {
+      clearInterval(animIntervalRef.current);
+      animIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (animPhase === 'enter') {
+      animSet(() => setAnimPhase('images'), 800);
+    }
+  }, [animPhase]);
+
+  useEffect(() => {
+    if (animPhase !== 'images') return;
+    const slots = punchAnimation?.displayQuest?.slots ?? [];
+    const isComplete = punchAnimation?.displayQuest?.complete ?? false;
+    if (slots.length === 0) {
+      setAnimPhase(isComplete ? 'main' : 'update');
+      return;
+    }
+    if (animRevealedSlots < slots.length) {
+      animSet(() => setAnimRevealedSlots(prev => prev + 1), SLOT_STAGGER_MS);
+    } else {
+      animSet(() => setAnimPhase(isComplete ? 'main' : 'update'), 600);
+    }
+  }, [animPhase, animRevealedSlots, punchAnimation]);
+
+  useEffect(() => {
+    if (animPhase === 'main') {
+      animSet(() => setAnimPhase('update'), MAIN_IMAGE_HOLD_MS);
+    }
+  }, [animPhase]);
+
+  useEffect(() => {
+    if (animPhase === 'update' && punchAnimation) {
+      setAnimShowUpdated(true);
+
+      const fromScore = punchAnimation.prevScore;
+      const toScore = punchAnimation.newScore;
+      const fromCombos = punchAnimation.prevCombos;
+      const toCombos = punchAnimation.newCombos;
+
+      setAnimDisplayedScore(fromScore);
+      setAnimDisplayedCombos(fromCombos);
+
+      if (toScore !== fromScore) {
+        const steps = 20;
+        const stepMs = Math.floor(900 / steps);
+        let step = 0;
+        clearAnimInterval();
+        animIntervalRef.current = setInterval(() => {
+          step++;
+          const progress = step / steps;
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setAnimDisplayedScore(Math.round(fromScore + (toScore - fromScore) * eased));
+          setAnimDisplayedCombos({
+            combos6: Math.round(fromCombos.combos6 + (toCombos.combos6 - fromCombos.combos6) * eased),
+            combos4: Math.round(fromCombos.combos4 + (toCombos.combos4 - fromCombos.combos4) * eased),
+            combos2: Math.round(fromCombos.combos2 + (toCombos.combos2 - fromCombos.combos2) * eased),
+          });
+          if (step >= steps) {
+            clearAnimInterval();
+            setAnimDisplayedScore(toScore);
+            setAnimDisplayedCombos(toCombos);
+          }
+        }, stepMs);
+      } else {
+        setAnimDisplayedScore(toScore);
+        setAnimDisplayedCombos(toCombos);
+      }
+
+      animSet(() => setAnimPhase('exit'), UPDATE_HOLD_MS);
+    }
+  }, [animPhase]);
+
+  useEffect(() => {
+    if (animPhase === 'exit') {
+      animSet(() => {
+        clearAnimInterval();
+        setAnimPhase('idle');
+        setAnimRevealedSlots(0);
+        setAnimShowUpdated(false);
+        setPunchAnimation(null);
+      }, EXIT_MS);
+    }
+  }, [animPhase]);
+
+  useEffect(() => {
+    return () => {
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
+      clearAnimInterval();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (punchAnimation && animPhase === 'idle') {
+      setAnimRevealedSlots(0);
+      setAnimShowUpdated(false);
+      setAnimDisplayedScore(punchAnimation.prevScore);
+      setAnimDisplayedCombos(punchAnimation.prevCombos);
+      setAnimPhase('enter');
+    }
+  }, [punchAnimation]);
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -629,9 +754,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       imageSrc = mediaFiles[element.id] || '';
     }
 
+    const isAnimating = animPhase !== 'idle';
+    const activeQuestIndex = punchAnimation?.displayQuest?.index ?? -1;
+
     if (element.id === 'animation_quest_image') {
       const quests = gameData?.quests || [];
-
       if (!quests.length) return <div key={`${element.id}-${index}`} style={wrapperStyle} />;
 
       const resolveMedia = (key: string | undefined): string => {
@@ -642,24 +769,97 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       return quests.flatMap((quest, questIndex) => {
         const questNum = questIndex + 1;
         const mainSrc = resolveMedia(quest.main_image);
-        const subImages = ([quest.image_1, quest.image_2, quest.image_3, quest.image_4] as (string | undefined)[])
-          .filter((img): img is string => !!img)
-          .map(imgKey => resolveMedia(imgKey));
+        const isActiveQuest = isAnimating && activeQuestIndex === questIndex;
+        const slots = punchAnimation?.displayQuest?.slots ?? [];
+        const showMain = isActiveQuest && (animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
+        const showSubImages = isActiveQuest && (animPhase === 'images' || animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
 
         const questHeight = element.height !== undefined ? `${(element.height / 100) * bgDimensions.height}px` : wrapperStyle.height;
 
         return [
-          <div key={`quest-${questNum}-wrapper`} id={`quest-${questNum}-wrapper`} style={{ ...wrapperStyle, width: questHeight, display: 'none' }}>
-            <div className="main_quest_image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', filter: 'blur(8px)' }}>
-              <img src={mainSrc} alt={quest.name} style={{ width: '100%' }} />
-            </div>
-            <div className="quest_images" style={{ position: 'absolute', top: 0, left: 0, width: '100%', display: 'flex', flexWrap: 'wrap', filter: 'blur(8px)' }}>
-              {subImages.map((src, i) => (
-                <img key={i} src={src} alt={`${quest.name} ${i + 1}`} style={{ width: '50%' }} />
-              ))}
-            </div>
+          <div
+            key={`quest-${questNum}-wrapper`}
+            id={`quest-${questNum}-wrapper`}
+            style={{ ...wrapperStyle, width: questHeight, display: isActiveQuest ? 'block' : 'none', position: 'relative' }}
+          >
+            {showMain && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  border: '2px solid rgba(74,222,128,0.6)',
+                  boxShadow: '0 0 32px rgba(74,222,128,0.3)',
+                  opacity: showMain ? 1 : 0,
+                  transition: 'opacity 0.5s ease',
+                }}
+              >
+                <img src={mainSrc} alt={quest.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)' }}>
+                  <div style={{ background: 'rgba(74,222,128,0.9)', borderRadius: '50%', width: '20%', height: 'auto', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showSubImages && !showMain && slots.length > 0 && (
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: slots.length <= 2 ? `repeat(${slots.length}, 1fr)` : 'repeat(2, 1fr)', gap: '4px' }}>
+                {slots.map((slot, si) => {
+                  const revealed = si < animRevealedSlots;
+                  return (
+                    <div
+                      key={slot.key}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        border: revealed
+                          ? slot.matched ? '2px solid rgba(74,222,128,0.8)' : '2px solid rgba(248,113,113,0.8)'
+                          : '2px solid rgba(255,255,255,0.08)',
+                        background: '#0f172a',
+                        opacity: revealed ? 1 : 0.15,
+                        transform: revealed ? 'scale(1)' : 'scale(0.92)',
+                        transition: 'opacity 0.35s ease, transform 0.35s ease, border-color 0.3s ease',
+                      }}
+                    >
+                      {slot.src ? (
+                        <img src={slot.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: revealed && !slot.matched ? 'grayscale(60%) brightness(0.5)' : 'none', transition: 'filter 0.3s ease' }} />
+                      ) : (
+                        <div style={{ width: '100%', paddingBottom: '100%', background: 'rgba(255,255,255,0.05)' }} />
+                      )}
+                      {revealed && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: slot.matched ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.18)' }}>
+                          <div style={{ background: slot.matched ? 'rgba(74,222,128,0.85)' : 'rgba(248,113,113,0.85)', borderRadius: '50%', width: '30%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                            {slot.matched
+                              ? <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
+                              : <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>,
-          <div key={`quest-${questNum}-title`} className="quest_title" style={{ ...wrapperStyle, display: 'none', color: element.color || '#fff', fontFamily: element.fontFamily, fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined }}>
+          <div
+            key={`quest-${questNum}-title`}
+            className="quest_title"
+            style={{
+              ...wrapperStyle,
+              display: isActiveQuest ? 'flex' : 'none',
+              color: element.color || '#fff',
+              fontFamily: element.fontFamily,
+              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             {quest.name}
           </div>
         ];
@@ -668,8 +868,19 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
     const elementId = element.id?.toLowerCase() ?? '';
     const isMultiplicator = elementId.includes('multiplicat');
-    const isPoints = elementId.includes('points');
+    const isQuestPoints = /quest_\d+_points/.test(elementId);
+    const isQuestMultiplicator = /quest_\d+_multiplicat/.test(elementId);
+    const isTotalScore = elementId.includes('total_score') || elementId === 'score';
+    const isTeamName = elementId === 'team_name_text';
     const isTimer = elementId.includes('timer') || elementId.includes('countdown');
+
+    const questIndexForElement = (() => {
+      const m = elementId.match(/quest_(\d+)_/);
+      return m ? parseInt(m[1], 10) - 1 : -1;
+    })();
+
+    const getQuestDetail = (details: PunchAnimationData['newQuestDetails'], qi: number) =>
+      details.find(d => d.questIndex === qi);
 
     switch (element.type) {
       case 'image':
@@ -684,15 +895,36 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         );
       case 'text': {
         let displayText: string | number | undefined;
+        let showElement = false;
+
         if (isTimer) {
+          showElement = true;
           displayText = countdown !== null ? formatTime(countdown) : formatTime(0);
-        } else if (isMultiplicator || isPoints) {
-          displayText = 0;
+        } else if (isTeamName) {
+          showElement = isAnimating;
+          displayText = punchAnimation?.teamName ?? '';
+        } else if (isTotalScore) {
+          showElement = isAnimating;
+          displayText = animDisplayedScore;
+        } else if (isQuestPoints && questIndexForElement >= 0) {
+          showElement = isAnimating;
+          const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
+          const qd = getQuestDetail(details, questIndexForElement);
+          displayText = qd ? qd.totalPoints : 0;
+        } else if (isQuestMultiplicator && questIndexForElement >= 0) {
+          showElement = isAnimating;
+          const details = animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []);
+          const qd = getQuestDetail(details, questIndexForElement);
+          displayText = qd ? qd.timesCompleted : 0;
+        } else if (isMultiplicator) {
+          showElement = isAnimating;
+          displayText = animDisplayedCombos.combos6 + animDisplayedCombos.combos4 + animDisplayedCombos.combos2;
         } else {
           displayText = element.text ?? element.previewText;
         }
+
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: isTimer ? (wrapperStyle.display ?? 'block') : 'none' }}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: showElement ? (wrapperStyle.display ?? 'block') : 'none' }}>
             <div
               style={{
                 width: '100%',
@@ -874,12 +1106,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             show={showCardAlert}
           />
         {renderPunchLog()}
-        {punchAnimation && (
-          <PunchAnimationOverlay
-            data={punchAnimation}
-            onDone={() => setPunchAnimation(null)}
-          />
-        )}
       </div>
     );
   }

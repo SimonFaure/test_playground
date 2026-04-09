@@ -1227,7 +1227,6 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           cardData={lastCardData}
           show={showCardAlert}
         />
-      {renderPunchLog()}
       {punchAnimation && (
         <PunchAnimationOverlay
           data={punchAnimation}

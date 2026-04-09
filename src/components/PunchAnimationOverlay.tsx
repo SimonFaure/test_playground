@@ -83,7 +83,7 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
   const questDetails = showUpdated ? newQuestDetails : prevQuestDetails;
   const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
 
-  const overlayOpacity = phase === 'exit' ? 0 : 1;
+  const isExiting = phase === 'exit';
 
   return (
     <div
@@ -96,7 +96,7 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
         justifyContent: 'center',
         backgroundColor: 'rgba(0,0,0,0.82)',
         transition: `opacity ${EXIT_MS}ms ease`,
-        opacity: overlayOpacity,
+        opacity: isExiting ? 0 : 1,
         backdropFilter: 'blur(4px)',
       }}
     >
@@ -109,6 +109,9 @@ export function PunchAnimationOverlay({ data, onDone }: Props) {
           width: '100%',
           maxWidth: '960px',
           padding: '32px 24px',
+          transition: `opacity ${EXIT_MS}ms ease, transform ${EXIT_MS}ms ease`,
+          opacity: isExiting ? 0 : 1,
+          transform: isExiting ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
         }}
       >
         {/* Team name */}

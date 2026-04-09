@@ -59,6 +59,8 @@ export function LaunchedGamesList() {
   const [loading, setLoading] = useState(true);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editedTeam, setEditedTeam] = useState<Partial<Team>>({});
+  const [renamingTeamId, setRenamingTeamId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [gameDataMap, setGameDataMap] = useState<Record<string, GameData>>({});
   const [showRankings, setShowRankings] = useState<number | null>(null);
   const [rankingsGameName, setRankingsGameName] = useState<string>('');
@@ -505,6 +507,15 @@ export function LaunchedGamesList() {
         loadTeams(selectedGameId);
       }
     }
+  };
+
+  const handleRenameTeam = async (teamId: number) => {
+    const name = renameValue.trim();
+    if (!name) { setRenamingTeamId(null); return; }
+    const { error } = await supabase.from('teams').update({ team_name: name }).eq('id', teamId);
+    if (!error && selectedGameId !== null) loadTeams(selectedGameId);
+    setRenamingTeamId(null);
+    setRenameValue('');
   };
 
   const getUsedChipIds = (): Set<number> => {
@@ -1034,7 +1045,6 @@ export function LaunchedGamesList() {
                           <div className="p-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-slate-400 text-sm font-medium">#{ranking}</span>
                                 <div className="flex items-center gap-2">
                                   {team.end_time ? (
                                     <CheckCircle size={18} className="text-green-500" />
@@ -1043,9 +1053,28 @@ export function LaunchedGamesList() {
                                   ) : (
                                     <Clock size={18} className="text-slate-500" />
                                   )}
-                                  <span className="text-white font-semibold">
-                                    Team {team.team_number}
-                                  </span>
+                                  {renamingTeamId === team.id ? (
+                                    <input
+                                      autoFocus
+                                      value={renameValue}
+                                      onChange={e => setRenameValue(e.target.value)}
+                                      onBlur={() => handleRenameTeam(team.id)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') handleRenameTeam(team.id);
+                                        if (e.key === 'Escape') { setRenamingTeamId(null); setRenameValue(''); }
+                                      }}
+                                      className="bg-slate-700 border border-blue-500 rounded px-2 py-0.5 text-white font-semibold text-sm focus:outline-none w-36"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="text-white font-semibold cursor-pointer hover:text-blue-300 transition-colors"
+                                      title="Double-click to rename"
+                                      onDoubleClick={() => { setRenamingTeamId(team.id); setRenameValue(team.team_name); }}
+                                    >
+                                      {team.team_name}
+                                    </span>
+                                  )}
+                                  <span className="text-slate-500 text-xs font-mono">#{team.team_number}</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1125,7 +1154,6 @@ export function LaunchedGamesList() {
                           ) : (
                             <>
                               <div className="text-sm text-slate-400 space-y-1 mb-3">
-                                <div>Name: <span className="text-white font-medium">{team.team_name}</span></div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span>Score: <span className="text-white font-medium">{team.score}</span></span>
                                   {team.currentLevel && (

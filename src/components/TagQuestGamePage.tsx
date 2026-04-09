@@ -209,7 +209,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
   useEffect(() => {
     if (animPhase === 'exit') {
-      animSet(() => {
+      animSet(async () => {
         clearAnimInterval();
         const wasGameOver = punchAnimation?.gameOver ?? false;
         const teamName = punchAnimation?.teamName ?? '';
@@ -217,6 +217,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           setLastKnownScore(punchAnimation.newScore);
           setLastKnownQuestDetails(punchAnimation.newQuestDetails);
           setLastKnownCombos(punchAnimation.newCombos);
+          if (punchAnimation.endTimeToCommit != null && punchAnimation.teamId != null) {
+            await supabase.from('teams').update({ end_time: punchAnimation.endTimeToCommit, score: punchAnimation.newScore }).eq('id', punchAnimation.teamId);
+          }
         }
         setAnimPhase('idle');
         setAnimRevealedSlots(0);
@@ -1118,9 +1121,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         {punchAnimation && !layout.elements?.some(el => el.id === 'animation_quest_image') && (
           <PunchAnimationOverlay
             data={punchAnimation}
-            onDone={() => {
+            onDone={async () => {
               const wasGameOver = punchAnimation.gameOver ?? false;
               const teamName = punchAnimation.teamName ?? '';
+              if (punchAnimation.endTimeToCommit != null && punchAnimation.teamId != null) {
+                await supabase.from('teams').update({ end_time: punchAnimation.endTimeToCommit, score: punchAnimation.newScore }).eq('id', punchAnimation.teamId);
+              }
               setPunchAnimation(null);
               if (wasGameOver) setGameOverTeamName(teamName);
             }}
@@ -1317,9 +1323,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       {punchAnimation && (
         <PunchAnimationOverlay
           data={punchAnimation}
-          onDone={() => {
+          onDone={async () => {
             const wasGameOver = punchAnimation.gameOver ?? false;
             const teamName = punchAnimation.teamName ?? '';
+            if (punchAnimation.endTimeToCommit != null && punchAnimation.teamId != null) {
+              await supabase.from('teams').update({ end_time: punchAnimation.endTimeToCommit, score: punchAnimation.newScore }).eq('id', punchAnimation.teamId);
+            }
             setPunchAnimation(null);
             if (wasGameOver) setGameOverTeamName(teamName);
           }}

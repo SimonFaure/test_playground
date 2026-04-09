@@ -62,6 +62,8 @@ export interface PunchAnimationData {
   newCombos: { combos6: number; combos4: number; combos2: number };
   newQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
   gameOver?: boolean;
+  endTimeToCommit?: number;
+  teamId?: number;
 }
 
 interface PunchResult {
@@ -603,10 +605,13 @@ export async function processTagQuestPunch(
     const endStationReached = card.end != null;
 
     let gameEnded = false;
+    let endTimeToCommit: number | undefined;
     if (endStationReached && !team.end_time) {
-      const endTime = Math.floor(toMs(card.end!.time) / 1000);
-      await supabase.from('teams').update({ end_time: endTime, score: newScore }).eq('id', team.id);
+      endTimeToCommit = Math.floor(toMs(card.end!.time) / 1000);
       gameEnded = true;
+      if (scoreDelta !== 0 || completedNow.length > 0) {
+        await supabase.from('teams').update({ score: newScore }).eq('id', team.id);
+      }
     } else if (scoreDelta !== 0 || completedNow.length > 0) {
       await supabase.from('teams').update({ score: newScore }).eq('id', team.id);
     }
@@ -711,6 +716,8 @@ export async function processTagQuestPunch(
       newCombos: afterCombos,
       newQuestDetails,
       gameOver: gameEnded,
+      endTimeToCommit,
+      teamId: team.id,
     };
 
     const result: PunchResult = {

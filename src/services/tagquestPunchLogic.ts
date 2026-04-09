@@ -604,7 +604,7 @@ export async function processTagQuestPunch(
 
     let gameEnded = false;
     if (endStationReached && !team.end_time) {
-      const endTime = Math.floor(Date.now() / 1000);
+      const endTime = Math.floor(toMs(card.end!.time) / 1000);
       await supabase.from('teams').update({ end_time: endTime, score: newScore }).eq('id', team.id);
       gameEnded = true;
     } else if (scoreDelta !== 0 || completedNow.length > 0) {

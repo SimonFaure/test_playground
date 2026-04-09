@@ -1105,7 +1105,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         {punchAnimation && !layout.elements?.some(el => el.id === 'animation_quest_image') && (
           <PunchAnimationOverlay
             data={punchAnimation}
-            onDone={() => setPunchAnimation(null)}
+            onDone={() => {
+              const wasGameOver = punchAnimation.gameOver ?? false;
+              const teamName = punchAnimation.teamName ?? '';
+              setPunchAnimation(null);
+              if (wasGameOver) setGameOverTeamName(teamName);
+            }}
           />
         )}
 
@@ -1299,7 +1304,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       {punchAnimation && (
         <PunchAnimationOverlay
           data={punchAnimation}
-          onDone={() => setPunchAnimation(null)}
+          onDone={() => {
+            const wasGameOver = punchAnimation.gameOver ?? false;
+            const teamName = punchAnimation.teamName ?? '';
+            setPunchAnimation(null);
+            if (wasGameOver) setGameOverTeamName(teamName);
+          }}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Award, Zap, Target, Clock, List, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
+import { X, Award, Zap, Target, Clock, List, ChevronDown, ChevronUp, BarChart2, Radio } from 'lucide-react';
 import { supabase } from '../lib/db';
 
 interface Team {
@@ -18,6 +18,25 @@ interface CompletedQuest {
   points_awarded: number;
   teammate_chip_id: number | null;
   completed_at: string | null;
+}
+
+interface PunchResponse {
+  id: number;
+  chip_id: number | null;
+  status: string;
+  result_json: {
+    team_name?: string;
+    completed_quest?: { index: number; name: string; points: number } | null;
+    points_earned?: number;
+    combo_bonus?: number;
+    malus_applied?: number;
+    level_up?: { new_level: number; name: string } | null;
+    best_partial_quest?: { index: number; name: string; matched: number } | null;
+    end_station_reached?: boolean;
+    game_ended?: boolean;
+    message?: string;
+  };
+  punched_at: string;
 }
 
 interface RawDataRecord {
@@ -121,7 +140,8 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
   const [rawDataRecords, setRawDataRecords] = useState<RawDataRecord[]>([]);
   const [gameData, setGameData] = useState<GameDataJson | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'quests' | 'quest-count' | 'punches'>('quests');
+  const [activeTab, setActiveTab] = useState<'quests' | 'quest-count' | 'punches' | 'responses'>('quests');
+  const [punchResponses, setPunchResponses] = useState<PunchResponse[]>([]);
   const [expandedPunch, setExpandedPunch] = useState<number | null>(null);
   const [currentTeam, setCurrentTeam] = useState(team);
 
@@ -148,7 +168,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
     const load = async (isInitial = false) => {
       if (isInitial) setLoading(true);
 
-      const [questsRes, rawRes, teamRes] = await Promise.all([
+      const [questsRes, rawRes, teamRes, responsesRes] = await Promise.all([
         supabase
           .from('team_completed_quests')
           .select('id, quest_number, points_awarded, teammate_chip_id, completed_at')
@@ -165,11 +185,17 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
           .select('id, team_name, score, start_time, end_time, key_id')
           .eq('id', team.id)
           .maybeSingle(),
+        supabase
+          .from('team_punch_responses')
+          .select('id, chip_id, status, result_json, punched_at')
+          .eq('team_id', team.id)
+          .order('punched_at', { ascending: false }),
       ]);
 
       if (questsRes.data) setCompletedQuests(questsRes.data as CompletedQuest[]);
       if (rawRes.data) setRawDataRecords(rawRes.data as RawDataRecord[]);
       if (teamRes.data) setCurrentTeam(teamRes.data as typeof team);
+      if (responsesRes.data) setPunchResponses(responsesRes.data as PunchResponse[]);
 
       if (isInitial) setLoading(false);
     };
@@ -340,6 +366,17 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
             <List size={14} />
             Punches ({rawDataRecords.length})
           </button>
+          <button
+            onClick={() => setActiveTab('responses')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition border-b-2 ${
+              activeTab === 'responses'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Radio size={14} />
+            Responses ({punchResponses.length})
+          </button>
         </div>
 
         {/* Content */}
@@ -437,7 +474,7 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                 </table>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'punches' ? (
             <div className="p-4 space-y-2">
               {rawDataRecords.length === 0 ? (
                 <p className="text-slate-500 text-sm text-center py-8">No punch records found.</p>
@@ -493,6 +530,64 @@ export function TeamDetailsModal({ team, launchedGameId, gameUniqid, onClose }: 
                           </table>
                         </div>
                       )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {punchResponses.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No responses recorded yet.</p>
+              ) : (
+                punchResponses.map((resp, i) => {
+                  const r = resp.result_json;
+                  const isOk = resp.status === 'ok';
+                  const isError = resp.status === 'error';
+                  const statusColor = isOk ? 'text-green-400 bg-green-900/40 border-green-700/50' : isError ? 'text-red-400 bg-red-900/40 border-red-700/50' : 'text-amber-400 bg-amber-900/40 border-amber-700/50';
+                  return (
+                    <div key={resp.id} className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="text-slate-500 text-xs">#{punchResponses.length - i}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${statusColor}`}>
+                            {resp.status.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                          {resp.chip_id != null && (
+                            <span className="text-slate-400 text-xs">chip #{resp.chip_id}</span>
+                          )}
+                          {r.completed_quest && (
+                            <span className="text-white text-xs font-medium">{r.completed_quest.name}</span>
+                          )}
+                          {r.end_station_reached && (
+                            <span className="px-1.5 py-0.5 bg-teal-900/50 border border-teal-700/50 rounded text-teal-400 text-xs">end station</span>
+                          )}
+                          {r.game_ended && (
+                            <span className="px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-slate-300 text-xs">game ended</span>
+                          )}
+                        </div>
+                        <span className="text-slate-500 text-xs shrink-0 ml-2">{formatCreatedAt(resp.punched_at)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {r.completed_quest && (
+                          <span className="text-blue-400">+{r.points_earned ?? r.completed_quest.points} pts</span>
+                        )}
+                        {(r.combo_bonus ?? 0) > 0 && (
+                          <span className="text-amber-400">+{r.combo_bonus} combo</span>
+                        )}
+                        {(r.malus_applied ?? 0) > 0 && (
+                          <span className="text-red-400">−{r.malus_applied} malus</span>
+                        )}
+                        {r.level_up && (
+                          <span className="text-yellow-400 font-semibold">Level up: {r.level_up.name}</span>
+                        )}
+                        {r.best_partial_quest && !r.completed_quest && (
+                          <span className="text-slate-400">{r.best_partial_quest.name}: {r.best_partial_quest.matched} match{r.best_partial_quest.matched !== 1 ? 'es' : ''}</span>
+                        )}
+                        {r.message && (
+                          <span className="text-slate-500 italic">{r.message}</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })

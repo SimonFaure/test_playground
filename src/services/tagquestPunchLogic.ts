@@ -61,6 +61,7 @@ export interface PunchAnimationData {
   newScore: number;
   newCombos: { combos6: number; combos4: number; combos2: number };
   newQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
+  gameOver?: boolean;
 }
 
 interface PunchResult {
@@ -709,6 +710,7 @@ export async function processTagQuestPunch(
       newScore,
       newCombos: afterCombos,
       newQuestDetails,
+      gameOver: gameEnded,
     };
 
     const result: PunchResult = {

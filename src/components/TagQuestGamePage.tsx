@@ -109,6 +109,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
   const [punchAnimation, setPunchAnimation] = useState<PunchAnimationData | null>(null);
+  const [gameOverTeamName, setGameOverTeamName] = useState<string | null>(null);
 
   const [animPhase, setAnimPhase] = useState<AnimPhase>('idle');
   const [animRevealedSlots, setAnimRevealedSlots] = useState(0);
@@ -207,10 +208,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     if (animPhase === 'exit') {
       animSet(() => {
         clearAnimInterval();
+        const wasGameOver = punchAnimation?.gameOver ?? false;
+        const teamName = punchAnimation?.teamName ?? '';
         setAnimPhase('idle');
         setAnimRevealedSlots(0);
         setAnimShowUpdated(false);
         setPunchAnimation(null);
+        if (wasGameOver) {
+          setGameOverTeamName(teamName);
+        }
       }, EXIT_MS);
     }
   }, [animPhase]);
@@ -1104,6 +1110,55 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             onDone={() => setPunchAnimation(null)}
           />
         )}
+
+        {gameOverTeamName && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.82)',
+              zIndex: 2000,
+              backdropFilter: 'blur(6px)',
+            }}
+            onClick={() => setGameOverTeamName(null)}
+          >
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 64px',
+              borderRadius: '20px',
+              background: 'rgba(15,23,42,0.9)',
+              border: '1px solid rgba(74,222,128,0.3)',
+              boxShadow: '0 0 60px rgba(74,222,128,0.15), 0 24px 48px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '12px' }}>🏁</div>
+              <div style={{
+                fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                fontWeight: 800,
+                color: '#4ade80',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+                marginBottom: '16px',
+              }}>
+                Game Over
+              </div>
+              <div style={{
+                fontSize: 'clamp(1.2rem, 3vw, 2rem)',
+                color: '#fff',
+                fontWeight: 600,
+                marginBottom: '8px',
+              }}>
+                Good game, {gameOverTeamName}!
+              </div>
+              <div style={{ marginTop: '32px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)' }}>
+                Tap to dismiss
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1248,6 +1303,21 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           data={punchAnimation}
           onDone={() => setPunchAnimation(null)}
         />
+      )}
+
+      {gameOverTeamName && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setGameOverTeamName(null)}
+        >
+          <div className="text-center px-16 py-12 rounded-2xl bg-slate-900/90 border border-green-500/30 shadow-2xl">
+            <div className="text-6xl mb-3">🏁</div>
+            <div className="text-5xl font-extrabold text-green-400 mb-4 tracking-tight">Game Over</div>
+            <div className="text-2xl font-semibold text-white">Good game, {gameOverTeamName}!</div>
+            <div className="mt-8 text-sm text-white/30">Tap to dismiss</div>
+          </div>
+        </div>
       )}
     </div>
   );

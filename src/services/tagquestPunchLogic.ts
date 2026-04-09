@@ -35,6 +35,34 @@ interface PatternItem {
   station_key_number: number;
 }
 
+export interface QuestImageSlot {
+  key: string;
+  src: string;
+  matched: boolean;
+}
+
+export interface DisplayQuest {
+  index: number;
+  name: string;
+  points: number;
+  main_image: string;
+  slots: QuestImageSlot[];
+  complete: boolean;
+  timesCompleted: number;
+  totalPointsForQuest: number;
+}
+
+export interface PunchAnimationData {
+  teamName: string;
+  prevScore: number;
+  prevCombos: { combos6: number; combos4: number; combos2: number };
+  prevQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
+  displayQuest: DisplayQuest | null;
+  newScore: number;
+  newCombos: { combos6: number; combos4: number; combos2: number };
+  newQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
+}
+
 interface PunchResult {
   team_name: string;
   team_id: number;
@@ -50,6 +78,7 @@ interface PunchResult {
   game_ended: boolean;
   status: 'ok' | 'chip_not_recognized' | 'team_already_finished' | 'cheat_detected' | 'error';
   message?: string;
+  animationData?: PunchAnimationData;
 }
 
 function getQuests(gdj: GameDataJson): GameQuest[] {
@@ -201,7 +230,8 @@ export async function processTagQuestPunch(
   launchedGameId: number,
   gameUniqid: string,
   playMode: 'solo' | 'team',
-  teamsConfig: Team[]
+  teamsConfig: Team[],
+  resolveMedia: (key: string) => string = () => ''
 ): Promise<PunchResult> {
   const errorResult = (message: string): PunchResult => ({
     team_name: '',
@@ -594,6 +624,93 @@ export async function processTagQuestPunch(
       }
     }
 
+    // Build animation data
+    const buildQuestDetails = (
+      rows: { quest_number: string; points_awarded: number }[]
+    ) => {
+      const map = new Map<string, { count: number; pts: number }>();
+      for (const r of rows) {
+        const existing = map.get(r.quest_number) ?? { count: 0, pts: 0 };
+        map.set(r.quest_number, { count: existing.count + 1, pts: existing.pts + (r.points_awarded ?? 0) });
+      }
+      return [...map.entries()].map(([qn, v]) => {
+        const idx = parseInt(qn, 10) - 1;
+        const q = quests[idx];
+        return { questIndex: idx, name: q?.name ?? qn, timesCompleted: v.count, totalPoints: v.pts };
+      });
+    };
+
+    const prevCompletedRows = (completedQuests || []).map(r => ({
+      quest_number: String(r.quest_number),
+      points_awarded: 0,
+    }));
+    const prevQuestDetails = buildQuestDetails(
+      (completedQuests || []).map(r => ({ quest_number: String(r.quest_number), points_awarded: 0 }))
+    );
+
+    const newQuestDetails = buildQuestDetails(
+      (allCompletedRows ?? []).map(r => ({ quest_number: String(r.quest_number), points_awarded: r.points_awarded ?? 0 }))
+    );
+
+    // Determine which quest to display (completed or best partial)
+    let displayQuest: PunchAnimationData['displayQuest'] = null;
+
+    const bestProgress = newCompletedQuest
+      ? questProgress.get(newCompletedQuest.index) ?? null
+      : bestPartial
+      ? questProgress.get(bestPartial.index) ?? null
+      : null;
+
+    const targetItemIndex = newCompletedQuest?.index ?? bestPartial?.index ?? null;
+
+    if (targetItemIndex !== null && bestProgress) {
+      const quest = bestProgress.quest;
+      const questSlots = patternItems.filter(pi => pi.item_index === targetItemIndex);
+      const imageKeys = ['image_1', 'image_2', 'image_3', 'image_4'] as const;
+      const slots: QuestImageSlot[] = questSlots.map((pi, slotIdx) => {
+        const imageKey = imageKeys[slotIdx] as string | undefined;
+        const rawKey = imageKey ? (quest[imageKey] as string | undefined) : undefined;
+        const src = rawKey ? resolveMedia(rawKey) : '';
+        return {
+          key: String(pi.station_key_number),
+          src,
+          matched: workingCodes.has(String(pi.station_key_number)),
+        };
+      });
+
+      const rawMainKey = quest.main_image;
+      const mainSrc = rawMainKey ? resolveMedia(rawMainKey) : '';
+
+      const rawPts = quest.points ?? 0;
+      const pts = typeof rawPts === 'string' ? parseInt(rawPts, 10) || 0 : rawPts;
+
+      const timesCompleted = (allCompletedRows ?? []).filter(r => r.quest_number === String(targetItemIndex)).length;
+
+      displayQuest = {
+        index: targetItemIndex,
+        name: quest.name,
+        points: pts,
+        main_image: mainSrc,
+        slots,
+        complete: newCompletedQuest?.index === targetItemIndex,
+        timesCompleted,
+        totalPointsForQuest: (allCompletedRows ?? [])
+          .filter(r => r.quest_number === String(targetItemIndex))
+          .reduce((s, r) => s + (r.points_awarded ?? 0), 0),
+      };
+    }
+
+    const animationData: PunchAnimationData = {
+      teamName: team.team_name,
+      prevScore: prevScore,
+      prevCombos: beforeCombos,
+      prevQuestDetails,
+      displayQuest,
+      newScore,
+      newCombos: afterCombos,
+      newQuestDetails,
+    };
+
     const result: PunchResult = {
       team_name: team.team_name,
       team_id: team.id,
@@ -608,6 +725,7 @@ export async function processTagQuestPunch(
       end_station_reached: endStationReached,
       game_ended: gameEnded,
       status: 'ok',
+      animationData,
     };
 
     console.log('[TagQuest] Punch processed:', JSON.stringify(result, null, 2));

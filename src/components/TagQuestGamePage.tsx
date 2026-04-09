@@ -6,6 +6,8 @@ import { CardDetectionAlert } from './CardDetectionAlert';
 import { supabase } from '../lib/db';
 import { useGameStatePolling } from '../hooks/useGameStatePolling';
 import { processTagQuestPunch } from '../services/tagquestPunchLogic';
+import type { PunchAnimationData } from '../services/tagquestPunchLogic';
+import { PunchAnimationOverlay } from './PunchAnimationOverlay';
 import { logApiCall } from '../services/apiLogger';
 
 interface TagQuestGamePageProps {
@@ -100,8 +102,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [playMode, setPlayMode] = useState<'solo' | 'team'>(config.playMode || 'solo');
   const [teamsConfig, setTeamsConfig] = useState<import('./LaunchGameModal').Team[]>(config.teams || []);
   const [punchLogs, setPunchLogs] = useState<Array<{ timestamp: Date; result: any }>>([]);
+  const [punchAnimation, setPunchAnimation] = useState<PunchAnimationData | null>(null);
   const bgImageRef = useRef<HTMLImageElement>(null);
   const gameDataRef = useRef<GameData | null>(null);
+  const mediaFilesRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     const loadGameData = async () => {
@@ -148,6 +152,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             }
 
             setMediaFiles(mediaMap);
+            mediaFilesRef.current = mediaMap;
             console.log('Loaded media files:', mediaMap);
           }
 
@@ -223,6 +228,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
 
           setMediaFiles(prev => ({ ...prev, ...mediaByFilename }));
 
+          mediaFilesRef.current = { ...mediaFilesRef.current, ...mediaByFilename };
           const bgEntry = mediaByFilename['fond-ecran-taille-ok.jpg'] || null;
 
           let layoutConfig: GameLayout | null = null;
@@ -458,6 +464,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
   };
 
+  const resolveMedia = useCallback((key: string): string => {
+    const m = mediaFilesRef.current;
+    return m[key] || m[key.replace(/^media\//, '')] || m[`media/${key}`] || '';
+  }, []);
+
   const handleCardPunchLogic = async (card: CardData) => {
     if (!launchedGameId) return;
 
@@ -466,7 +477,8 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       launchedGameId,
       gameUniqid,
       playMode,
-      teamsConfig
+      teamsConfig,
+      resolveMedia
     );
 
     await logApiCall({
@@ -481,7 +493,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     setPunchLogs(prev => [{ timestamp: new Date(), result }, ...prev].slice(0, 50));
 
     if (result.status === 'ok') {
-      if (result.game_ended) {
+      if (result.animationData) {
+        setPunchAnimation(result.animationData);
+      } else if (result.game_ended) {
         showMessage(`${result.team_name} — Game finished!`);
       } else if (result.completed_quest) {
         const mainMsg = `${result.team_name} — ${result.completed_quest.name} complete! +${result.completed_quest.points} pts${result.malus_applied > 0 ? ` (−${result.malus_applied} late malus)` : ''}`;
@@ -860,6 +874,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             show={showCardAlert}
           />
         {renderPunchLog()}
+        {punchAnimation && (
+          <PunchAnimationOverlay
+            data={punchAnimation}
+            onDone={() => setPunchAnimation(null)}
+          />
+        )}
       </div>
     );
   }
@@ -1000,6 +1020,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           show={showCardAlert}
         />
       {renderPunchLog()}
+      {punchAnimation && (
+        <PunchAnimationOverlay
+          data={punchAnimation}
+          onDone={() => setPunchAnimation(null)}
+        />
+      )}
     </div>
   );
 }

@@ -660,7 +660,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     switch (element.type) {
       case 'image':
         return (
-          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: 'none' }}>
+          <div key={`${element.id}-${index}`} style={{ ...wrapperStyle, display: isTimer ? 'block' : 'none' }}>
             <img
               src={imageSrc || ''}
               alt={element.id}

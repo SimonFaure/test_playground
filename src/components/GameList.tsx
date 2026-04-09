@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock, Search, Upload, Play, Trash2 } from 'lucide-react';
+import { Clock, Search, Upload, Play, Trash2, LogIn } from 'lucide-react';
 import { Footer } from './Footer';
 import { Alert } from './Alert';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -55,16 +55,64 @@ export function GameList() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scenarioToDelete, setScenarioToDelete] = useState<{ uniqid: string; title: string } | null>(null);
   const [localImages, setLocalImages] = useState<Map<string, string>>(new Map());
+  const [activeGames, setActiveGames] = useState<Map<string, { id: number; name: string; game_type: string; duration: number }>>(new Map());
 
   useEffect(() => {
     loadScenarios();
     loadLocalGames();
+    loadActiveGames();
   }, []);
 
   const loadLocalGames = async () => {
     const ids = await getLocalGameIds();
     setLocalGameIds(new Set(ids));
     await loadLocalImages(ids);
+  };
+
+  const loadActiveGames = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from('launched_games')
+      .select('id, game_uniqid, name, game_type, duration')
+      .eq('ended', false);
+    if (error || !data) return;
+    const map = new Map<string, { id: number; name: string; game_type: string; duration: number }>();
+    data.forEach(g => { if (g.game_uniqid) map.set(g.game_uniqid, { id: g.id, name: g.name, game_type: g.game_type, duration: g.duration }); });
+    setActiveGames(map);
+  };
+
+  const handleJoinGame = async (uniqid: string) => {
+    const active = activeGames.get(uniqid);
+    if (!active || !supabase) return;
+
+    const { data: metaRows } = await supabase
+      .from('launched_game_meta')
+      .select('meta_name, meta_value')
+      .eq('launched_game_id', active.id);
+
+    const meta: Record<string, string> = {};
+    (metaRows || []).forEach(r => { meta[r.meta_name] = r.meta_value; });
+
+    const config: GameConfig = {
+      name: active.name,
+      numberOfTeams: 0,
+      firstChipIndex: parseInt(meta.firstChipIndex ?? '1'),
+      pattern: meta.pattern ?? '',
+      duration: active.duration,
+      messageDisplayDuration: parseInt(meta.messageDisplayDuration ?? '5'),
+      enigmaImageDisplayDuration: parseInt(meta.enigmaImageDisplayDuration ?? '5'),
+      colorblindMode: meta.colorblindMode === 'true',
+      autoResetTeam: meta.autoResetTeam === 'true',
+      delayBeforeReset: parseInt(meta.delayBeforeReset ?? '3'),
+      victoryType: (meta.victoryType as GameConfig['victoryType']) ?? undefined,
+      playMode: (meta.playMode as GameConfig['playMode']) ?? undefined,
+      teammatesPerTeam: meta.teammatesPerTeam ? parseInt(meta.teammatesPerTeam) : undefined,
+      testMode: meta.testMode === 'true' ? true : undefined,
+      usbPort: meta.usbPort ?? undefined,
+      teams: meta.teamsConfig ? JSON.parse(meta.teamsConfig) : undefined,
+    };
+
+    setLaunchedGame({ config, uniqid, launchedGameId: active.id });
   };
 
   const loadLocalImages = async (gameIds: string[]) => {
@@ -548,6 +596,7 @@ export function GameList() {
     const localImageUrl = scenario.uniqid ? localImages.get(scenario.uniqid) : null;
     const displayImageUrl = localImageUrl || scenario.image_url;
     const isAvailableForPurchase = scenario.available_for_purchase;
+    const activeGame = scenario.uniqid ? activeGames.get(scenario.uniqid) : undefined;
 
     return (
       <div
@@ -598,7 +647,16 @@ export function GameList() {
                   <Trash2 size={16} />
                 </button>
               )}
-              {!isAvailableForPurchase && scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
+              {!isAvailableForPurchase && scenario.uniqid && activeGame ? (
+                <button
+                  onClick={() => handleJoinGame(scenario.uniqid || '')}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition font-medium text-sm"
+                  title={`Join active game: ${activeGame.name}`}
+                >
+                  <LogIn size={16} />
+                  <span>Join</span>
+                </button>
+              ) : !isAvailableForPurchase && scenario.uniqid && (localGameIds.size === 0 || localGameIds.has(scenario.uniqid)) ? (
                 <button
                   onClick={() => handleLaunchGame(scenario.uniqid || '', scenario.title, scenario.game_type.name)}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition font-medium text-sm"

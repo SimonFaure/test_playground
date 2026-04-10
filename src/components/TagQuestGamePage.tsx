@@ -947,25 +947,25 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           showElement = true;
           displayText = isAnimating ? animDisplayedScore : lastKnownScore;
         } else if (isQuestName && questIndexForElement >= 0) {
-          showElement = true;
+          showElement = isAnimating && questIndexForElement === activeQuestIndex;
           const quest = gameData?.quests?.[questIndexForElement];
           displayText = quest?.name ?? '';
         } else if (isQuestPoints && questIndexForElement >= 0) {
-          showElement = true;
+          showElement = isAnimating && questIndexForElement === activeQuestIndex;
           const details = isAnimating
             ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
             : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `${qd.totalPoints} pts` : '0 pts';
         } else if (isQuestMultiplicator && questIndexForElement >= 0) {
-          showElement = true;
+          showElement = isAnimating && questIndexForElement === activeQuestIndex;
           const details = isAnimating
             ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
             : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `x${qd.timesCompleted}` : 'x0';
         } else if (isMultiplicator) {
-          showElement = true;
+          showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
           const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
           displayText = `x${totalCombos}`;

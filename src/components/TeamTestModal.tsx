@@ -79,6 +79,7 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [gameUniqid, setGameUniqid] = useState<string | null>(null);
   const [endChip, setEndChip] = useState(false);
+  const [keepAnimVisible, setKeepAnimVisible] = useState(() => localStorage.getItem('tagquest_keep_anim_visible') === '1');
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<TeamMember>(team);
@@ -821,6 +822,21 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                     {endChip && <CheckCircle size={10} className="text-slate-900" />}
                   </button>
                   <span className="text-sm text-slate-300">End chip</span>
+                </label>
+
+                <label className="mt-2 flex items-center gap-2.5 cursor-pointer select-none">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !keepAnimVisible;
+                      setKeepAnimVisible(next);
+                      localStorage.setItem('tagquest_keep_anim_visible', next ? '1' : '0');
+                    }}
+                    className={`flex items-center justify-center w-4 h-4 rounded border transition ${keepAnimVisible ? 'bg-amber-500 border-amber-500' : 'bg-transparent border-slate-500'}`}
+                  >
+                    {keepAnimVisible && <CheckCircle size={10} className="text-slate-900" />}
+                  </button>
+                  <span className="text-sm text-slate-300">Keep animation visible for 10s after completion</span>
                 </label>
               </div>
             ) : (

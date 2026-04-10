@@ -92,7 +92,10 @@ interface GameLayout {
   height?: number;
 }
 
-export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd, postAnimExitDelayMs = 0 }: TagQuestGamePageProps) {
+export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd, postAnimExitDelayMs: postAnimExitDelayMsProp = 0 }: TagQuestGamePageProps) {
+  const postAnimExitDelayMs = postAnimExitDelayMsProp > 0
+    ? postAnimExitDelayMsProp
+    : localStorage.getItem('tagquest_keep_anim_visible') === '1' ? 10000 : 0;
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [layout, setLayout] = useState<GameLayout | null>(null);
   const [layoutLoading, setLayoutLoading] = useState(true);

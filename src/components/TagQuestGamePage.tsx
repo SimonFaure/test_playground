@@ -792,7 +792,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         return mediaFiles[key] || mediaFiles[key.replace(/^media\//, '')] || mediaFiles[`media/${key}`] || '';
       };
 
-      return quests.flatMap((quest, questIndex) => {
+      return quests.map((quest, questIndex) => {
         const questNum = questIndex + 1;
         const mainSrc = resolveMedia(quest.main_image);
         const isActiveQuest = isAnimating && activeQuestIndex === questIndex;
@@ -800,101 +800,102 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         const showMain = isActiveQuest && (animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
         const showSubImages = isActiveQuest && (animPhase === 'images' || animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
 
-        return [
+        return (
           <div
-            key={`quest-${questNum}-wrapper`}
-            id={`quest-${questNum}-wrapper`}
-            style={{ ...wrapperStyle, display: isActiveQuest ? 'block' : 'none', position: 'relative' }}
+            key={`quest-${questNum}-outer`}
+            id={`quest-${questNum}-outer`}
+            style={{ ...wrapperStyle, display: isActiveQuest ? (wrapperStyle.display ?? 'flex') : 'none', flexDirection: 'column' }}
           >
-            {showMain && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  border: '2px solid rgba(74,222,128,0.6)',
-                  boxShadow: '0 0 32px rgba(74,222,128,0.3)',
-                  opacity: showMain ? 1 : 0,
-                  transition: 'opacity 0.5s ease',
-                }}
-              >
-                <img src={mainSrc} alt={quest.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)' }}>
-                  <div style={{ background: 'rgba(74,222,128,0.9)', borderRadius: '50%', width: '20%', height: 'auto', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
+            <div
+              id={`quest-${questNum}-wrapper`}
+              style={{ position: 'relative', flex: 1, minHeight: 0 }}
+            >
+              {showMain && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '2px solid rgba(74,222,128,0.6)',
+                    boxShadow: '0 0 32px rgba(74,222,128,0.3)',
+                    opacity: showMain ? 1 : 0,
+                    transition: 'opacity 0.5s ease',
+                  }}
+                >
+                  <img src={mainSrc} alt={quest.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)' }}>
+                    <div style={{ background: 'rgba(74,222,128,0.9)', borderRadius: '50%', width: '20%', height: 'auto', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            {showSubImages && !showMain && slots.length > 0 && (
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: slots.length <= 2 ? `repeat(${slots.length}, 1fr)` : 'repeat(2, 1fr)', gap: '4px' }}>
-                {slots.map((slot, si) => {
-                  const revealed = si < animRevealedSlots;
-                  return (
-                    <div
-                      key={slot.key}
-                      style={{
-                        position: 'relative',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        border: revealed
-                          ? slot.matched ? '2px solid rgba(74,222,128,0.8)' : '2px solid rgba(248,113,113,0.8)'
-                          : '2px solid rgba(255,255,255,0.08)',
-                        background: '#0f172a',
-                        opacity: revealed ? 1 : 0.15,
-                        transform: revealed ? 'scale(1)' : 'scale(0.92)',
-                        transition: 'opacity 0.35s ease, transform 0.35s ease, border-color 0.3s ease',
-                      }}
-                    >
-                      {slot.src ? (
-                        <img src={slot.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: revealed && !slot.matched ? 'grayscale(60%) brightness(0.5)' : 'none', transition: 'filter 0.3s ease' }} />
-                      ) : (
-                        <div style={{ width: '100%', paddingBottom: '100%', background: 'rgba(255,255,255,0.05)' }} />
-                      )}
-                      {revealed && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: slot.matched ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.18)' }}>
-                          <div style={{ background: slot.matched ? 'rgba(74,222,128,0.85)' : 'rgba(248,113,113,0.85)', borderRadius: '50%', width: '30%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
-                            {slot.matched
-                              ? <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
-                              : <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                            }
+              )}
+              {showSubImages && !showMain && slots.length > 0 && (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: slots.length <= 2 ? `repeat(${slots.length}, 1fr)` : 'repeat(2, 1fr)', gap: '4px' }}>
+                  {slots.map((slot, si) => {
+                    const revealed = si < animRevealedSlots;
+                    return (
+                      <div
+                        key={slot.key}
+                        style={{
+                          position: 'relative',
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          border: revealed
+                            ? slot.matched ? '2px solid rgba(74,222,128,0.8)' : '2px solid rgba(248,113,113,0.8)'
+                            : '2px solid rgba(255,255,255,0.08)',
+                          background: '#0f172a',
+                          opacity: revealed ? 1 : 0.15,
+                          transform: revealed ? 'scale(1)' : 'scale(0.92)',
+                          transition: 'opacity 0.35s ease, transform 0.35s ease, border-color 0.3s ease',
+                        }}
+                      >
+                        {slot.src ? (
+                          <img src={slot.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: revealed && !slot.matched ? 'grayscale(60%) brightness(0.5)' : 'none', transition: 'filter 0.3s ease' }} />
+                        ) : (
+                          <div style={{ width: '100%', paddingBottom: '100%', background: 'rgba(255,255,255,0.05)' }} />
+                        )}
+                        {revealed && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: slot.matched ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.18)' }}>
+                            <div style={{ background: slot.matched ? 'rgba(74,222,128,0.85)' : 'rgba(248,113,113,0.85)', borderRadius: '50%', width: '30%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                              {slot.matched
+                                ? <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><polyline points="20 6 9 17 4 12" /></svg>
+                                : <svg viewBox="0 0 24 24" style={{ width: '60%', stroke: '#fff', fill: 'none', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' }}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                              }
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>,
-          <div
-            key={`quest-${questNum}-title`}
-            className="quest_title"
-            style={{
-              position: 'absolute',
-              left: wrapperStyle.left,
-              top: element.y !== undefined && element.height !== undefined
-                ? `${((element.y + element.height) / 100) * bgDimensions.height + 4}px`
-                : wrapperStyle.top,
-              width: wrapperStyle.width,
-              display: isActiveQuest ? 'flex' : 'none',
-              color: element.color || '#fff',
-              fontFamily: element.fontFamily,
-              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * (element.height !== undefined ? (element.height / 100) * bgDimensions.height : bgDimensions.height)}px` : '1em',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              lineHeight: 1.2,
-              textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-            }}
-          >
-            {quest.name}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div
+              key={`quest-${questNum}-title`}
+              className="quest_title"
+              style={{
+                width: '100%',
+                display: 'flex',
+                color: element.color || '#fff',
+                fontFamily: element.fontFamily,
+                fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * (element.height !== undefined ? (element.height / 100) * bgDimensions.height : bgDimensions.height)}px` : '1em',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                lineHeight: 1.2,
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                flexShrink: 0,
+              }}
+            >
+              {quest.name}
+            </div>
           </div>
-        ];
+        );
       });
     }
 

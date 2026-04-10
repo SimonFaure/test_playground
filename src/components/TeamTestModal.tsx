@@ -84,6 +84,8 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
   const [selectedTeam, setSelectedTeam] = useState<TeamMember>(team);
   const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
   const [teamSearch, setTeamSearch] = useState('');
+  const [delayedReset, setDelayedReset] = useState(false);
+  const [resetCountdown, setResetCountdown] = useState<number | null>(null);
 
 
   const totalPercent = testConfig.goodAnswerPercent + testConfig.badAnswerPercent + testConfig.noAnswerPercent;
@@ -190,6 +192,24 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
   const appendLog = (msg: string) => {
     setTestLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const finishTest = (result: TestResult, shouldDelayReset: boolean) => {
+    setTestResult(result);
+    if (shouldDelayReset) {
+      let remaining = 10;
+      setResetCountdown(remaining);
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setResetCountdown(null);
+          onClose();
+        } else {
+          setResetCountdown(remaining);
+        }
+      }, 1000);
+    }
   };
 
   const toggleImage = (key: string, quest: Quest) => {
@@ -405,18 +425,18 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
           if (endErr) {
             appendLog(`  Error: ${endErr.message}`);
-            setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
+            finishTest({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message }, delayedReset);
           } else {
             const duration = endTime - startTime;
             const mins = Math.floor(duration / 60);
             const secs = duration % 60;
             const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
             appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-            setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+            finishTest({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` }, delayedReset);
           }
         } else {
           appendLog(`  Card sent (no end punch) — punch logic will process this card`);
-          setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'success', message: `Card sent — no end punch` });
+          finishTest({ teamName: selectedTeam.team_name, score: 0, status: 'success', message: `Card sent — no end punch` }, delayedReset);
         }
 
         appendLog('Simulation complete.');
@@ -501,14 +521,14 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
 
       if (endErr) {
         appendLog(`  Error: ${endErr.message}`);
-        setTestResult({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message });
+        finishTest({ teamName: selectedTeam.team_name, score: 0, status: 'error', message: endErr.message }, delayedReset);
       } else {
         const duration = endTime - startTime;
         const mins = Math.floor(duration / 60);
         const secs = duration % 60;
         const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
         appendLog(`  Done — Score: ${totalScore}, Time: ${timeStr}`);
-        setTestResult({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` });
+        finishTest({ teamName: selectedTeam.team_name, score: totalScore, status: 'success', message: `Score: ${totalScore} — Time: ${timeStr}` }, delayedReset);
       }
 
       appendLog('Simulation complete.');
@@ -889,6 +909,17 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
               </div>
             )}
 
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <button
+                type="button"
+                onClick={() => setDelayedReset(v => !v)}
+                className={`flex items-center justify-center w-4 h-4 rounded border transition ${delayedReset ? 'bg-amber-500 border-amber-500' : 'bg-transparent border-slate-500'}`}
+              >
+                {delayedReset && <CheckCircle size={10} className="text-slate-900" />}
+              </button>
+              <span className="text-sm text-slate-300">Auto-close after 10 seconds</span>
+            </label>
+
             <button
               onClick={runTest}
               disabled={testRunning || (gameType?.toLowerCase() !== 'tagquest' && totalPercent !== 100)}
@@ -940,6 +971,11 @@ export function TeamTestModal({ gameId, gameName, team, onClose }: TeamTestModal
                 <p className="text-slate-400 text-xs">{testResult.message}</p>
               </div>
             </div>
+            {resetCountdown !== null && (
+              <p className="mt-2 text-xs text-slate-400 text-right">
+                Closing in <span className="text-amber-400 font-semibold">{resetCountdown}s</span>…
+              </p>
+            )}
           </div>
         )}
       </div>

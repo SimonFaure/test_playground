@@ -952,14 +952,14 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           const quest = gameData?.quests?.[questIndexForElement];
           displayText = quest?.name ?? '';
         } else if (isQuestPoints && questIndexForElement >= 0) {
-          showElement = isAnimating && questIndexForElement === activeQuestIndex;
+          showElement = true;
           const details = isAnimating
             ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
             : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `${qd.totalPoints} pts` : '0 pts';
         } else if (isQuestMultiplicator && questIndexForElement >= 0) {
-          showElement = isAnimating && questIndexForElement === activeQuestIndex;
+          showElement = true;
           const details = isAnimating
             ? (animShowUpdated ? (punchAnimation?.newQuestDetails ?? []) : (punchAnimation?.prevQuestDetails ?? []))
             : lastKnownQuestDetails;

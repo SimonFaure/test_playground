@@ -117,10 +117,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [animDisplayedScore, setAnimDisplayedScore] = useState(0);
   const [animDisplayedCombos, setAnimDisplayedCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
   const [animDisplayedMalus, setAnimDisplayedMalus] = useState(0);
+  const [animDisplayedLateMalus, setAnimDisplayedLateMalus] = useState(0);
   const [lastKnownScore, setLastKnownScore] = useState(0);
   const [lastKnownQuestDetails, setLastKnownQuestDetails] = useState<PunchAnimationData['newQuestDetails']>([]);
   const [lastKnownCombos, setLastKnownCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
   const [lastKnownMalus, setLastKnownMalus] = useState(0);
+  const [lastKnownLateMalus, setLastKnownLateMalus] = useState(0);
   const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -175,12 +177,15 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       const toCombos = punchAnimation.newCombos;
       const fromMalus = punchAnimation.prevMalus ?? 0;
       const toMalus = punchAnimation.newMalus ?? 0;
+      const fromLateMalus = punchAnimation.prevLateMalus ?? 0;
+      const toLateMalus = punchAnimation.newLateMalus ?? 0;
 
       setAnimDisplayedScore(fromScore);
       setAnimDisplayedCombos(fromCombos);
       setAnimDisplayedMalus(fromMalus);
+      setAnimDisplayedLateMalus(fromLateMalus);
 
-      if (toScore !== fromScore || toMalus !== fromMalus) {
+      if (toScore !== fromScore || toMalus !== fromMalus || toLateMalus !== fromLateMalus) {
         const steps = 20;
         const stepMs = Math.floor(900 / steps);
         let step = 0;
@@ -196,11 +201,13 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             combos2: Math.round(fromCombos.combos2 + (toCombos.combos2 - fromCombos.combos2) * eased),
           });
           setAnimDisplayedMalus(Math.round(fromMalus + (toMalus - fromMalus) * eased));
+          setAnimDisplayedLateMalus(Math.round(fromLateMalus + (toLateMalus - fromLateMalus) * eased));
           if (step >= steps) {
             clearAnimInterval();
             setAnimDisplayedScore(toScore);
             setAnimDisplayedCombos(toCombos);
             setAnimDisplayedMalus(toMalus);
+            setAnimDisplayedLateMalus(toLateMalus);
             setAnimShowUpdated(true);
           }
         }, stepMs);
@@ -208,6 +215,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         setAnimDisplayedScore(toScore);
         setAnimDisplayedCombos(toCombos);
         setAnimDisplayedMalus(toMalus);
+        setAnimDisplayedLateMalus(toLateMalus);
         setAnimShowUpdated(true);
       }
 
@@ -226,6 +234,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           setLastKnownQuestDetails(punchAnimation.newQuestDetails);
           setLastKnownCombos(punchAnimation.newCombos);
           setLastKnownMalus(punchAnimation.newMalus ?? 0);
+          setLastKnownLateMalus(punchAnimation.newLateMalus ?? 0);
           if (punchAnimation.endTimeToCommit != null && punchAnimation.teamId != null) {
             await supabase.from('teams').update({ end_time: punchAnimation.endTimeToCommit, score: punchAnimation.newScore }).eq('id', punchAnimation.teamId);
           }
@@ -255,6 +264,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       setAnimDisplayedScore(punchAnimation.prevScore);
       setAnimDisplayedCombos(punchAnimation.prevCombos);
       setAnimDisplayedMalus(punchAnimation.prevMalus ?? 0);
+      setAnimDisplayedLateMalus(punchAnimation.prevLateMalus ?? 0);
       setAnimPhase('enter');
     }
   }, [punchAnimation]);
@@ -931,14 +941,16 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
 
     const elementId = element.id?.toLowerCase() ?? '';
+    const isTitle = elementId.includes('_title') || elementId.includes('_label') || elementId.endsWith('title') || elementId.endsWith('label');
     const isQuestPoints = /quest_\d+_points/.test(elementId);
     const isQuestMultiplicator = /quest_\d+_multiplicat/.test(elementId);
     const isQuestName = /quest_\d+_name/.test(elementId);
-    const isCombo6 = !isQuestMultiplicator && (elementId.includes('combo_6') || elementId.includes('combo6'));
-    const isCombo4 = !isQuestMultiplicator && (elementId.includes('combo_4') || elementId.includes('combo4'));
-    const isCombo2 = !isQuestMultiplicator && (elementId.includes('combo_2') || elementId.includes('combo2'));
-    const isMultiplicator = !isQuestMultiplicator && !isCombo6 && !isCombo4 && !isCombo2 && elementId.includes('multiplicat');
-    const isMalus = elementId.includes('malus') || elementId.includes('late_malus');
+    const isCombo6 = !isTitle && !isQuestMultiplicator && (elementId.includes('combo_6') || elementId.includes('combo6'));
+    const isCombo4 = !isTitle && !isQuestMultiplicator && (elementId.includes('combo_4') || elementId.includes('combo4'));
+    const isCombo2 = !isTitle && !isQuestMultiplicator && (elementId.includes('combo_2') || elementId.includes('combo2'));
+    const isMultiplicator = !isTitle && !isQuestMultiplicator && !isCombo6 && !isCombo4 && !isCombo2 && elementId.includes('multiplicat');
+    const isLateMalus = !isTitle && elementId.includes('late_malus');
+    const isMalus = !isTitle && !isLateMalus && elementId.includes('malus');
     const isTotalScore = elementId.includes('total_score') || elementId === 'score';
     const isTeamName = elementId === 'team_name_text';
     const isTimer = elementId.includes('timer') || elementId.includes('countdown');
@@ -1005,20 +1017,26 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         } else if (isCombo6) {
           showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
-          displayText = `x${combos.combos6}`;
+          const cp = punchAnimation?.comboPoints ?? { pts6: 0, pts4: 0, pts2: 0 };
+          displayText = `${combos.combos6 * cp.pts6}`;
         } else if (isCombo4) {
           showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
-          displayText = `x${combos.combos4}`;
+          const cp = punchAnimation?.comboPoints ?? { pts6: 0, pts4: 0, pts2: 0 };
+          displayText = `${combos.combos4 * cp.pts4}`;
         } else if (isCombo2) {
           showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
-          displayText = `x${combos.combos2}`;
+          const cp = punchAnimation?.comboPoints ?? { pts6: 0, pts4: 0, pts2: 0 };
+          displayText = `${combos.combos2 * cp.pts2}`;
         } else if (isMultiplicator) {
           showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
           const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
           displayText = `x${totalCombos}`;
+        } else if (isLateMalus) {
+          showElement = isAnimating;
+          displayText = isAnimating ? `-${animDisplayedLateMalus}` : `-${lastKnownLateMalus}`;
         } else if (isMalus) {
           showElement = isAnimating;
           displayText = isAnimating ? `-${animDisplayedMalus}` : `-${lastKnownMalus}`;

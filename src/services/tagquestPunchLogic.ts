@@ -58,11 +58,14 @@ export interface PunchAnimationData {
   prevCombos: { combos6: number; combos4: number; combos2: number };
   prevQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
   prevMalus: number;
+  prevLateMalus: number;
+  comboPoints: { pts6: number; pts4: number; pts2: number };
   displayQuest: DisplayQuest | null;
   newScore: number;
   newCombos: { combos6: number; combos4: number; combos2: number };
   newQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
   newMalus: number;
+  newLateMalus: number;
   gameOver?: boolean;
   endTimeToCommit?: number;
   teamId?: number;
@@ -716,12 +719,15 @@ export async function processTagQuestPunch(
       prevScore: prevScore,
       prevCombos: beforeCombos,
       prevQuestDetails,
-      prevMalus,
+      prevMalus: 0,
+      prevLateMalus: prevMalus,
+      comboPoints: { pts6, pts4, pts2 },
       displayQuest,
       newScore,
       newCombos: afterCombos,
       newQuestDetails,
-      newMalus: malusApplied,
+      newMalus: 0,
+      newLateMalus: malusApplied,
       gameOver: gameEnded,
       endTimeToCommit,
       teamId: team.id,

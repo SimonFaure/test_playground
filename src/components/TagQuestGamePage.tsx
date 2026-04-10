@@ -1048,6 +1048,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           showElement = isAnimating;
           displayText = isAnimating ? `-${animDisplayedMalus}` : `-${lastKnownMalus}`;
         } else {
+          showElement = true;
           displayText = element.text ?? element.previewText;
         }
 

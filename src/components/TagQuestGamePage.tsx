@@ -884,7 +884,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               display: isActiveQuest ? 'flex' : 'none',
               color: element.color || '#fff',
               fontFamily: element.fontFamily,
-              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : '1em',
+              fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * (element.height !== undefined ? (element.height / 100) * bgDimensions.height : bgDimensions.height)}px` : '1em',
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
@@ -902,9 +902,12 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     const isMultiplicator = elementId.includes('multiplicat');
     const isQuestPoints = /quest_\d+_points/.test(elementId);
     const isQuestMultiplicator = /quest_\d+_multiplicat/.test(elementId);
+    const isQuestName = /quest_\d+_name/.test(elementId);
     const isTotalScore = elementId.includes('total_score') || elementId === 'score';
     const isTeamName = elementId === 'team_name_text';
     const isTimer = elementId.includes('timer') || elementId.includes('countdown');
+
+    const elementHeightPx = element.height !== undefined ? (element.height / 100) * bgDimensions.height : bgDimensions.height;
 
     const questIndexForElement = (() => {
       const m = elementId.match(/quest_(\d+)_/);
@@ -943,6 +946,10 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         } else if (isTotalScore) {
           showElement = true;
           displayText = isAnimating ? animDisplayedScore : lastKnownScore;
+        } else if (isQuestName && questIndexForElement >= 0) {
+          showElement = true;
+          const quest = gameData?.quests?.[questIndexForElement];
+          displayText = quest?.name ?? '';
         } else if (isQuestPoints && questIndexForElement >= 0) {
           showElement = true;
           const details = isAnimating
@@ -972,7 +979,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               style={{
                 width: '100%',
                 height: '100%',
-                fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * bgDimensions.height}px` : undefined,
+                fontSize: element.fontSize !== undefined ? `${(element.fontSize / 100) * elementHeightPx}px` : undefined,
                 color: element.color,
                 fontFamily: element.fontFamily,
                 display: 'flex',

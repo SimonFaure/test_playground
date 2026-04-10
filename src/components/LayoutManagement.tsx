@@ -25,6 +25,8 @@ export function LayoutManagement() {
   const [error, setError] = useState<string | null>(null);
   const [deletingGameType, setDeletingGameType] = useState<string | null>(null);
   const [confirmDeleteGameType, setConfirmDeleteGameType] = useState<string | null>(null);
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<LayoutFile | null>(null);
+  const [deletingFilePath, setDeletingFilePath] = useState<string | null>(null);
   const [viewState, setViewState] = useState<ViewState | null>(null);
 
   useEffect(() => {
@@ -54,6 +56,23 @@ export function LayoutManagement() {
       setError('Failed to delete folder');
     } finally {
       setDeletingGameType(null);
+    }
+  };
+
+  const deleteFile = async (file: LayoutFile) => {
+    setDeletingFilePath(file.path);
+    setConfirmDeleteFile(null);
+    try {
+      const { error: deleteError } = await supabase.storage
+        .from('resources')
+        .remove([file.path]);
+      if (deleteError) throw deleteError;
+      setLayouts(prev => prev.filter(l => l.path !== file.path));
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setError('Failed to delete file');
+    } finally {
+      setDeletingFilePath(null);
     }
   };
 
@@ -162,6 +181,31 @@ export function LayoutManagement() {
         </div>
       )}
 
+      {confirmDeleteFile && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-100 mb-2">Delete Layout File</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Are you sure you want to delete <span className="text-slate-200 font-medium">{confirmDeleteFile.name}</span>? This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDeleteFile(null)}
+                className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-slate-100 hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteFile(confirmDeleteFile)}
+                className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <FileContentModal
         isOpen={!!viewState}
         onClose={() => setViewState(null)}
@@ -204,24 +248,39 @@ export function LayoutManagement() {
               </div>
               <div className="divide-y divide-slate-600/50">
                 {files.map((file) => (
-                  <button
+                  <div
                     key={file.path}
-                    onClick={() => openFile(file.path, file.name)}
-                    className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-slate-700/40 transition-colors text-left"
+                    className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-700/40 transition-colors group"
                   >
-                    <FileJson className="w-4 h-4 text-blue-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-200 truncate text-sm">{file.name}</p>
-                      {file.updatedAt && (
-                        <p className="text-xs text-slate-500">
-                          Updated {new Date(file.updatedAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => openFile(file.path, file.name)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                    >
+                      <FileJson className="w-4 h-4 text-blue-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-200 truncate text-sm">{file.name}</p>
+                        {file.updatedAt && (
+                          <p className="text-xs text-slate-500">
+                            Updated {new Date(file.updatedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </button>
                     {file.size && (
                       <span className="text-xs text-slate-500 shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
                     )}
-                  </button>
+                    <button
+                      onClick={() => setConfirmDeleteFile(file)}
+                      disabled={deletingFilePath === file.path}
+                      className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                      title="Delete file"
+                    >
+                      {deletingFilePath === file.path
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />
+                      }
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>

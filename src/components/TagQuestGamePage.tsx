@@ -116,9 +116,11 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   const [animShowUpdated, setAnimShowUpdated] = useState(false);
   const [animDisplayedScore, setAnimDisplayedScore] = useState(0);
   const [animDisplayedCombos, setAnimDisplayedCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
+  const [animDisplayedMalus, setAnimDisplayedMalus] = useState(0);
   const [lastKnownScore, setLastKnownScore] = useState(0);
   const [lastKnownQuestDetails, setLastKnownQuestDetails] = useState<PunchAnimationData['newQuestDetails']>([]);
   const [lastKnownCombos, setLastKnownCombos] = useState({ combos6: 0, combos4: 0, combos2: 0 });
+  const [lastKnownMalus, setLastKnownMalus] = useState(0);
   const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -171,11 +173,14 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       const toScore = punchAnimation.newScore;
       const fromCombos = punchAnimation.prevCombos;
       const toCombos = punchAnimation.newCombos;
+      const fromMalus = punchAnimation.prevMalus ?? 0;
+      const toMalus = punchAnimation.newMalus ?? 0;
 
       setAnimDisplayedScore(fromScore);
       setAnimDisplayedCombos(fromCombos);
+      setAnimDisplayedMalus(fromMalus);
 
-      if (toScore !== fromScore) {
+      if (toScore !== fromScore || toMalus !== fromMalus) {
         const steps = 20;
         const stepMs = Math.floor(900 / steps);
         let step = 0;
@@ -190,16 +195,19 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             combos4: Math.round(fromCombos.combos4 + (toCombos.combos4 - fromCombos.combos4) * eased),
             combos2: Math.round(fromCombos.combos2 + (toCombos.combos2 - fromCombos.combos2) * eased),
           });
+          setAnimDisplayedMalus(Math.round(fromMalus + (toMalus - fromMalus) * eased));
           if (step >= steps) {
             clearAnimInterval();
             setAnimDisplayedScore(toScore);
             setAnimDisplayedCombos(toCombos);
+            setAnimDisplayedMalus(toMalus);
             setAnimShowUpdated(true);
           }
         }, stepMs);
       } else {
         setAnimDisplayedScore(toScore);
         setAnimDisplayedCombos(toCombos);
+        setAnimDisplayedMalus(toMalus);
         setAnimShowUpdated(true);
       }
 
@@ -217,6 +225,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
           setLastKnownScore(punchAnimation.newScore);
           setLastKnownQuestDetails(punchAnimation.newQuestDetails);
           setLastKnownCombos(punchAnimation.newCombos);
+          setLastKnownMalus(punchAnimation.newMalus ?? 0);
           if (punchAnimation.endTimeToCommit != null && punchAnimation.teamId != null) {
             await supabase.from('teams').update({ end_time: punchAnimation.endTimeToCommit, score: punchAnimation.newScore }).eq('id', punchAnimation.teamId);
           }
@@ -245,6 +254,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
       setAnimShowUpdated(false);
       setAnimDisplayedScore(punchAnimation.prevScore);
       setAnimDisplayedCombos(punchAnimation.prevCombos);
+      setAnimDisplayedMalus(punchAnimation.prevMalus ?? 0);
       setAnimPhase('enter');
     }
   }, [punchAnimation]);
@@ -900,10 +910,14 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
 
     const elementId = element.id?.toLowerCase() ?? '';
-    const isMultiplicator = elementId.includes('multiplicat');
     const isQuestPoints = /quest_\d+_points/.test(elementId);
     const isQuestMultiplicator = /quest_\d+_multiplicat/.test(elementId);
     const isQuestName = /quest_\d+_name/.test(elementId);
+    const isCombo6 = !isQuestMultiplicator && (elementId.includes('combo_6') || elementId.includes('combo6'));
+    const isCombo4 = !isQuestMultiplicator && (elementId.includes('combo_4') || elementId.includes('combo4'));
+    const isCombo2 = !isQuestMultiplicator && (elementId.includes('combo_2') || elementId.includes('combo2'));
+    const isMultiplicator = !isQuestMultiplicator && !isCombo6 && !isCombo4 && !isCombo2 && elementId.includes('multiplicat');
+    const isMalus = elementId.includes('malus') || elementId.includes('late_malus');
     const isTotalScore = elementId.includes('total_score') || elementId === 'score';
     const isTeamName = elementId === 'team_name_text';
     const isTimer = elementId.includes('timer') || elementId.includes('countdown');
@@ -967,11 +981,26 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
             : lastKnownQuestDetails;
           const qd = getQuestDetail(details, questIndexForElement);
           displayText = qd ? `x${qd.timesCompleted}` : 'x0';
+        } else if (isCombo6) {
+          showElement = isAnimating;
+          const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
+          displayText = `x${combos.combos6}`;
+        } else if (isCombo4) {
+          showElement = isAnimating;
+          const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
+          displayText = `x${combos.combos4}`;
+        } else if (isCombo2) {
+          showElement = isAnimating;
+          const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
+          displayText = `x${combos.combos2}`;
         } else if (isMultiplicator) {
           showElement = isAnimating;
           const combos = isAnimating ? animDisplayedCombos : lastKnownCombos;
           const totalCombos = combos.combos6 + combos.combos4 + combos.combos2;
           displayText = `x${totalCombos}`;
+        } else if (isMalus) {
+          showElement = isAnimating;
+          displayText = isAnimating ? `-${animDisplayedMalus}` : `-${lastKnownMalus}`;
         } else {
           displayText = element.text ?? element.previewText;
         }

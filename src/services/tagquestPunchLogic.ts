@@ -57,10 +57,12 @@ export interface PunchAnimationData {
   prevScore: number;
   prevCombos: { combos6: number; combos4: number; combos2: number };
   prevQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
+  prevMalus: number;
   displayQuest: DisplayQuest | null;
   newScore: number;
   newCombos: { combos6: number; combos4: number; combos2: number };
   newQuestDetails: Array<{ questIndex: number; name: string; timesCompleted: number; totalPoints: number }>;
+  newMalus: number;
   gameOver?: boolean;
   endTimeToCommit?: number;
   teamId?: number;
@@ -419,7 +421,7 @@ export async function processTagQuestPunch(
     // quest_number stores the 1-based item_index (= array index + 1)
     const { data: completedQuests } = await supabase
       .from('team_completed_quests')
-      .select('quest_number')
+      .select('quest_number, points_awarded')
       .eq('team_id', team.id);
 
     const completedQuestNumbers = new Set((completedQuests || []).map(r => Number(r.quest_number)));
@@ -577,6 +579,14 @@ export async function processTagQuestPunch(
       afterCombos.combos4 * pts4 +
       afterCombos.combos2 * pts2;
 
+    const prevTotalQuestPoints = (completedQuests || []).reduce((sum, r) => sum + (r.points_awarded ?? 0), 0);
+    const prevTotalComboBonus =
+      beforeCombos.combos6 * pts6 +
+      beforeCombos.combos4 * pts4 +
+      beforeCombos.combos2 * pts2;
+    const prevScore = team.score ?? 0;
+    const prevMalus = Math.max(0, prevTotalQuestPoints + prevTotalComboBonus - prevScore);
+
     const comboBonus =
       (afterCombos.combos6 - beforeCombos.combos6) * pts6 +
       (afterCombos.combos4 - beforeCombos.combos4) * pts4 +
@@ -588,7 +598,6 @@ export async function processTagQuestPunch(
     }, 0) + comboBonus;
 
     const newScore = Math.max(0, totalQuestPoints + totalComboBonus - malusApplied);
-    const prevScore = team.score ?? 0;
     const scoreDelta = newScore - prevScore;
 
     // Step 12: Level up check
@@ -646,12 +655,8 @@ export async function processTagQuestPunch(
       });
     };
 
-    const prevCompletedRows = (completedQuests || []).map(r => ({
-      quest_number: String(r.quest_number),
-      points_awarded: 0,
-    }));
     const prevQuestDetails = buildQuestDetails(
-      (completedQuests || []).map(r => ({ quest_number: String(r.quest_number), points_awarded: 0 }))
+      (completedQuests || []).map(r => ({ quest_number: String(r.quest_number), points_awarded: r.points_awarded ?? 0 }))
     );
 
     const newQuestDetails = buildQuestDetails(
@@ -711,10 +716,12 @@ export async function processTagQuestPunch(
       prevScore: prevScore,
       prevCombos: beforeCombos,
       prevQuestDetails,
+      prevMalus,
       displayQuest,
       newScore,
       newCombos: afterCombos,
       newQuestDetails,
+      newMalus: malusApplied,
       gameOver: gameEnded,
       endTimeToCommit,
       teamId: team.id,
@@ -727,7 +734,7 @@ export async function processTagQuestPunch(
       completed_quest: newCompletedQuest,
       points_earned: pointsEarned,
       combo_bonus: comboBonus,
-      malus_applied: malusApplied,
+      malus_applied: Math.max(0, malusApplied - prevMalus),
       new_total_score: newScore,
       level_up: levelUpResult,
       best_partial_quest: bestPartial,

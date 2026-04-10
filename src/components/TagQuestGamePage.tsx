@@ -23,6 +23,7 @@ interface TagQuestGamePageProps {
   launchedGameId: number | null;
   onBack: () => void;
   onGameEnd?: () => void;
+  postAnimExitDelayMs?: number;
 }
 
 interface GameQuest {
@@ -91,7 +92,7 @@ interface GameLayout {
   height?: number;
 }
 
-export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd }: TagQuestGamePageProps) {
+export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, onGameEnd, postAnimExitDelayMs = 0 }: TagQuestGamePageProps) {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [layout, setLayout] = useState<GameLayout | null>(null);
   const [layoutLoading, setLayoutLoading] = useState(true);
@@ -226,6 +227,9 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
   useEffect(() => {
     if (animPhase === 'exit') {
       animSet(async () => {
+        if (postAnimExitDelayMs > 0) {
+          await new Promise(r => setTimeout(r, postAnimExitDelayMs));
+        }
         clearAnimInterval();
         const wasGameOver = punchAnimation?.gameOver ?? false;
         const teamName = punchAnimation?.teamName ?? '';

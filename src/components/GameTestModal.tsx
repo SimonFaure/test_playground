@@ -7,6 +7,8 @@ interface GameTestModalProps {
   gameId: number;
   gameName: string;
   onClose: () => void;
+  postAnimExitDelayMs?: number;
+  onPostAnimExitDelayChange?: (ms: number) => void;
 }
 
 interface TestConfig {
@@ -52,7 +54,7 @@ interface Quest {
   images: QuestImage[];
 }
 
-export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps) {
+export function GameTestModal({ gameId, gameName, onClose, postAnimExitDelayMs = 0, onPostAnimExitDelayChange }: GameTestModalProps) {
   const [gameType, setGameType] = useState<string | null>(null);
   const [loadingType, setLoadingType] = useState(true);
 
@@ -760,6 +762,17 @@ export function GameTestModal({ gameId, gameName, onClose }: GameTestModalProps)
                     {endChip && <CheckCircle size={10} className="text-slate-900" />}
                   </button>
                   <span className="text-sm text-slate-300">End chip</span>
+                </label>
+
+                <label className="mt-2 flex items-center gap-2.5 cursor-pointer select-none">
+                  <button
+                    type="button"
+                    onClick={() => onPostAnimExitDelayChange?.(postAnimExitDelayMs > 0 ? 0 : 10000)}
+                    className={`flex items-center justify-center w-4 h-4 rounded border transition ${postAnimExitDelayMs > 0 ? 'bg-amber-500 border-amber-500' : 'bg-transparent border-slate-500'}`}
+                  >
+                    {postAnimExitDelayMs > 0 && <CheckCircle size={10} className="text-slate-900" />}
+                  </button>
+                  <span className="text-sm text-slate-300">Keep animation visible for 10s after completion</span>
                 </label>
               </div>
             ) : (

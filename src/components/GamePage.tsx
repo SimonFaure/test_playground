@@ -49,6 +49,7 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
+  const [postAnimExitDelayMs, setPostAnimExitDelayMs] = useState(0);
   const [showRankings, setShowRankings] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [rankings, setRankings] = useState<Team[]>([]);
@@ -228,7 +229,7 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
       return <MysteryGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} onGameEnd={handleGameEnd} />;
     }
     if (gameMetadata?.type === 'tagquest') {
-      return <TagQuestGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} onGameEnd={handleGameEnd} />;
+      return <TagQuestGamePage config={config} gameUniqid={gameUniqid} launchedGameId={launchedGameId} onBack={onBack} onGameEnd={handleGameEnd} postAnimExitDelayMs={postAnimExitDelayMs} />;
     }
     return (
       <div className="flex items-center justify-center h-full">
@@ -336,6 +337,8 @@ export function GamePage({ config, gameUniqid, launchedGameId, onBack }: GamePag
           gameId={launchedGameId}
           gameName={config.name}
           onClose={() => setShowTestModal(false)}
+          postAnimExitDelayMs={postAnimExitDelayMs}
+          onPostAnimExitDelayChange={setPostAnimExitDelayMs}
         />
       )}
 

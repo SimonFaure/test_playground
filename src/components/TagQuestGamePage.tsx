@@ -791,7 +791,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
     }
 
     const isAnimating = animPhase !== 'idle';
-    const activeQuestIndex = punchAnimation?.displayQuest?.index ?? -1;
+    const activeQuestIndex = punchAnimation?.displayQuest?.index != null ? punchAnimation.displayQuest.index - 1 : -1;
 
     if (element.id === 'animation_quest_image') {
       const quests = gameData?.quests || [];
@@ -807,6 +807,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
         const mainSrc = resolveMedia(quest.main_image);
         const isActiveQuest = isAnimating && activeQuestIndex === questIndex;
         const slots = punchAnimation?.displayQuest?.slots ?? [];
+        const showPreviewImage = isActiveQuest && (animPhase === 'enter' || animPhase === 'images');
         const showMain = isActiveQuest && (animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
         const showSubImages = isActiveQuest && (animPhase === 'images' || animPhase === 'main' || animPhase === 'update' || animPhase === 'exit');
 
@@ -820,6 +821,25 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
               id={`quest-${questNum}-wrapper`}
               style={{ position: 'relative', flex: 1, minHeight: 0 }}
             >
+              {showPreviewImage && mainSrc && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '2px solid rgba(255,255,255,0.15)',
+                    opacity: 1,
+                    transition: 'opacity 0.4s ease',
+                    zIndex: 0,
+                  }}
+                >
+                  <img src={mainSrc} alt={quest.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </div>
+              )}
               {showMain && (
                 <div
                   style={{
@@ -834,6 +854,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
                     boxShadow: '0 0 32px rgba(74,222,128,0.3)',
                     opacity: showMain ? 1 : 0,
                     transition: 'opacity 0.5s ease',
+                    zIndex: 2,
                   }}
                 >
                   <img src={mainSrc} alt={quest.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -845,7 +866,7 @@ export function TagQuestGamePage({ config, gameUniqid, launchedGameId, onBack, o
                 </div>
               )}
               {showSubImages && !showMain && slots.length > 0 && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: slots.length <= 2 ? `repeat(${slots.length}, 1fr)` : 'repeat(2, 1fr)', gap: '4px' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'grid', gridTemplateColumns: slots.length <= 2 ? `repeat(${slots.length}, 1fr)` : 'repeat(2, 1fr)', gap: '4px', zIndex: 1 }}>
                   {slots.map((slot, si) => {
                     const revealed = si < animRevealedSlots;
                     return (
